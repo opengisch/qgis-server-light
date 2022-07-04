@@ -1,0 +1,32 @@
+qgis_server_light:
+  title: Open Test WMS
+  name: open_test_wms
+  abstract: This is a short description of the WMS
+  contact:
+    person:
+      name: John Doe
+      organization: Doe Inc.
+    address:
+      street: 712 Red Bark Lane
+      city: Henderson
+      state_or_province: Nevada
+      post_code: 89011
+      country: United States
+    voice_telephone: 555 123
+    email_address: john@doe.com
+  fees: 1$ per request
+  constrains: Nobody is allowed to use this
+  layers:
+    - name: test
+      title: Test Layer
+      srs: epsg:2056
+      bbox:
+        - 2606668.382
+        - 1261549.862
+        - 2610876.758
+        - 1264501.919
+      abstract: This is a short description of the layer
+      source: test.shp
+
+
+

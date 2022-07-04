@@ -1,0 +1,5 @@
+pyramid==1.10.4
+pyramid_mako==1.1.0
+pyramid_tm==2.2.1
+waitress==1.4.3
+requests==2.23.0

@@ -1,0 +1,18 @@
+<%page args="key,layers"/>
+<Layer>
+    <Name>${key}</Name>
+    <Title>${layers[key]['name']}</Title>
+    <CRS>EPSG:2056</CRS>
+    <EX_GeographicBoundingBox>
+        <westBoundLongitude>0.659965</westBoundLongitude>
+        <eastBoundLongitude>10.8344</eastBoundLongitude>
+        <southBoundLatitude>45.4183</southBoundLatitude>
+        <northBoundLatitude>48.7495</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    <BoundingBox CRS="EPSG:2056" minx="2.1e+06" miny="1.05e+06" maxx="2.85e+06" maxy="1.4e+06"/>
+    % if layers[key]['type'] == 'group':
+        %for child in layers[key]['childs']:
+        <%include file="layer.xml" args="key=child,layers=layers"/>
+        %endfor
+    % endif
+</Layer>

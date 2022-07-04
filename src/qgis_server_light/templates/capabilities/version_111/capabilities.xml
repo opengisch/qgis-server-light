@@ -1,0 +1,113 @@
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd">
+<WMT_MS_Capabilities version="1.1.1" updateSequence="0" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <Service>
+        <Name>OGC:WMS</Name>
+        <Title>${metadata['title']}</Title>
+        % if abstract:
+            <Abstract>${metadata['abstract']}</Abstract>
+        % endif
+        <OnlineResource xlink:href="${request.route_url('ogc', theme=theme_name)}"
+                        xmlns:xlink="http://www.w3.org/1999/xlink"></OnlineResource>
+        % if metadata.get('contact'):
+            <ContactInformation>
+                % if metadata['contact'].get('person'):
+                    <ContactPersonPrimary>
+                        % if metadata['contact']['person'].get('name'):
+                            <ContactPerson>${metadata['contact']['person']['name']}</ContactPerson>
+                        % endif
+                        % if metadata['contact']['person'].get('organization'):
+                            <ContactOrganization>${metadata['contact']['person']['organization']}</ContactOrganization>
+                        % endif
+                    </ContactPersonPrimary>
+                % endif
+                % if metadata['contact'].get('address'):
+                    <ContactAddress>
+                        % if metadata['contact']['address'].get('street'):
+                            <Address>${metadata['contact']['address']['street']}</Address>
+                        % endif
+                        % if metadata['contact']['address'].get('city'):
+                            <City>${metadata['contact']['address']['city']}</City>
+                        % endif
+                        % if metadata['contact']['address'].get('state_or_province'):
+                            <StateOrProvince>${metadata['contact']['address']['state_or_province']}</StateOrProvince>
+                        % endif
+                        % if metadata['contact']['address'].get('post_code'):
+                            <PostCode>${metadata['contact']['address']['post_code']}</PostCode>
+                        % endif
+                        % if metadata['contact']['address'].get('country'):
+                            <PostCode>${metadata['contact']['address']['country']}</PostCode>
+                        % endif
+                    </ContactAddress>
+                % endif
+                % if metadata['contact'].get('voice_telephone'):
+                    <ContactVoiceTelephone>${metadata['contact']['voice_telephone']}</ContactVoiceTelephone>
+                % endif
+                % if metadata['contact'].get('email_address'):
+                    <ContactElectronicMailAddress>${metadata['contact']['email_address']}</ContactElectronicMailAddress>
+                % endif
+            </ContactInformation>
+        % endif
+        % if metadata.get('fees'):
+            <Fees>${metadata['fees']}</Fees>
+        % else:
+            <Fees>none</Fees>
+        % endif
+        % if metadata.get('constraints'):
+            <AccessConstraints>${metadata['constraints']}</AccessConstraints>
+        % else:
+            <AccessConstraints>none</AccessConstraints>
+        % endif
+    </Service>
+    <Capability>
+        <Request>
+            <GetCapabilities>
+                <Format>application/vnd.ogc.wms_xml</Format>
+                <DCPType>
+                    <HTTP>
+                        <Get>
+                            <OnlineResource xlink:href="${request.route_url('ogc', theme=theme_name)}"
+                                            xmlns:xlink="http://www.w3.org/1999/xlink"/>
+                        </Get>
+                    </HTTP>
+                </DCPType>
+            </GetCapabilities>
+            <GetMap>
+                <Format>image/png</Format>
+                <Format>image/png8</Format>
+                <Format>image/jpeg</Format>
+                <DCPType>
+                    <HTTP>
+                        <Get>
+                            <OnlineResource xlink:href="${request.route_url('ogc', theme=theme_name)}"
+                                            xmlns:xlink="http://www.w3.org/1999/xlink"/>
+                        </Get>
+                    </HTTP>
+                </DCPType>
+            </GetMap>
+            <GetFeatureInfo>
+                <Format>text/plain</Format>
+                <DCPType>
+                    <HTTP>
+                        <Get>
+                            <OnlineResource xlink:href="${request.route_url('ogc', theme=theme_name)}"
+                                            xmlns:xlink="http://www.w3.org/1999/xlink"/>
+                        </Get>
+                    </HTTP>
+                </DCPType>
+            </GetFeatureInfo>
+        </Request>
+        <Exception>
+            <Format>application/vnd.ogc.se_xml</Format>
+            <Format>application/vnd.ogc.se_inimage</Format>
+            <Format>application/vnd.ogc.se_blank</Format>
+            <Format>text/html</Format>
+        </Exception>
+        <Layer>
+            <Name>${theme_name}</Name>
+            <Title>${metadata['title']}</Title>
+            % for key in layers:
+            <%include file="layer.xml" args="key=key,layers=layers"/>
+            % endfor
+        </Layer>
+    </Capability>
+</WMT_MS_Capabilities>
