@@ -1,0 +1,18 @@
+services:
+  qgis-server-light:
+    image: qgis-server-light:3.34.8-dev
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: dev
+    restart: unless-stopped
+    environment:
+      - "REDIS_URL=redis://redis"
+      - "LOG_LEVEL=debug"
+    volumes:
+      - ../data/project_store/:/io/themes:ro
+      - ./:/app
+  redis:
+    image: redis:7.4.0
+    ports:
+      - "1234:6379"

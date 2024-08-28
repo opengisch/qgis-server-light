@@ -1,0 +1,6 @@
+global-exclude *.py[cod]
+exclude tests/*
+include CHANGES.md
+include README.md
+include LICENSE.md
+include pytest.ini
