@@ -93,9 +93,9 @@ to all the necessary python libs is available at `opt/qgis-server-light/venv/bin
 
 If you decide to add new requirements to this project, please consider for which part of the project
 you need them. Remember, it's split into 3 parts:
-- exporter ([reqirements.exporter.txt](reqirements.exporter.txt))
-- interface ([reqirements.interface.txt](reqirements.interface.txt))
-- worker ([reqirements.worker.txt](reqirements.worker.txt))
+- exporter ([requirements.exporter.txt](requirements.exporter.txt))
+- interface ([requirements.interface.txt](requirements.interface.txt))
+- worker ([requirements.worker.txt](requirements.worker.txt))
 
 In general its save to add dependencies to **exporter** and **worker** since they are used only in this project.
 The **interface** should have as less dependencies as possible and should implement only the minimal
