@@ -242,3 +242,49 @@ class JobResult:
             "required": True
         }
     )
+
+
+@dataclass
+class AbstractJobRunnerInfo:
+    id: str = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )
+    type: str = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )
+
+
+@dataclass
+class JobRunnerInfoQslGetMapJob(AbstractJobRunnerInfo):
+    job: QslGetMapJob = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )
+
+
+@dataclass
+class JobRunnerInfoQslGetFeatureInfoJob(AbstractJobRunnerInfo):
+    job: QslGetFeatureInfoJob = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )
+
+
+@dataclass
+class JobRunnerInfoQslLegendJob(AbstractJobRunnerInfo):
+    job: QslLegendJob = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )

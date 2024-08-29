@@ -4,11 +4,12 @@ import json
 import logging
 import pickle
 from uuid import uuid4
-from dataclasses import asdict
 
 import async_timeout
 import redis.asyncio as redis
-from qgis_server_light.interface.job import JobResult, QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob
+from qgis_server_light.interface.job import JobResult, QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob, \
+    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 
 class RedisQueue:
@@ -28,14 +29,27 @@ class RedisQueue:
         job_id = str(uuid4())
         creation_time = datetime.datetime.now().isoformat()
         datetime.datetime.now()
-        job = {
-            "id": job_id,
-            "type": type(job).__name__,
-            "job": asdict(job),
-        }
+        if isinstance(job, QslGetMapJob):
+            job = JobRunnerInfoQslGetMapJob(
+                id=job_id,
+                type=JobRunnerInfoQslGetMapJob.__name__,
+                job=job
+            )
+        elif isinstance(job, QslGetFeatureInfoJob):
+            job = JobRunnerInfoQslGetFeatureInfoJob(
+                id=job_id,
+                type=JobRunnerInfoQslGetFeatureInfoJob.__name__,
+                job=job
+            )
+        elif isinstance(job, QslLegendJob):
+            job = JobRunnerInfoQslLegendJob(
+                id=job_id,
+                type=JobRunnerInfoQslLegendJob.__name__,
+                job=job
+            )
         async with r.pipeline() as p:
             logging.info(f"{job_id} pushed")
-            p.rpush("jobs", json.dumps(job))
+            p.rpush("jobs", json.dumps(JsonSerializer().render(job)))
             p.hset(job_id, "status", "queued")
             p.hset(job_id, "timestamp", creation_time)
             await p.execute()

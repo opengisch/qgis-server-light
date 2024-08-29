@@ -9,8 +9,9 @@ import signal
 import time
 from typing import List, Optional
 import redis
-from xsdata.formats.dataclass.parsers import DictDecoder
-from qgis_server_light.interface.job import QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob
+from xsdata.formats.dataclass.parsers import DictDecoder, JsonParser
+from qgis_server_light.interface.job import QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob, \
+    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob
 from qgis_server_light.worker.engine import Engine, EngineContext
 
 
@@ -24,6 +25,7 @@ class RedisEngine(Engine):
         self.shutdown = True
 
     def run(self, redis_url):
+        log = logging.getLogger(__name__)
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
@@ -45,18 +47,15 @@ class RedisEngine(Engine):
 
             try:
                 logging.debug(f"Waiting for jobs")
-                _, job_info = r.blpop("jobs")
-                job_info = json.loads(job_info)
-                if job_info["type"] == QslGetMapJob.__name__:
-                    # TODO: Check if we cant directly pass a dict
-                    job = DictDecoder().decode(job_info["job"], QslGetMapJob)
-                elif job_info["type"] == QslGetFeatureInfoJob.__name__:
-                    # TODO: Check if we cant directly pass a dict
-                    job = DictDecoder().decode(job_info["job"], QslGetFeatureInfoJob)
-                elif job_info["type"] == QslLegendJob.__name__:
-                    # TODO: Check if we cant directly pass a dict
-                    job = DictDecoder().decode(job_info["job"], QslLegendJob)
+                _, job_info_json = r.blpop("jobs")
+                if JobRunnerInfoQslGetMapJob.__name__.encode() in job_info_json:
+                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetMapJob)
+                elif JobRunnerInfoQslGetFeatureInfoJob.__name__.encode() in job_info_json:
+                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetFeatureInfoJob)
+                elif JobRunnerInfoQslLegendJob.__name__.encode() in job_info_json:
+                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslLegendJob)
                 else:
+                    job_info = json.loads(job_info_json)
                     raise NotImplementedError(
                         f'type {job_info["type"]} is not supported by qgis-server-light'
                     )
@@ -69,14 +68,14 @@ class RedisEngine(Engine):
                 time.sleep(retry_rate)
                 continue
             retry_count = 0
-            key = job_info["id"]
+            key = job_info.id
 
             p = r.pipeline()
             p.hset(key, "status", "running")
             p.hset(key, "timestamp", datetime.datetime.now().isoformat())
             try:
                 start_time = time.time()
-                result = self.process(job)
+                result = self.process(job_info.job)
                 p.hset(key, "content_type", result.content_type)
                 p.hset(key, "data", bytes(result.data))
                 p.hset(key, "status", "succeed")
