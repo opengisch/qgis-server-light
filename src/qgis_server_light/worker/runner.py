@@ -299,8 +299,8 @@ class GetFeatureInfoRunner(MapRunner):
 
 
 class GetLegendRunner(MapRunner):
-    def __init__(self, qgis, job: QslLegendJob) -> None:
-        super().__init__(qgis, job)
+    def __init__(self, qgis, context: RunnerContext, job: QslLegendJob) -> None:
+        super().__init__(qgis, context, job)
         self.job = job
 
     def run(self):

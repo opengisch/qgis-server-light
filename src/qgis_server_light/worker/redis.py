@@ -9,7 +9,7 @@ import signal
 import time
 from typing import List, Optional
 import redis
-from xsdata.formats.dataclass.parsers import JsonParser
+from xsdata.formats.dataclass.parsers import DictDecoder
 from qgis_server_light.interface.job import QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob
 from qgis_server_light.worker.engine import Engine, EngineContext
 
@@ -48,11 +48,14 @@ class RedisEngine(Engine):
                 _, job_info = r.blpop("jobs")
                 job_info = json.loads(job_info)
                 if job_info["type"] == QslGetMapJob.__name__:
-                    job = JsonParser.parse(job_info["job"], QslGetMapJob)
+                    # TODO: Check if we cant directly pass a dict
+                    job = DictDecoder().decode(job_info["job"], QslGetMapJob)
                 elif job_info["type"] == QslGetFeatureInfoJob.__name__:
-                    job = JsonParser.parse(job_info["job"], QslGetFeatureInfoJob)
+                    # TODO: Check if we cant directly pass a dict
+                    job = DictDecoder().decode(job_info["job"], QslGetFeatureInfoJob)
                 elif job_info["type"] == QslLegendJob.__name__:
-                    job = JsonParser.parse(job_info["job"], QslLegendJob)
+                    # TODO: Check if we cant directly pass a dict
+                    job = DictDecoder().decode(job_info["job"], QslLegendJob)
                 else:
                     raise NotImplementedError(
                         f'type {job_info["type"]} is not supported by qgis-server-light'

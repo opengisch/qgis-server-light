@@ -190,7 +190,14 @@ class QslGetMapJob(QslAbstractJob):
         }
     )
 
-    layers: List[Raster | Vector] = field(
+    raster_layers: List[Raster] = field(
+        metadata={
+            "type": "Element",
+            "required": True
+        }
+    )
+
+    vector_layers: List[Vector] = field(
         metadata={
             "type": "Element",
             "required": True
@@ -198,7 +205,7 @@ class QslGetMapJob(QslAbstractJob):
     )
 
     def get_layer_by_name(self, name: str) -> Raster | Vector:
-        for layer in self.layers:
+        for layer in self.raster_layers + self.vector_layers:
             if layer.name == name:
                 return layer
         raise AttributeError(f'No layer with name "{name} was found."')
