@@ -49,7 +49,7 @@ class RedisQueue:
             )
         async with r.pipeline() as p:
             logging.info(f"{job_id} pushed")
-            p.rpush("jobs", json.dumps(JsonSerializer().render(job)))
+            p.rpush("jobs", JsonSerializer().render(job))
             p.hset(job_id, "status", "queued")
             p.hset(job_id, "timestamp", creation_time)
             await p.execute()

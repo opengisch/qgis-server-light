@@ -48,16 +48,17 @@ class RedisEngine(Engine):
             try:
                 logging.debug(f"Waiting for jobs")
                 _, job_info_json = r.blpop("jobs")
-                if JobRunnerInfoQslGetMapJob.__name__.encode() in job_info_json:
+                job_info_dict = json.loads(job_info_json)
+                if JobRunnerInfoQslGetMapJob.__name__ == job_info_dict["type"]:
                     job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetMapJob)
-                elif JobRunnerInfoQslGetFeatureInfoJob.__name__.encode() in job_info_json:
+                elif JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]:
                     job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetFeatureInfoJob)
-                elif JobRunnerInfoQslLegendJob.__name__.encode() in job_info_json:
+                elif JobRunnerInfoQslLegendJob.__name__ == job_info_dict["type"]:
                     job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslLegendJob)
                 else:
-                    job_info = json.loads(job_info_json)
+
                     raise NotImplementedError(
-                        f'type {job_info["type"]} is not supported by qgis-server-light'
+                        f'type {job_info_dict["type"]} is not supported by qgis-server-light'
                     )
             except Exception as e:
                 # TODO handle known exceptions like redis.exceptions.ConnectionError separately
