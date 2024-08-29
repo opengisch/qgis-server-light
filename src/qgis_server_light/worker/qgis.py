@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import List, Optional
 
@@ -19,6 +20,9 @@ class CredentialsHelper(QgsCredentials):
 
 
 def Qgis(svg_paths: Optional[List[str]], log_level):
+    # TODO: Is this save for rendering? Currently the image ghcr.io/opengisch/qgis-slim:3.34.8
+    #   does not support
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
     qgs = QgsApplication([], False)
     qgs.initQgis()
     if svg_paths:

@@ -8,7 +8,6 @@ import pickle
 import signal
 import time
 from typing import List, Optional
-
 import redis
 from xsdata.formats.dataclass.parsers import JsonParser
 from qgis_server_light.interface.job import QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob
@@ -129,6 +128,9 @@ def main() -> None:
     logging.basicConfig(
         level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(message)s"
     )
+
+    log = logging.getLogger(__name__)
+    log.info(json.dumps(dict(os.environ), indent=2))
 
     if not args.redis_url:
         raise AssertionError("no redis host specified (--redis-url, REDIS_URL)")

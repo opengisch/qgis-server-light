@@ -1,4 +1,4 @@
-FROM ghcr.io/opengisch/qgis-slim:3.34.8 AS dev
+FROM ghcr.io/opengisch/qgis-slim:3.34.10 AS dev
 
 LABEL org.opengisch.author="Clemens Rudert <clemens.rudert@bl.ch>"
 LABEL org.opengisch.image.title="QGIS-Server-Light"
@@ -14,6 +14,7 @@ RUN apt-get update -y && \
 WORKDIR /opt/qgis-server-light/
 ADD requirements.worker.txt .
 ADD requirements.interface.txt .
+ADD requirements.exporter.txt .
 ADD Makefile .
 
 ENV VENV_PATH=/opt/qgis-server-light/venv
@@ -21,9 +22,9 @@ RUN VENV_PATH=${VENV_PATH} make install
 
 WORKDIR /app
 
-COPY . .
+COPY ./ .
 
-RUN /opt/qgis-server-light/venv/bin/pip3 install -e . --no-cache-dir
+RUN VENV_PATH=${VENV_PATH} make dev
 
 ENTRYPOINT ["/tini", "--", "/opt/qgis-server-light/venv/bin/python3", "-m"]
 

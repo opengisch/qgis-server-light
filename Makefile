@@ -5,7 +5,7 @@ PIP_REQUIREMENTS = $(VENV_PATH)/.requirements-timestamp
 VENV_BIN = $(VENV_PATH)/bin
 PIP_COMMAND = pip3
 PYTHON_PATH = $(shell which python3)
-PYTHON_VERSION ?= $(shell printf '%b' "import sys\nprint(f'{sys.version_info.major}.{sys.version_info.minor}')" | $$(which python3))
+PYTHON_VERSION = $(shell printf '%b' "import sys\nprint(f'{sys.version_info.major}.{sys.version_info.minor}')" | $$(which python3))
 QGIS_VENV_PATH = $(VENV_PATH)/lib/python$(PYTHON_VERSION)/site-packages/qgis_paths.pth
 
 
