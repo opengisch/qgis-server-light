@@ -391,6 +391,58 @@ class Crs:
 
 
 @dataclass
+class DataSource:
+    postgres: PostgresSource = field(
+        default=None,
+        metadata={
+            "name": "Postgres",
+            "type": "Element",
+            "required": False
+        }
+    )
+    wmts: WmtsSource = field(
+        default=None,
+        metadata={
+            "name": "Wmts",
+            "type": "Element",
+            "required": False
+        }
+    )
+    wms: WmsSource = field(
+        default=None,
+        metadata={
+            "name": "Wms",
+            "type": "Element",
+            "required": False
+        }
+    )
+    ogr: OgrSource = field(
+        default=None,
+        metadata={
+            "name": "Ogr",
+            "type": "Element",
+            "required": False
+        }
+    )
+    gdal: GdalSource = field(
+        default=None,
+        metadata={
+            "name": "Gdal",
+            "type": "Element",
+            "required": False
+        }
+    )
+    wfs: WfsSource = field(
+        default=None,
+        metadata={
+            "name": "Wfs",
+            "type": "Element",
+            "required": False
+        }
+    )
+
+
+@dataclass
 class DataSet(AbstractDataset):
     id: str = field(
         metadata={
@@ -420,7 +472,7 @@ class DataSet(AbstractDataset):
             "required": True
         }
     )
-    source: PostgresSource | WmtsSource | WmsSource | OgrSource | GdalSource | WfsSource = field(
+    source: DataSource = field(
         metadata={
             "name": "Source",
             "type": "Element",
@@ -449,7 +501,6 @@ class DataSet(AbstractDataset):
             "required": True
         }
     )
-
 
 
 @dataclass

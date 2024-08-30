@@ -9,7 +9,7 @@ from PyQt5.QtXml import QDomDocument
 
 from qgis_server_light.interface.qgis import (
     Raster, Vector, TreeGroup, TreeLayer, Config, BBox, Tree, MetaData, Service, Project, Field, Datasets,
-    Group, OgrSource, GdalSource, PostgresSource, WmsSource, WmtsSource, Crs, WfsSource)
+    Group, OgrSource, GdalSource, PostgresSource, WmsSource, WmtsSource, Crs, WfsSource, DataSource)
 
 from qgis_server_light.exporter.funcs import (
     extent_in_wgs84,
@@ -90,24 +90,28 @@ def extract_save_layer(
     ])
     if layer_type == 'vector':
         if child.providerType().lower() == 'ogr':
-            source = OgrSource(
-                path=decoded['path'],
-                layer_name=decoded['layerName'],
-                layer_id=decoded['layerId']
+            source = DataSource(
+                ogr=OgrSource(
+                    path=decoded['path'],
+                    layer_name=decoded['layerName'],
+                    layer_id=decoded['layerId']
+                )
             )
         elif child.providerType().lower() == 'postgres':
-            source = PostgresSource(
-                dbname=decoded['dbname'],
-                geometry_column=decoded['geometrycolumn'],
-                host=decoded['host'],
-                key=decoded['key'],
-                password=decoded['password'],
-                port=decoded['port'],
-                schema=decoded['schema'],
-                srid=decoded['srid'],
-                table=decoded['table'],
-                type=decoded['type'],
-                username=decoded['username']
+            source = DataSource(
+                postgres=PostgresSource(
+                    dbname=decoded['dbname'],
+                    geometry_column=decoded['geometrycolumn'],
+                    host=decoded['host'],
+                    key=decoded['key'],
+                    password=decoded['password'],
+                    port=decoded['port'],
+                    schema=decoded['schema'],
+                    srid=decoded['srid'],
+                    table=decoded['table'],
+                    type=decoded['type'],
+                    username=decoded['username']
+                )
             )
         elif child.providerType().lower() == 'wfs':
             # TODO: Correctly implement source!
@@ -132,34 +136,40 @@ def extract_save_layer(
         )
     elif layer_type == 'raster':
         if child.providerType() == 'gdal':
-            source = GdalSource(
-                path=decoded['path'],
-                layer_name=decoded['layerName']
+            source = DataSource(
+                gdal=GdalSource(
+                    path=decoded['path'],
+                    layer_name=decoded['layerName']
+                )
             )
         elif child.providerType() == 'wms':
             if 'tileMatrixSet' in decoded:
-                source = WmtsSource(
-                    contextual_wms_legend=decoded['contextualWMSLegend'],
-                    crs=decoded['crs'],
-                    dpi_mode=decoded['dpiMode'],
-                    feature_count=decoded['featureCount'],
-                    format=decoded['format'],
-                    layers=decoded['layers'],
-                    styles=decoded['styles'],
-                    tile_dimensions=decoded['tileDimensions'],
-                    tile_matrix_set=decoded['tileMatrixSet'],
-                    tile_pixel_ratio=decoded['tilePixelRatio'],
-                    url=decoded['url']
+                source = DataSource(
+                    wmts=WmtsSource(
+                        contextual_wms_legend=decoded['contextualWMSLegend'],
+                        crs=decoded['crs'],
+                        dpi_mode=decoded['dpiMode'],
+                        feature_count=decoded['featureCount'],
+                        format=decoded['format'],
+                        layers=decoded['layers'],
+                        styles=decoded['styles'],
+                        tile_dimensions=decoded['tileDimensions'],
+                        tile_matrix_set=decoded['tileMatrixSet'],
+                        tile_pixel_ratio=decoded['tilePixelRatio'],
+                        url=decoded['url']
+                    )
                 )
             else:
-                source = WmsSource(
-                    contextual_wms_legend=decoded['contextualWMSLegend'],
-                    crs=decoded['crs'],
-                    dpi_mode=decoded['dpiMode'],
-                    feature_count=decoded['featureCount'],
-                    format=decoded['format'],
-                    layers=decoded['layers'],
-                    url=decoded['url']
+                source = DataSource(
+                    wms=WmsSource(
+                        contextual_wms_legend=decoded['contextualWMSLegend'],
+                        crs=decoded['crs'],
+                        dpi_mode=decoded['dpiMode'],
+                        feature_count=decoded['featureCount'],
+                        format=decoded['format'],
+                        layers=decoded['layers'],
+                        url=decoded['url']
+                    )
                 )
         else:
             raise NotImplementedError

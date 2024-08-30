@@ -50,11 +50,11 @@ class RedisEngine(Engine):
                 _, job_info_json = r.blpop("jobs")
                 job_info_dict = json.loads(job_info_json)
                 if JobRunnerInfoQslGetMapJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetMapJob)
+                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslGetMapJob)
                 elif JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslGetFeatureInfoJob)
+                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslGetFeatureInfoJob)
                 elif JobRunnerInfoQslLegendJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().parse(job_info_json, JobRunnerInfoQslLegendJob)
+                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslLegendJob)
                 else:
 
                     raise NotImplementedError(

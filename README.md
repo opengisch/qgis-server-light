@@ -5,6 +5,27 @@ to render a set of layers into an image. It is backed by Redis
 as a queue system.
 All configuration happens at runtime through a lean interface.
 
+## General idea
+
+Driving many instances of QGIS-Server for rendering WMS maps gave us many insights of the actual needs.
+Especially when it comes to deployment strategies fitting environments other than a metal server
+driving your QGIS-Server, there are a bit of pitfalls here and there which are difficult to handle.
+
+In bigger environments we deal with zero downtime requirements for PROD instances. Varying datasource
+definitions dependent on the layer (not only database). Massive amount of QGIS project files
+which need to be tracked for validity and content over time. We often need rollback mechanisms of deployments.
+In short: Small to big environments utilizing QGIS-Server ending up often in the classic pattern of
+administer => integrate => publish.
+
+We can state, that we are perfectly able to implement this with QGIS-Server. However, it lacks several simple
+patterns of automatisation and scalability.
+
+QGIS-Server-Light tries to overcome this issues with the following main concepts:
+
+- separate QGIS project from QGIS-Server runtime
+- isolate rendering into a minuscule python process
+- provide ephemeral runtime
+
 ## Structure
 
 QGIS-Server-Light is made of three subparts.
@@ -24,7 +45,7 @@ requests, and they will be picked and processed by QGIS-Server-Light.
 So to further proceed you need a running instance of Redis. If you want to feed QGIS-Server-Light
 with actual rendering jobs you will need an application which puts jobs in the redis queue.
 
-### Spin up a redis instance
+## Spin up a redis instance
 
 ```shell
 docker run --rm -d -p 1234:6379 --name georama-redis redis
@@ -119,3 +140,75 @@ GitHub link.
 ```requirements
 git+ssh://git@github.com/opengisch/qgis-server-light.git@master#egg=qgis_server_light
 ```
+
+## Generate QGIS Project config
+
+By separating QGIS project information from the servers runtime we save a lot of headaches and be sure to
+have the server know only what it should know. With that we minimize the amount of potential bugs drastically.
+There is another idea embedded here. Thinking of a big amount of QGIS projects with a ton of layer in each
+served by 4 instances of QGIS-Server (in a classical setup) for load balancing reasons as WMS. This means each
+server has to solve several tasks (Capabilities, Rendering, LayerTree knowledge etc.). Not only that rendering
+a WMS request does not need any knowledge of a tree structure but a one dimensional ordered stacking list
+of layers. Serving the capabilities with lets say a permission system is not being implemented easily.
+
+However, this comes with a downside:
+
+* We need to extract this information from a QGIS-Project to feed the server with it at runtime to empower it
+  for rendering our requested layers.
+
+QGIS-Server-Light gives you a typed way
+([python lib](src/qgis_server_light/interface)) to store extracted information of a QGIS project. This is
+what you can use programmatically in your 3rd party application. In addition, it offers a
+[CLI](src/qgis_server_light/exporter/cli.py) to just do a command line call to extract the information.
+
+### Using the CLI
+
+You can extract information of a QGIS-Project like this:
+
+```shell
+.venv/bin/python3 -m qgis_server_light.exporter.cli --project <path-to-your-project>
+```
+
+This uses the default output format `json` and does not `unify layer names` in the project.
+
+| :exclamation:  This command writes to stdout! |
+|-----------------------------------------------|
+
+#### Supported QGIS project extensions
+
+- `qgs`
+- `qgz`
+
+#### Supported output formats
+
+- `json` (default)
+- `xml`
+
+#### Unify layer names
+
+- `False` (default)
+- `True`
+
+There is an option `unify_layer_names_by_group`. It allows you to reflect the structure of your tree in the
+layer names.
+
+Let's say you have a tree structure like that:
+```
+environment
+├── ground_coverage
+│   ├── forest
+│   ├── field
+│   └── lake
+└── forest
+```
+
+And presume it is the layer names we see. So the short name which is the name used for exposition to WMS.
+This would end up in forest being not addressable in a WMS request easily unless we would use the layer id
+of QGIS project layer. But this is not so nicely read in the capabilities in the end.
+
+So enabling this option, will produce the following names for the layers:
+
+- `environment.forest`
+- `environment.ground_coverage.forest`
+- `environment.ground_coverage.field`
+- `environment.ground_coverage.lake`

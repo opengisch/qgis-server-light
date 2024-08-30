@@ -64,12 +64,12 @@ class MapRunner:
         settings = QgsMapSettings()
         settings.setOutputSize(
             QSize(
-                self.job.service_params.WIDTH,
-                self.job.service_params.HEIGHT
+                int(self.job.service_params.HEIGHT),
+                int(self.job.service_params.WIDTH)
             )
         )
         settings.setOutputDpi(self.job.service_params.dpi)
-        minx, miny, maxx, maxy = self.job.service_params.bbox
+        minx, miny, maxx,  maxy = self.job.service_params.bbox
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
         settings.setExtent(bbox)
         settings.setLayers(layers)
@@ -101,14 +101,14 @@ class MapRunner:
 
     def _prepare_vector_layer(self, layer: Vector) -> QgsVectorLayer:
         """Initializes a vector layer"""
-        if layer.driver.lower() in ["ogr"]:
+        if layer.source.ogr is not None:
             if layer.source.remote:
                 layer_source_path = layer.path
             else:
                 layer_source_path = os.path.join(
                     self.context.base_path, layer.path
                 )
-        elif layer.driver.lower() in ["postgres", "wfs"]:
+        elif (layer.source.postgres or layer.source.wfs) is not None:
             layer_source_path = layer.path
         else:
             raise KeyError(f"Driver not implemented: {layer.driver}")
@@ -141,21 +141,21 @@ class MapRunner:
                     QDomDocument(
                         urlsafe_b64decode(
                             layer.style
-                        )
+                        ).decode()
                     )
                 )
         return qgs_layer
 
     def _prepare_raster_layer(self, layer: Raster) -> QgsRasterLayer:
         """Initializes a raster layer"""
-        if layer.driver.lower() in ["gdal"]:
+        if layer.source.gdal is not None:
             if layer.source.remote:
                 layer_source_path = layer.path
             else:
                 layer_source_path = os.path.join(
                     self.context.base_path, layer.path
                 )
-        elif layer.driver.lower() in ["wms"]:
+        elif layer.source.wms is not None:
             layer_source_path = layer.path
         else:
             raise KeyError(f"Driver not implemented: {layer.driver}")

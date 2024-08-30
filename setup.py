@@ -58,8 +58,5 @@ setup(
         'testing': tests_require,
     },
     entry_points={
-        'paste.app_factory': [
-            'main = qgis_server_light:main'
-        ]
     }
 )
