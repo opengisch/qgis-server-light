@@ -166,7 +166,7 @@ what you can use programmatically in your 3rd party application. In addition, it
 You can extract information of a QGIS-Project like this:
 
 ```shell
-.venv/bin/python3 -m qgis_server_light.exporter.cli --project <path-to-your-project>
+.venv/bin/python3 -m qgis_server_light.exporter.cli --project [path-to-your-project]
 ```
 
 This uses the default output format `json` and does not `unify layer names` in the project.
@@ -177,7 +177,7 @@ This uses the default output format `json` and does not `unify layer names` in t
 If you want to save the output to a file, you can do by:
 
 ```shell
-.venv/bin/python3 -m qgis_server_light.exporter.cli --project <path-to-your-project> > <path-to-your-project>.json
+.venv/bin/python3 -m qgis_server_light.exporter.cli --project [path-to-your-project] > project_config.json
 ```
 
 #### Supported QGIS project extensions
