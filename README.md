@@ -174,6 +174,12 @@ This uses the default output format `json` and does not `unify layer names` in t
 | :exclamation:  This command writes to stdout! |
 |-----------------------------------------------|
 
+If you want to save the output to a file, you can do by:
+
+```shell
+.venv/bin/python3 -m qgis_server_light.exporter.cli --project <path-to-your-project> > <path-to-your-project>.json
+```
+
 #### Supported QGIS project extensions
 
 - `qgs`
