@@ -187,10 +187,14 @@ If you want to save the output to a file, you can do by:
 
 #### Supported output formats
 
+`--output_format`
+
 - `json` (default)
 - `xml`
 
 #### Unify layer names
+
+`--unify_layer_names_by_group`
 
 - `False` (default)
 - `True`
@@ -218,3 +222,7 @@ So enabling this option, will produce the following names for the layers:
 - `environment.ground_coverage.forest`
 - `environment.ground_coverage.field`
 - `environment.ground_coverage.lake`
+
+## Job interface
+
+Todo...

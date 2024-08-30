@@ -70,15 +70,16 @@ def extract_save_layer(
         auth_id=child.dataProvider().crs().authid(),
         ogc_uri=child.dataProvider().crs().toOgcUri()
     )
-    extent_wgs_84 = extent_in_wgs84(project, child)
-    bbox_wgs84 = BBox.from_list([
-        extent_wgs_84[0],
-        extent_wgs_84[1],
-        0.0,
-        extent_wgs_84[2],
-        extent_wgs_84[3],
-        0.0
-    ])
+
+    extent_wgs_84 = child.wgs84Extent(forceRecalculate=True)
+    bbox_wgs84 = BBox(
+        x_min=extent_wgs_84.xMinimum(),
+        x_max=extent_wgs_84.xMaximum(),
+        y_min=extent_wgs_84.yMaximum(),
+        y_max=extent_wgs_84.yMaximum()
+    )
+    if layer_type == 'vector':
+        child.updateExtents()
     extent = child.extent()
     bbox = BBox.from_list([
         extent.xMinimum(),

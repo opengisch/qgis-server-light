@@ -64,8 +64,8 @@ class MapRunner:
         settings = QgsMapSettings()
         settings.setOutputSize(
             QSize(
-                int(self.job.service_params.HEIGHT),
-                int(self.job.service_params.WIDTH)
+                int(self.job.service_params.WIDTH),
+                int(self.job.service_params.HEIGHT)
             )
         )
         settings.setOutputDpi(self.job.service_params.dpi)
@@ -102,7 +102,7 @@ class MapRunner:
     def _prepare_vector_layer(self, layer: Vector) -> QgsVectorLayer:
         """Initializes a vector layer"""
         if layer.source.ogr is not None:
-            if layer.source.remote:
+            if layer.source.ogr.remote:
                 layer_source_path = layer.path
             else:
                 layer_source_path = os.path.join(
@@ -137,19 +137,20 @@ class MapRunner:
                 if self.layer_cache is not None:
                     self.layer_cache[layer.name] = qgs_layer
             if layer.style:
-                qgs_layer.importNamedStyle(
-                    QDomDocument(
-                        urlsafe_b64decode(
-                            layer.style
-                        ).decode()
+                style_doc = QDomDocument()
+                style_doc.setContent(
+                    urlsafe_b64decode(
+                        layer.style
                     )
                 )
+                style_loaded = qgs_layer.importNamedStyle(style_doc)
+                logging.info(f"Style loaded: {style_loaded}")
         return qgs_layer
 
     def _prepare_raster_layer(self, layer: Raster) -> QgsRasterLayer:
         """Initializes a raster layer"""
         if layer.source.gdal is not None:
-            if layer.source.remote:
+            if layer.source.gdal.remote:
                 layer_source_path = layer.path
             else:
                 layer_source_path = os.path.join(
@@ -170,16 +171,16 @@ class MapRunner:
             else:
                 logging.info(f" ✓ Layer: {layer.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[layer.name] = layer
+                    self.layer_cache[layer.name] = qgs_layer
             if layer.style:
-                if layer.style:
-                    qgs_layer.importNamedStyle(
-                        QDomDocument(
-                            urlsafe_b64decode(
-                                layer.style
-                            )
-                        )
+                style_doc = QDomDocument()
+                style_doc.setContent(
+                    urlsafe_b64decode(
+                        layer.style
                     )
+                )
+                style_loaded = qgs_layer.importNamedStyle(style_doc)
+                logging.info(f"Style loaded: {style_loaded}")
         return qgs_layer
 
     def run(self):

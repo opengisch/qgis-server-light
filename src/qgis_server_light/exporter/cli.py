@@ -3,6 +3,7 @@ import click
 from qgis_server_light.exporter.extract import extract
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from qgis.core import QgsApplication
+from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath('/usr', True)
@@ -25,7 +26,10 @@ def cli():
     "export",
     help=f"Export a QGIS project ({f'|'.join(allowed_extensions)}) (1st argument) file to json format",
 )
-def export(project: str, unify_layer_names_by_group: bool = False, output_format: str = "json") -> None:
+def export(project: str, unify_layer_names_by_group: bool = False, output_format: str | None = None) -> None:
+    serializer_config = SerializerConfig(indent="  ")
+    if output_format is None:
+        output_format = "json"
     if not project.lower().endswith(allowed_extensions):
         raise NotImplementedError(
             f'Allowed qgis project file extensions are: {"|".join(allowed_extensions)} not => {project}'
@@ -37,9 +41,9 @@ def export(project: str, unify_layer_names_by_group: bool = False, output_format
     if os.path.isfile(project):
         config = extract(path_to_project=project, unify_layer_names_by_group=bool(unify_layer_names_by_group))
         if output_format == "json":
-            click.echo(JsonSerializer().render(config))
+            click.echo(JsonSerializer(config=serializer_config).render(config))
         elif output_format == "xml":
-            click.echo(XmlSerializer().render(config))
+            click.echo(XmlSerializer(config=serializer_config).render(config))
 
     else:
         raise AttributeError

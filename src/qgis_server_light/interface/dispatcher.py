@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import json
 import logging
 import pickle
 from uuid import uuid4
