@@ -1,17 +1,8 @@
-name: doc
+name: Build docs
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'docs/**'
-      - '.github/workflows/doc.yml'
   push:
     branches:
       - master
-    paths:
-      - 'docs/**'
-      - '.github/workflows/doc.yml'
 
 jobs:
   deploy:
