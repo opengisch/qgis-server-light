@@ -1,24 +1,42 @@
-# To install the git pre-commit hook run:
-#   pre-commit install
-# To update the pre-commit hooks run:
-#   pre-commit install-hooks
-exclude: '^(\.tox|ci/templates|\.bumpversion\.cfg|tests/test-data)(/|$)'
 repos:
+  # Fix end of files
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v3.2.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: debug-statements
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.10.1
+      - id: mixed-line-ending
+        args:
+          - '--fix=lf'
+
+  # Remove unused imports/variables
+  - repo: https://github.com/myint/autoflake
+    rev: v1.4
+    hooks:
+      - id: autoflake
+        args:
+          - "--in-place"
+          - "--remove-all-unused-imports"
+          - "--remove-unused-variable"
+          - "--ignore-init-module-imports"
+
+  # Sort imports
+  - repo: https://github.com/pycqa/isort
+    rev: "5.11.5"
     hooks:
       - id: isort
-  - repo: https://github.com/grantjenks/blue
-    rev: v0.8.0
+        args:
+          - --profile
+          - black
+
+  # Black formatting
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
     hooks:
-      - id: blue
-  - repo: https://github.com/pycqa/flake8
-    rev: 3.9.2
+      - id: black
+
+  # Automatically upgrade syntax for newer versions
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
     hooks:
-      - id: flake8
+      - id: pyupgrade
