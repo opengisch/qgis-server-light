@@ -15,9 +15,10 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Build and push worker
-      uses: docker/build-push-action@v3
+    - name: Build release
+      uses: docker/build-push-action@v6
       with:
         context: .
-        file: Dockerfile
-        target: release
+        push: true
+        cache-from: type=local,src=cache
+        tags: ghcr.io/${{ github.repository }}:latest
