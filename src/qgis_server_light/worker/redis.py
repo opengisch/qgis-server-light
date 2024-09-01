@@ -7,25 +7,33 @@ import os
 import pickle
 import signal
 import time
-from typing import List, Optional
+from typing import List
+from typing import Optional
+
 import redis
-from xsdata.formats.dataclass.parsers import DictDecoder, JsonParser
-from qgis_server_light.interface.job import QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob, \
-    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob
-from qgis_server_light.worker.engine import Engine, EngineContext
+from xsdata.formats.dataclass.parsers import JsonParser
+
+from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
+from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
+from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
+from qgis_server_light.worker.engine import Engine
+from qgis_server_light.worker.engine import EngineContext
 
 
 class RedisEngine(Engine):
-    def __init__(self, context: EngineContext, svg_paths: Optional[List] = None) -> None:
+    def __init__(
+        self, context: EngineContext, svg_paths: Optional[List] = None
+    ) -> None:
         super().__init__(context, svg_paths)
         self.shutdown = False
 
     def exit_gracefully(self, signum, frame):
         print("Received:", signum)
         self.shutdown = True
+        # actually exit the programm (for some reason it is not working with the shutdown switch)
+        exit(0)
 
     def run(self, redis_url):
-        log = logging.getLogger(__name__)
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
@@ -50,11 +58,19 @@ class RedisEngine(Engine):
                 _, job_info_json = r.blpop("jobs")
                 job_info_dict = json.loads(job_info_json)
                 if JobRunnerInfoQslGetMapJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslGetMapJob)
-                elif JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslGetFeatureInfoJob)
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslGetMapJob
+                    )
+                elif (
+                    JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]
+                ):
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslGetFeatureInfoJob
+                    )
                 elif JobRunnerInfoQslLegendJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().from_bytes(job_info_json, JobRunnerInfoQslLegendJob)
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslLegendJob
+                    )
                 else:
 
                     raise NotImplementedError(
@@ -100,33 +116,33 @@ def main() -> None:
         "--redis-url",
         type=str,
         help="redis url",
-        default=os.environ.get("REDIS_URL"),
+        default=os.environ.get("QSL_REDIS_URL"),
     )
 
     parser.add_argument(
         "--log-level",
         type=str,
         help="log level (debug, info, warning or error)",
-        default=os.environ.get("LOG_LEVEL") or "info",
+        default=os.environ.get("QSL_LOG_LEVEL") or "info",
     )
 
     parser.add_argument(
         "--data-root",
         type=str,
         help="Absolute path to the data dir.",
-        default=os.environ.get("DATA_ROOT") or "/io/data",
+        default=os.environ.get("QSL_DATA_ROOT") or "/io/data",
     )
 
     parser.add_argument(
         "--svg-path",
         type=str,
         help="Absolute path to additional svg files. Multiple paths can be separated by `:`. Defaults to /io/svg",
-        default=os.environ.get("SVG_PATH") or "/io/svg",
+        default=os.environ.get("QSL_SVG_PATH") or "/io/svg",
     )
 
     args = parser.parse_args()
 
-    LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+    LOG_LEVEL = os.environ.get("QSL_LOG_LEVEL", "WARNING").upper()
 
     logging.basicConfig(
         level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -136,7 +152,7 @@ def main() -> None:
     log.info(json.dumps(dict(os.environ), indent=2))
 
     if not args.redis_url:
-        raise AssertionError("no redis host specified (--redis-url, REDIS_URL)")
+        raise AssertionError("no redis host specified (--redis-url, QSL_REDIS_URL)")
 
     svg_paths = args.svg_path.split(":")
     engine = RedisEngine(EngineContext(args.data_root), svg_paths)

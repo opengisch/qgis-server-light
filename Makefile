@@ -38,7 +38,7 @@ $(QGIS_VENV_PATH):
 	echo "/usr/share/qgis/python" > $@
 
 $(PIP_REQUIREMENTS): $(VENV_REQUIREMENTS) requirements.interface.txt requirements.worker.txt requirements.exporter.txt $(QGIS_VENV_PATH)
-	$(VENV_BIN)/$(PIP_COMMAND) install --upgrade pip
+	$(VENV_BIN)/$(PIP_COMMAND) install --upgrade pip wheel
 	$(VENV_BIN)/$(PIP_COMMAND) install -r requirements.interface.txt -r requirements.worker.txt -r requirements.exporter.txt
 	touch $@
 
@@ -55,6 +55,7 @@ install: $(PIP_REQUIREMENTS)
 
 .PHONY: build
 build: $(BUILD_DEPS)
+	$(VENV_BIN)/python setup.py bdist_wheel
 
 .PHONY: clean
 clean:

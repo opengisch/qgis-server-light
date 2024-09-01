@@ -1,17 +1,21 @@
 services:
   qgis-server-light:
-    image: qgis-server-light:3.34.8-dev
+    image: opengisch/qgis-server-light:dev
+    env_file:
+      - .env
     build:
       context: .
       dockerfile: ./Dockerfile
       target: dev
     restart: unless-stopped
     environment:
-      - "REDIS_URL=redis://redis"
-      - "LOG_LEVEL=debug"
+      - "QSL_DATA_ROOT=/io/data"
     volumes:
-      - ../data/project_store/:/io/themes:ro
-      - ./:/app
+      - "../data/project_store/:/io/themes:ro"
+      - "./:/app"
+      - "${QSL_DATA_MOUNT}:/io/data"
+    deploy:
+      replicas: ${QSL_REPLICAS}
   redis:
     image: redis:7.4.0
     ports:

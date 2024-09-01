@@ -81,12 +81,12 @@ the recommended way of running this stack is Docker (docker need to be installed
 
 First you need to build the image:
 ```shell
-docker build -t qgis-server-light:3.34.8-dev --target dev .
+docker build -t opengisch/qgis-server-light:dev --target dev .
 ```
 
 Then run:
 ```shell
-docker run --rm -e REDIS_URL=redis://localhost:1234 -e LOG_LEVEL=debug -v $(pwd):/app --net host qgis-server-light:3.34.8-dev
+docker run --rm -e REDIS_URL=redis://localhost:1234 -e LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
 ```
 
 Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
@@ -102,7 +102,7 @@ If you have issues with matching QGIS version on your system and the one used by
 you should prefer the docker way with the source code mounted to the running container.
 
 ```shell
-docker run --rm -e REDIS_URL=redis://localhost:1234 -e LOG_LEVEL=debug -v $(pwd):/app --net host qgis-server-light:3.34.8-dev
+docker run --rm -e REDIS_URL=redis://localhost:1234 -e LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
 ```
 
 That way the current changes you make are transparently available in the container.
