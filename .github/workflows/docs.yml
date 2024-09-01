@@ -13,10 +13,6 @@ on:
       - 'docs/**'
       - '.github/workflows/doc.yml'
 
-defaults:
-  run:
-    working-directory: docs
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
