@@ -1,4 +1,4 @@
-# Documentation of QGIS-Server-Light
+# QGIS-Server-Light
 
 QGIS-Server-light is a python worker process which uses pyqgis
 to render a set of layers into an image. It is backed by Redis
@@ -22,3 +22,8 @@ Create an .env file and put the content of [.env.example](.env.example) into it.
 ```shell
 docker compose up -d
 ```
+
+## Documentation
+
+For further details and a better understanding please refer to the
+[documentation](https://opengisch.github.io/qgis-server-light).
