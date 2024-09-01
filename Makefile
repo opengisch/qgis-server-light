@@ -2,6 +2,7 @@
 VENV_PATH ?= .venv
 VENV_REQUIREMENTS = $(VENV_PATH)/.timestamp
 PIP_REQUIREMENTS = $(VENV_PATH)/.requirements-timestamp
+DOC_REQUIREMENTS = $(VENV_PATH)/.doc-requirements-timestamp
 VENV_BIN = $(VENV_PATH)/bin
 PIP_COMMAND = pip3
 PYTHON_PATH = $(shell which python3)
@@ -42,6 +43,10 @@ $(PIP_REQUIREMENTS): $(VENV_REQUIREMENTS) requirements.interface.txt requirement
 	$(VENV_BIN)/$(PIP_COMMAND) install -r requirements.interface.txt -r requirements.worker.txt -r requirements.exporter.txt
 	touch $@
 
+$(DOC_REQUIREMENTS): $(PIP_REQUIREMENTS) requirements.docs.txt
+	$(VENV_BIN)/$(PIP_COMMAND) install -r requirements.docs.txt
+	touch $@
+
 # **************
 # Common targets
 # **************
@@ -52,6 +57,10 @@ BUILD_DEPS += $(PIP_REQUIREMENTS)
 
 .PHONY: install
 install: $(PIP_REQUIREMENTS)
+
+.PHONY: install-docs
+install-docs: $(PIP_REQUIREMENTS) $(DOC_REQUIREMENTS)
+
 
 .PHONY: build
 build: $(BUILD_DEPS)
@@ -69,26 +78,22 @@ clean-all: clean
 git-attributes:
 	git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
 
-.PHONY: lint
-lint: $(PIP_REQUIREMENTS)
-	$(VENV_BIN)/flake8
-
 .PHONY: test
 test: $(PIP_REQUIREMENTS) $(VARS_FILES)
 	$(VENV_BIN)/py.test -vv --cov-config .coveragerc --cov $(PACKAGE) --cov-report term-missing:skip-covered tests
 
-.PHONY: check
-check: git-attributes lint test
-
-.PHONY: doc-latex
-doc-latex: $(PIP_REQUIREMENTS)
-	rm -rf doc/build/latex
-	$(VENV_BIN)/sphinx-build -b latex doc/source doc/build/latex
-
 .PHONY: doc-html
-doc-html: $(PIP_REQUIREMENTS)
-	rm -rf doc/build/html
-	$(VENV_BIN)/sphinx-build -b html doc/source doc/build/html
+doc-html: $(DOC_REQUIREMENTS) docs/mkdocs.yml
+	rm -rf doc/site
+	$(VENV_BIN)/mkdocs build -f docs/mkdocs.yml -d site
+
+.PHONY: doc-serve
+doc-serve: $(DOC_REQUIREMENTS) docs/mkdocs.yml
+	$(VENV_BIN)/mkdocs serve -f docs/mkdocs.yml
+
+.PHONY: doc-gh-deploy
+doc-gh-deploy: $(DOC_REQUIREMENTS) docs/mkdocs.yml
+	$(VENV_BIN)/mkdocs gh-deploy -f docs/mkdocs.yml -d site
 
 .PHONY: updates
 updates: $(PIP_REQUIREMENTS)

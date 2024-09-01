@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     environment:
       - "QSL_DATA_ROOT=/io/data"
+      - "QSL_REDIS_URL=redis://redis"
     volumes:
       - "../data/project_store/:/io/themes:ro"
       - "./:/app"
