@@ -93,7 +93,7 @@ doc-serve: $(DOC_REQUIREMENTS) docs/mkdocs.yml
 
 .PHONY: doc-gh-deploy
 doc-gh-deploy: $(DOC_REQUIREMENTS) docs/mkdocs.yml
-	$(VENV_BIN)/mkdocs gh-deploy -f docs/mkdocs.yml -d site
+	$(VENV_BIN)/mkdocs gh-deploy -f docs/mkdocs.yml -d site --force
 
 .PHONY: updates
 updates: $(PIP_REQUIREMENTS)

@@ -33,4 +33,4 @@ jobs:
           if-no-files-found: error
 
       - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        run: make doc-gh-deploy
