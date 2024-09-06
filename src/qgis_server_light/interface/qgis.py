@@ -189,6 +189,10 @@ class VectorTileSource(Source):
     zmax: str = field(metadata={"name": "Zmax", "type": "Element", "required": True})
     zmin: str = field(metadata={"name": "Zmin", "type": "Element", "required": True})
 
+    @property
+    def remote(self):
+        return self.url.startswith("http")
+
 
 @dataclass
 class Crs:

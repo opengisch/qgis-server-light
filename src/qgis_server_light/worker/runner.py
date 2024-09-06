@@ -2,35 +2,40 @@ import json
 import logging
 import os
 from base64 import urlsafe_b64decode
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Dict, List, Optional, OrderedDict
+from pathlib import Path
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import OrderedDict
 
-from PyQt5.QtCore import QEventLoop, QSize, Qt
+from PyQt5.QtCore import QEventLoop
+from PyQt5.QtCore import QSize
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
-from qgis.core import (
-    NULL,
-    QgsApplication,
-    QgsCoordinateReferenceSystem,
-    QgsFeatureRequest,
-    QgsMapLayer,
-    QgsMapLayerType,
-    QgsMapRendererParallelJob,
-    QgsMapSettings,
-    QgsPointXY,
-    QgsRasterLayer,
-    QgsRectangle,
-    QgsRenderContext,
-    QgsVectorLayer,
-)
-from qgis_server_light.interface.job import (
-    JobResult,
-    QslGetFeatureInfoJob,
-    QslLegendJob,
-    QslGetMapJob,
-)
-from qgis_server_light.interface.qgis import Vector, Raster
+from qgis._core import QgsVectorTileLayer
+from qgis.core import NULL
+from qgis.core import QgsApplication
+from qgis.core import QgsCoordinateReferenceSystem
+from qgis.core import QgsFeatureRequest
+from qgis.core import QgsMapLayer
+from qgis.core import QgsMapLayerType
+from qgis.core import QgsMapRendererParallelJob
+from qgis.core import QgsMapSettings
+from qgis.core import QgsPointXY
+from qgis.core import QgsRasterLayer
+from qgis.core import QgsRectangle
+from qgis.core import QgsRenderContext
+from qgis.core import QgsVectorLayer
+
+from qgis_server_light.interface.job import JobResult
+from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetMapJob
+from qgis_server_light.interface.job import QslLegendJob
+from qgis_server_light.interface.qgis import Custom
+from qgis_server_light.interface.qgis import Raster
+from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
 
 
@@ -64,12 +69,11 @@ class MapRunner:
         settings = QgsMapSettings()
         settings.setOutputSize(
             QSize(
-                int(self.job.service_params.WIDTH),
-                int(self.job.service_params.HEIGHT)
+                int(self.job.service_params.WIDTH), int(self.job.service_params.HEIGHT)
             )
         )
         settings.setOutputDpi(self.job.service_params.dpi)
-        minx, miny, maxx,  maxy = self.job.service_params.bbox
+        minx, miny, maxx, maxy = self.job.service_params.bbox
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
         settings.setExtent(bbox)
         settings.setLayers(layers)
@@ -89,13 +93,11 @@ class MapRunner:
         """
 
         if isinstance(layer, Vector):
-            self.map_layers.append(
-                self._prepare_vector_layer(layer)
-            )
+            self.map_layers.append(self._prepare_vector_layer(layer))
         elif isinstance(layer, Raster):
-            self.map_layers.append(
-                self._prepare_raster_layer(layer)
-            )
+            self.map_layers.append(self._prepare_raster_layer(layer))
+        elif isinstance(layer, Custom):
+            self.map_layers.append(self._prepare_custom_layer(layer))
         else:
             raise KeyError(f"Type not implemented: {layer}")
 
@@ -105,9 +107,7 @@ class MapRunner:
             if layer.source.ogr.remote:
                 layer_source_path = layer.path
             else:
-                layer_source_path = os.path.join(
-                    self.context.base_path, layer.path
-                )
+                layer_source_path = os.path.join(self.context.base_path, layer.path)
         elif (layer.source.postgres or layer.source.wfs) is not None:
             layer_source_path = layer.path
         else:
@@ -138,11 +138,37 @@ class MapRunner:
                     self.layer_cache[layer.name] = qgs_layer
             if layer.style:
                 style_doc = QDomDocument()
-                style_doc.setContent(
-                    urlsafe_b64decode(
-                        layer.style
-                    )
+                style_doc.setContent(urlsafe_b64decode(layer.style))
+                style_loaded = qgs_layer.importNamedStyle(style_doc)
+                logging.info(f"Style loaded: {style_loaded}")
+        return qgs_layer
+
+    def _prepare_custom_layer(self, layer: Custom) -> QgsVectorTileLayer:
+        """Initializes a raster layer"""
+        if layer.source.vector_tile is not None:
+            if layer.source.vector_tile.remote:
+                layer_source_path = layer.path
+            else:
+                raise NotImplementedError(
+                    "Currently only remote VectorTiles are supported"
                 )
+        else:
+            raise KeyError(f"Driver not implemented: {layer.driver}")
+        # TODO: make sure cached layers reload the style if changed
+        if self.layer_cache is not None and layer.name in self.layer_cache:
+            logging.debug(f"Using cached layer {layer.name}")
+            qgs_layer = self.layer_cache[layer.name]
+        else:
+            qgs_layer = QgsVectorTileLayer(layer_source_path, layer.name)
+            if not qgs_layer.isValid():
+                raise RuntimeError(f"Layer {layer.name} is not valid")
+            else:
+                logging.info(f" ✓ Layer: {layer.name}")
+                if self.layer_cache is not None:
+                    self.layer_cache[layer.name] = qgs_layer
+            if layer.style:
+                style_doc = QDomDocument()
+                style_doc.setContent(urlsafe_b64decode(layer.style))
                 style_loaded = qgs_layer.importNamedStyle(style_doc)
                 logging.info(f"Style loaded: {style_loaded}")
         return qgs_layer
@@ -153,9 +179,7 @@ class MapRunner:
             if layer.source.gdal.remote:
                 layer_source_path = layer.path
             else:
-                layer_source_path = os.path.join(
-                    self.context.base_path, layer.path
-                )
+                layer_source_path = os.path.join(self.context.base_path, layer.path)
         elif layer.source.wms is not None:
             layer_source_path = layer.path
         else:
@@ -174,11 +198,7 @@ class MapRunner:
                     self.layer_cache[layer.name] = qgs_layer
             if layer.style:
                 style_doc = QDomDocument()
-                style_doc.setContent(
-                    urlsafe_b64decode(
-                        layer.style
-                    )
-                )
+                style_doc.setContent(urlsafe_b64decode(layer.style))
                 style_loaded = qgs_layer.importNamedStyle(style_doc)
                 logging.info(f"Style loaded: {style_loaded}")
         return qgs_layer
@@ -192,11 +212,11 @@ class RenderRunner(MapRunner):
     """Responsible for rendering a QslRenderJob to an image."""
 
     def __init__(
-            self,
-            qgis: QgsApplication,
-            context: RunnerContext,
-            job: QslGetMapJob,
-            layer_cache: Optional[Dict] = None
+        self,
+        qgis: QgsApplication,
+        context: RunnerContext,
+        job: QslGetMapJob,
+        layer_cache: Optional[Dict] = None,
     ) -> None:
         super().__init__(qgis, context, job, layer_cache)
 
@@ -221,13 +241,12 @@ class RenderRunner(MapRunner):
 
 
 class GetFeatureInfoRunner(MapRunner):
-
     def __init__(
-            self,
-            qgis: QgsApplication,
-            context: RunnerContext,
-            job: QslGetFeatureInfoJob,
-            layer_cache: Optional[Dict] = None
+        self,
+        qgis: QgsApplication,
+        context: RunnerContext,
+        job: QslGetFeatureInfoJob,
+        layer_cache: Optional[Dict] = None,
     ) -> None:
         super().__init__(qgis, context, job, layer_cache)
 
