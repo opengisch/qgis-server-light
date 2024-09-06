@@ -180,6 +180,17 @@ class PostgresSource(Source):
 
 
 @dataclass
+class VectorTileSource(Source):
+    styleUrl: str = field(
+        metadata={"name": "styleUrl", "type": "Element", "required": True}
+    )
+    type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
+    url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
+    zmax: str = field(metadata={"name": "Zmax", "type": "Element", "required": True})
+    zmin: str = field(metadata={"name": "Zmin", "type": "Element", "required": True})
+
+
+@dataclass
 class Crs:
     auth_id: str = field(
         default=None, metadata={"name": "AuthId", "type": "Element", "required": False}
@@ -214,6 +225,10 @@ class DataSource:
     wfs: WfsSource = field(
         default=None, metadata={"name": "Wfs", "type": "Element", "required": False}
     )
+    vector_tile: VectorTileSource = field(
+        default=None,
+        metadata={"name": "VectorTile", "type": "Element", "required": False},
+    )
 
 
 @dataclass
@@ -238,15 +253,28 @@ class DataSet(AbstractDataset):
 
 @dataclass
 class Raster(DataSet):
-    pass
+    """
+    A real QGIS Raster dataset. That are usually all `QgsRasterLayer` (in opposition to `QgsVectorTileLayer`
+    which is not a real `QgsRasterLayer`.
+    """
 
 
 @dataclass
 class Vector(DataSet):
+    """
+    A real QGIS Vector dataset. That are usually all `QgsVectorLayer` (in opposition to `QgsVectorTileLayer`
+    which is not a real `QgsVectorLayer`.
+    """
+
     fields: Optional[List[Field]] = field(
         default_factory=list,
         metadata={"name": "Fields", "type": "Element", "required": True},
     )
+
+
+@dataclass
+class Custom(DataSet):
+    pass
 
 
 @dataclass
@@ -364,6 +392,10 @@ class Datasets:
     raster: list[Raster] = field(
         default_factory=list,
         metadata={"name": "RasterDataset", "type": "Element", "required": False},
+    )
+    custom: list[Custom] = field(
+        default_factory=list,
+        metadata={"name": "Custom", "type": "Element", "required": False},
     )
     group: list[Group] = field(
         default_factory=list,

@@ -1,8 +1,18 @@
 from functools import reduce
 from itertools import zip_longest
-from typing import Any, Dict, List, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Union
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsVectorLayer, QgsRasterLayer
+from qgis._core import QgsMeshLayer
+from qgis._core import QgsPointCloudLayer
+from qgis._core import QgsTiledSceneLayer
+from qgis._core import QgsVectorTileLayer
+from qgis.core import QgsCoordinateReferenceSystem
+from qgis.core import QgsCoordinateTransform
+from qgis.core import QgsRasterLayer
+from qgis.core import QgsVectorLayer
 
 
 def compose(*fs):
@@ -54,6 +64,13 @@ def get_layer_type(layer: QgsVectorLayer | QgsRasterLayer) -> str:
         return "raster"
     elif isinstance(layer, QgsVectorLayer):
         return "vector"
+    elif (
+        isinstance(layer, QgsVectorTileLayer)
+        or isinstance(layer, QgsTiledSceneLayer)
+        or isinstance(layer, QgsPointCloudLayer)
+        or isinstance(layer, QgsMeshLayer)
+    ):
+        return "custom"
     else:
         raise TypeError(f"Not implemented: {layer.type()}")
 
