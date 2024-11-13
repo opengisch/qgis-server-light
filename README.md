@@ -1,5 +1,5 @@
-![Image build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/image.yml)
-![Docs build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/docs.yml)
+![Image build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/image.yml/badge.svg)
+![Docs build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/docs.yml/badge.svg)
 
 
 # QGIS-Server-Light
