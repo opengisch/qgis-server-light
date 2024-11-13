@@ -1,3 +1,7 @@
+![Image build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/image.yml)
+![Docs build](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/docs.yml)
+
+
 # QGIS-Server-Light
 
 QGIS-Server-light is a python worker process which uses pyqgis
