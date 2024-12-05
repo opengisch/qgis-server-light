@@ -3,8 +3,9 @@ import os
 from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__name__))
-with open(os.path.join(here, "README.md")) as f:
-    README = f.read()
+# with open(os.path.join(here, "README.md")) as f:
+#     README = f.read()
+README = "Interface library to communicate with QGIS-Server light"
 with open(os.path.join(here, "CHANGES.md")) as f:
     CHANGES = f.read()
 
@@ -36,7 +37,7 @@ package_data.update(worker_files)
 
 setup(
     name="qgis_server_light",
-    version="v0.0.1",
+    version="v0.0.2",
     description="qgis renderer as a python process",
     long_description=README + "\n\n" + CHANGES,
     classifiers=[
@@ -45,7 +46,6 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.10",
         "Topic :: Internet :: WWW/HTTP",
-        "Topic :: Internet :: WWW/HTTP :: ASGI :: Application",
         "Typing :: Typed",
     ],
     author="Clemens Rudert (OPENGIS.ch)",

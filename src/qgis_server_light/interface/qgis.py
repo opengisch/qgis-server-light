@@ -98,10 +98,6 @@ class GdalSource(Source):
         metadata={"name": "LayerName", "type": "Element", "required": False},
     )
 
-    @property
-    def remote(self):
-        return self.path.startswith("http")
-
 
 @dataclass
 class OgrSource(GdalSource):
@@ -188,10 +184,6 @@ class VectorTileSource(Source):
     url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
     zmax: str = field(metadata={"name": "Zmax", "type": "Element", "required": True})
     zmin: str = field(metadata={"name": "Zmin", "type": "Element", "required": True})
-
-    @property
-    def remote(self):
-        return self.url.startswith("http")
 
 
 @dataclass
