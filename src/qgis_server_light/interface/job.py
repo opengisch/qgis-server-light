@@ -103,10 +103,12 @@ class WmsGetFeatureInfoParams(AbstractWmsParams):
 
 @dataclass
 class QslAbstractJob:
-    svg_paths: List[str] = field(metadata={"type": "Element", "required": True})
+    svg_paths: List[str] = field(
+        default_factory=list, metadata={"type": "Element", "required": True}
+    )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class QslGetMapJob(QslAbstractJob):
     """A job to be rendered as an image"""
 
@@ -132,7 +134,7 @@ class QslGetMapJob(QslAbstractJob):
         raise AttributeError(f'No layer with name "{name} was found."')
 
 
-@dataclass
+@dataclass(kw_only=True)
 class QslGetFeatureInfoJob(QslAbstractJob):
     """A job to extract feature info"""
 
@@ -141,7 +143,7 @@ class QslGetFeatureInfoJob(QslAbstractJob):
     )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class QslLegendJob(QslAbstractJob):
     """Render legend"""
 
