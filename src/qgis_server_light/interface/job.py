@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import List
+from typing import Optional
 
 from qgis_server_light.interface.qgis import Custom
 from qgis_server_light.interface.qgis import Raster
@@ -102,6 +103,9 @@ class WmsGetFeatureInfoParams(AbstractWmsParams):
 
 class QslAbstractJob:
     svg_paths: List[str] = field(metadata={"type": "Element", "required": True})
+    extent_buffer: Optional[float] = field(
+        default=0.0, metadata={"type": "Element", "required": False}
+    )
 
 
 @dataclass

@@ -76,6 +76,7 @@ class MapRunner:
         minx, miny, maxx, maxy = self.job.service_params.bbox
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
         settings.setExtent(bbox)
+        settings.setExtentBuffer(self.job.extent_buffer)
         settings.setLayers(layers)
         settings.setBackgroundColor(QColor(Qt.transparent))
         crs = self.job.service_params.CRS

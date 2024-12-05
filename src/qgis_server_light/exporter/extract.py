@@ -7,6 +7,7 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
+import pgserviceparser
 from PyQt5.QtXml import QDomDocument
 from qgis.core import QgsLayerTree
 from qgis.core import QgsLayerTreeGroup
@@ -110,6 +111,7 @@ def extract_save_layer(
         ]
     )
     if layer_type == "vector":
+        source_path = child.source()
         if child.providerType().lower() == "ogr":
             source = DataSource(
                 ogr=OgrSource(
@@ -119,20 +121,30 @@ def extract_save_layer(
                 )
             )
         elif child.providerType().lower() == "postgres":
+            config = decoded
+            if decoded.get("service"):
+                service_config = pgserviceparser.service_config(decoded["service"])
+                # merging pg_service content with config of qgis project (qgis project config overwrites
+                # pg_service configs
+                config = service_config | decoded
             source = DataSource(
                 postgres=PostgresSource(
-                    dbname=decoded["dbname"],
-                    geometry_column=decoded["geometrycolumn"],
-                    host=decoded["host"],
-                    key=decoded["key"],
-                    password=decoded["password"],
-                    port=decoded["port"],
-                    schema=decoded["schema"],
-                    srid=decoded["srid"],
-                    table=decoded["table"],
-                    type=decoded["type"],
-                    username=decoded["username"],
+                    dbname=config["dbname"],
+                    geometry_column=config["geometrycolumn"],
+                    host=config["host"],
+                    key=config["key"],
+                    password=config["password"],
+                    port=config["port"],
+                    schema=config["schema"],
+                    srid=config["srid"],
+                    table=config["table"],
+                    type=config["type"],
+                    username=config["username"],
                 )
+            )
+            del config["service"]
+            source_path = QgsProviderRegistry.instance().encodeUri(
+                child.providerType(), config
             )
 
         elif child.providerType().lower() == "wfs":
@@ -143,9 +155,10 @@ def extract_save_layer(
                 f"Unknown provider type: {child.providerType().lower()}"
             )
         fields = extract_fields(child)
+
         datasets.vector.append(
             Vector(
-                path=child.source().replace(f'{project.readPath("./")}/', ""),
+                path=source_path.replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
                 title=child.title(),
                 style=urlsafe_b64encode(style_doc.toByteArray()).decode(),
