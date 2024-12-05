@@ -101,11 +101,9 @@ class WmsGetFeatureInfoParams(AbstractWmsParams):
         return self.QUERY_LAYERS.split(",")
 
 
+@dataclass
 class QslAbstractJob:
     svg_paths: List[str] = field(metadata={"type": "Element", "required": True})
-    extent_buffer: Optional[float] = field(
-        default=0.0, metadata={"type": "Element", "required": False}
-    )
 
 
 @dataclass
@@ -121,6 +119,10 @@ class QslGetMapJob(QslAbstractJob):
     vector_layers: List[Vector] = field(metadata={"type": "Element", "required": True})
 
     custom_layers: List[Custom] = field(metadata={"type": "Element", "required": True})
+
+    extent_buffer: Optional[float] = field(
+        default=0.0, metadata={"type": "Element", "required": False}
+    )
 
     def get_layer_by_name(self, name: str) -> Raster | Vector | Custom:
         name = name.lower()
