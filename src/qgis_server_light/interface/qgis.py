@@ -87,7 +87,9 @@ class AbstractDataset(LayerLike):
 
 @dataclass
 class Source:
-    pass
+    @staticmethod
+    def decide_remote(path: str) -> bool:
+        return path.startswith("http")
 
 
 @dataclass
@@ -97,6 +99,10 @@ class GdalSource(Source):
         default=None,
         metadata={"name": "LayerName", "type": "Element", "required": False},
     )
+
+    @property
+    def remote(self):
+        return self.decide_remote(self.path)
 
 
 @dataclass
@@ -184,6 +190,10 @@ class VectorTileSource(Source):
     url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
     zmax: str = field(metadata={"name": "Zmax", "type": "Element", "required": True})
     zmin: str = field(metadata={"name": "Zmin", "type": "Element", "required": True})
+
+    @property
+    def remote(self):
+        return self.decide_remote(self.url)
 
 
 @dataclass
