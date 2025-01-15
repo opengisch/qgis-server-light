@@ -82,10 +82,13 @@ def extract_save_layer(
             decoded[key] = str(decoded[key])
         if key == "path":
             decoded[key] = decoded[key].replace(f'{project.readPath("./")}/', "")
-    if unify_layer_names_by_group:
-        short_name = create_unified_short_name(child.shortName(), path)
+    if child.shortName() == "":
+        # if layer has no short name we fallback to the qgis_layer_id
+        short_name = child.id()
     else:
         short_name = child.shortName()
+    if unify_layer_names_by_group:
+        short_name = create_unified_short_name(short_name, path)
     crs = Crs(
         postgis_srid=child.dataProvider().crs().postgisSrid(),
         auth_id=child.dataProvider().crs().authid(),
@@ -161,7 +164,7 @@ def extract_save_layer(
             Vector(
                 path=source_path.replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
-                title=child.title(),
+                title=child.title() or child.name(),
                 style=urlsafe_b64encode(style_doc.toByteArray()).decode(),
                 driver=child.providerType(),
                 bbox_wgs84=bbox_wgs84,
@@ -183,16 +186,16 @@ def extract_save_layer(
             if "tileMatrixSet" in decoded:
                 source = DataSource(
                     wmts=WmtsSource(
-                        contextual_wms_legend=decoded["contextualWMSLegend"],
+                        contextual_wms_legend=decoded.get("contextualWMSLegend"),
                         crs=decoded["crs"],
                         dpi_mode=decoded["dpiMode"],
-                        feature_count=decoded["featureCount"],
+                        feature_count=decoded.get("featureCount"),
                         format=decoded["format"],
                         layers=decoded["layers"],
                         styles=decoded["styles"],
-                        tile_dimensions=decoded["tileDimensions"],
+                        tile_dimensions=decoded.get("tileDimensions"),
                         tile_matrix_set=decoded["tileMatrixSet"],
-                        tile_pixel_ratio=decoded["tilePixelRatio"],
+                        tile_pixel_ratio=decoded.get("tilePixelRatio"),
                         url=decoded["url"],
                     )
                 )
@@ -279,12 +282,16 @@ def extract_group(
         else:
             if unify_layer_names_by_group:
                 children.append(
-                    create_unified_short_name(child.layer().shortName(), path)
+                    create_unified_short_name(
+                        child.layer().shortName() or child.layer().id(), path
+                    )
                 )
             else:
-                children.append(child.layer().shortName())
+                children.append(child.layer().shortName() or child.layer().id())
     tree.members.append(
-        TreeGroup(name=group.customProperty("wmsShortName"), children=children)
+        TreeGroup(
+            name=group.customProperty("wmsShortName") or group.name(), children=children
+        )
     )
     datasets.group.append(
         Group(

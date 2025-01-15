@@ -121,15 +121,9 @@ class WfsSource:
 
 @dataclass
 class WmsSource(Source):
-    contextual_wms_legend: str = field(
-        metadata={"name": "ContextualWMSLegend", "type": "Element", "required": True}
-    )
     crs: str = field(metadata={"name": "Crs", "type": "Element", "required": True})
     dpi_mode: str = field(
         metadata={"name": "DpiMode", "type": "Element", "required": True}
-    )
-    feature_count: int = field(
-        metadata={"name": "FeatureCount", "type": "Element", "required": True}
     )
     format: str = field(
         metadata={"name": "Format", "type": "Element", "required": True}
@@ -138,21 +132,31 @@ class WmsSource(Source):
         metadata={"name": "Layers", "type": "Element", "required": True}
     )
     url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
+    feature_count: int = field(
+        default=None,
+        metadata={"name": "FeatureCount", "type": "Element", "required": True},
+    )
+    contextual_wms_legend: str = field(
+        default=None,
+        metadata={"name": "ContextualWMSLegend", "type": "Element", "required": True},
+    )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class WmtsSource(WmsSource):
     styles: str = field(
         metadata={"name": "Styles", "type": "Element", "required": True}
     )
     tile_dimensions: str = field(
-        metadata={"name": "TileDimensions", "type": "Element", "required": True}
+        default=None,
+        metadata={"name": "TileDimensions", "type": "Element", "required": True},
     )
     tile_matrix_set: str = field(
         metadata={"name": "TileMatrixSet", "type": "Element", "required": True}
     )
     tile_pixel_ratio: str = field(
-        metadata={"name": "TilePixelRatio", "type": "Element", "required": True}
+        default=None,
+        metadata={"name": "TilePixelRatio", "type": "Element", "required": True},
     )
 
 

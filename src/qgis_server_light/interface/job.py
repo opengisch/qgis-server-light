@@ -127,7 +127,6 @@ class QslGetMapJob(QslAbstractJob):
     )
 
     def get_layer_by_name(self, name: str) -> Raster | Vector | Custom:
-        name = name.lower()
         for layer in self.raster_layers + self.vector_layers + self.custom_layers:
             if layer.name == name:
                 return layer
