@@ -255,6 +255,14 @@ class DataSet(AbstractDataset):
     style: Optional[str] = field(
         default=None, metadata={"name": "Style", "type": "Element", "required": True}
     )
+    minimum_scale: float = field(
+        default=None,
+        metadata={"name": "MinimumScale", "type": "Element", "required": True},
+    )
+    maximum_scale: float = field(
+        default=None,
+        metadata={"name": "MaximumScale", "type": "Element", "required": True},
+    )
 
 
 @dataclass

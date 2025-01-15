@@ -142,7 +142,8 @@ def extract_save_layer(
                     username=config["username"],
                 )
             )
-            del config["service"]
+            if decoded.get("service"):
+                del config["service"]
             source_path = QgsProviderRegistry.instance().encodeUri(
                 child.providerType(), config
             )
@@ -169,6 +170,8 @@ def extract_save_layer(
                 id=child.id(),
                 crs=crs,
                 bbox=bbox,
+                minimum_scale=child.minimumScale(),
+                maximum_scale=child.maximumScale(),
             )
         )
     elif layer_type == "raster":
@@ -221,6 +224,8 @@ def extract_save_layer(
                 id=child.id(),
                 crs=crs,
                 bbox=bbox,
+                minimum_scale=child.minimumScale(),
+                maximum_scale=child.maximumScale(),
             )
         )
     elif layer_type == "custom":
@@ -251,6 +256,8 @@ def extract_save_layer(
                 id=child.id(),
                 crs=crs,
                 bbox=bbox,
+                minimum_scale=child.minimumScale(),
+                maximum_scale=child.maximumScale(),
             )
         )
     else:
