@@ -128,7 +128,7 @@ class QslGetMapJob(QslAbstractJob):
 
     def get_layer_by_name(self, name: str) -> Raster | Vector | Custom:
         for layer in self.raster_layers + self.vector_layers + self.custom_layers:
-            if layer.name.lower() == name.lower():
+            if layer.name == name:
                 return layer
         raise AttributeError(f'No layer with name "{name} was found."')
 
