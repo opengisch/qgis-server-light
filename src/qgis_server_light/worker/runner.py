@@ -67,6 +67,12 @@ class MapRunner:
     def _get_map_settings(self, layers: List[QgsMapLayer]) -> QgsMapSettings:
         """Produces a QgsMapSettings object from a set of layers"""
         settings = QgsMapSettings()
+
+        def preprocessor(path):
+            print(path)
+            return path
+
+        settings.pathResolver().setPathPreprocessor(preprocessor)
         settings.setOutputSize(
             QSize(
                 int(self.job.service_params.WIDTH), int(self.job.service_params.HEIGHT)
