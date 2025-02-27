@@ -16,6 +16,7 @@ nav:
 theme:
   name: material
 plugins:
+  - autorefs
   - mkdocstrings:
       default_handler: python
       handlers:
