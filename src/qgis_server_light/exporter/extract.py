@@ -202,7 +202,7 @@ def extract_save_layer(
             else:
                 source = DataSource(
                     wms=WmsSource(
-                        contextual_wms_legend=decoded["contextualWMSLegend"],
+                        contextual_wms_legend=decoded.get("contextualWMSLegend"),
                         crs=decoded["crs"],
                         dpi_mode=decoded["dpiMode"],
                         feature_count=decoded["featureCount"],
