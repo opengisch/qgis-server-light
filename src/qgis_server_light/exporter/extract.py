@@ -188,7 +188,7 @@ def extract_save_layer(
                     wmts=WmtsSource(
                         contextual_wms_legend=decoded.get("contextualWMSLegend"),
                         crs=decoded["crs"],
-                        dpi_mode=decoded["dpiMode"],
+                        dpi_mode=decoded.get("dpiMode"),
                         feature_count=decoded.get("featureCount"),
                         format=decoded["format"],
                         layers=decoded["layers"],
@@ -204,8 +204,8 @@ def extract_save_layer(
                     wms=WmsSource(
                         contextual_wms_legend=decoded.get("contextualWMSLegend"),
                         crs=decoded["crs"],
-                        dpi_mode=decoded["dpiMode"],
-                        feature_count=decoded["featureCount"],
+                        dpi_mode=decoded.get("dpiMode"),
+                        feature_count=decoded.get("featureCount"),
                         format=decoded["format"],
                         layers=decoded["layers"],
                         url=decoded["url"],

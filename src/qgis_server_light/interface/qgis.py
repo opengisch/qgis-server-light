@@ -122,9 +122,6 @@ class WfsSource:
 @dataclass
 class WmsSource(Source):
     crs: str = field(metadata={"name": "Crs", "type": "Element", "required": True})
-    dpi_mode: str = field(
-        metadata={"name": "DpiMode", "type": "Element", "required": True}
-    )
     format: str = field(
         metadata={"name": "Format", "type": "Element", "required": True}
     )
@@ -132,6 +129,9 @@ class WmsSource(Source):
         metadata={"name": "Layers", "type": "Element", "required": True}
     )
     url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
+    dpi_mode: str = field(
+        default=None, metadata={"name": "DpiMode", "type": "Element", "required": True}
+    )
     feature_count: int = field(
         default=None,
         metadata={"name": "FeatureCount", "type": "Element", "required": True},
