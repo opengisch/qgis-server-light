@@ -78,7 +78,8 @@ class MapRunner:
                 int(self.job.service_params.WIDTH), int(self.job.service_params.HEIGHT)
             )
         )
-        settings.setOutputDpi(self.job.service_params.dpi)
+        if self.job.service_params.dpi:
+            settings.setOutputDpi(self.job.service_params.dpi)
         minx, miny, maxx, maxy = self.job.service_params.bbox
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
         settings.setExtent(bbox)
