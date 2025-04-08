@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,8 @@ from PyQt5.QtCore import QSize
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
+from qgis._core import QgsExpressionContext
+from qgis._core import QgsExpressionContextScope
 from qgis._core import QgsVectorTileLayer
 from qgis.core import NULL
 from qgis.core import QgsApplication
@@ -66,7 +69,12 @@ class MapRunner:
 
     def _get_map_settings(self, layers: List[QgsMapLayer]) -> QgsMapSettings:
         """Produces a QgsMapSettings object from a set of layers"""
+        expression_context_scope = QgsExpressionContextScope()
+        expression_context_scope.setVariable("map_id", str(uuid.uuid4()))
+        expression_context = QgsExpressionContext()
+        expression_context.appendScope(expression_context_scope)
         settings = QgsMapSettings()
+        settings.setExpressionContext(expression_context)
 
         def preprocessor(path):
             print(path)
