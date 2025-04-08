@@ -99,23 +99,27 @@ class MapRunner:
         settings.setDestinationCrs(destinationCrs)
         return settings
 
-    def _init_layers(self, layer: Vector | Raster):
+    def _init_layers(self, layer: Vector | Raster | Custom, style_name: str):
         """Initializes the map_layers list with all the specified layer_names, looking up style and other
         information in layer_registry
         Returns:
             None
         Parameters:
             layer_name: the layer or group to initialize. In case of a group, will recursively follow.
+            style_name: The name of the style which is requested fo rendering.
         """
 
         if isinstance(layer, Vector):
-            self.map_layers.append(self._prepare_vector_layer(layer))
+            qgs_layer = self._prepare_vector_layer(layer)
         elif isinstance(layer, Raster):
-            self.map_layers.append(self._prepare_raster_layer(layer))
+            qgs_layer = self._prepare_raster_layer(layer)
         elif isinstance(layer, Custom):
-            self.map_layers.append(self._prepare_custom_layer(layer))
+            qgs_layer = self._prepare_custom_layer(layer)
         else:
             raise KeyError(f"Type not implemented: {layer}")
+
+        qgs_layer.styleManager().setCurrentStyle(style_name)
+        self.map_layers.append(qgs_layer)
 
     def _prepare_vector_layer(self, layer: Vector) -> QgsVectorLayer:
         """Initializes a vector layer"""
@@ -241,8 +245,10 @@ class RenderRunner(MapRunner):
         Returns:
             A JobResult with the content_type and image_data (bytes) of the rendered image.
         """
-        for layer_name in self.job.service_params.layers:
-            self._init_layers(self.job.get_layer_by_name(layer_name))
+        for index, layer_name in enumerate(self.job.service_params.layers):
+            # list of styles passed to QSL has to be always the same order and length as layers
+            style_name = self.job.service_params.styles[index]
+            self._init_layers(self.job.get_layer_by_name(layer_name), style_name)
         map_settings = self._get_map_settings(self.map_layers)
         renderer = QgsMapRendererParallelJob(map_settings)
         event_loop = QEventLoop(self.qgis)

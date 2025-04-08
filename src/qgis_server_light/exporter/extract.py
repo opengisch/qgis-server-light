@@ -175,6 +175,8 @@ def extract_save_layer(
                 bbox=bbox,
                 minimum_scale=child.minimumScale(),
                 maximum_scale=child.maximumScale(),
+                geometry_type=child.wkbType(),
+                style_names=child.styleManager().styles(),
             )
         )
     elif layer_type == "raster":
@@ -229,6 +231,7 @@ def extract_save_layer(
                 bbox=bbox,
                 minimum_scale=child.minimumScale(),
                 maximum_scale=child.maximumScale(),
+                style_names=child.styleManager().styles(),
             )
         )
     elif layer_type == "custom":
@@ -261,6 +264,7 @@ def extract_save_layer(
                 bbox=bbox,
                 minimum_scale=child.minimumScale(),
                 maximum_scale=child.maximumScale(),
+                style_names=child.styleManager().styles(),
             )
         )
     else:

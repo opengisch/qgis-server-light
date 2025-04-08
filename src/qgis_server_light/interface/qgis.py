@@ -267,6 +267,10 @@ class DataSet(AbstractDataset):
         default=None,
         metadata={"name": "MaximumScale", "type": "Element", "required": True},
     )
+    style_names: List[str] = field(
+        default_factory=list,
+        metadata={"name": "StyleNames", "type": "Element"},
+    )
 
 
 @dataclass
@@ -287,6 +291,10 @@ class Vector(DataSet):
     fields: Optional[List[Field]] = field(
         default_factory=list,
         metadata={"name": "Fields", "type": "Element", "required": True},
+    )
+    geometry_type: Optional[str] = field(
+        default=None,
+        metadata={"name": "GeometryType", "type": "Element"},
     )
 
 

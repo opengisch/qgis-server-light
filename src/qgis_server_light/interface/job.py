@@ -24,9 +24,6 @@ class AbstractWmsParams:
     FORMAT_OPTIONS: str = field(
         default=None, metadata={"type": "Element", "required": False}
     )
-    STYLES: str = field(
-        default_factory=list, metadata={"type": "Element", "required": False}
-    )
 
     @property
     def dpi(self) -> int | None:
@@ -58,6 +55,9 @@ class WmsGetMapParams(AbstractWmsParams):
 
     LAYERS: str = field(metadata={"type": "Element", "required": True})
 
+    # We make that mandatory, to force clients talking to QSL to always specify a style per layer
+    STYLES: str = field(metadata={"type": "Element", "required": True})
+
     # mime type of the requested image
     FORMAT: str = field(
         default="image/png", metadata={"type": "Element", "required": True}
@@ -66,6 +66,10 @@ class WmsGetMapParams(AbstractWmsParams):
     @property
     def layers(self) -> List[str]:
         return self.LAYERS.split(",")
+
+    @property
+    def styles(self) -> List[str]:
+        return self.STYLES.split(",")
 
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
