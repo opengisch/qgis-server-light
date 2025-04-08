@@ -56,7 +56,9 @@ class WmsGetMapParams(AbstractWmsParams):
     LAYERS: str = field(metadata={"type": "Element", "required": True})
 
     # We make that mandatory, to force clients talking to QSL to always specify a style per layer
-    STYLES: str = field(metadata={"type": "Element", "required": True})
+    STYLES: str = field(
+        default_factory=list, metadata={"type": "Element", "required": True}
+    )
 
     # mime type of the requested image
     FORMAT: str = field(
