@@ -242,6 +242,12 @@ class DataSource:
 
 
 @dataclass
+class Style:
+    name: str = field(metadata={"name": "Name", "type": "Element"})
+    definition: str = field(metadata={"name": "Definition", "type": "Element"})
+
+
+@dataclass
 class DataSet(AbstractDataset):
     id: str = field(metadata={"name": "Id", "type": "Element", "required": False})
     bbox: BBox = field(metadata={"name": "BBox", "type": "Element", "required": True})
@@ -256,8 +262,8 @@ class DataSet(AbstractDataset):
         metadata={"name": "Driver", "type": "Element", "required": True}
     )
     crs: Crs = field(metadata={"name": "Crs", "type": "Element", "required": True})
-    style: Optional[str] = field(
-        default=None, metadata={"name": "Style", "type": "Element", "required": True}
+    styles: List[Style] = field(
+        metadata={"name": "Style", "type": "Element", "required": True}
     )
     minimum_scale: float = field(
         default=None,
@@ -267,10 +273,11 @@ class DataSet(AbstractDataset):
         default=None,
         metadata={"name": "MaximumScale", "type": "Element", "required": True},
     )
-    style_names: List[str] = field(
-        default_factory=list,
-        metadata={"name": "StyleNames", "type": "Element"},
-    )
+
+    def get_style_by_name(self, name: str) -> Style | None:
+        for style in self.styles:
+            if name == style.name:
+                return style
 
 
 @dataclass

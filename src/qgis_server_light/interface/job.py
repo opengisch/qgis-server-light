@@ -132,7 +132,7 @@ class QslGetMapJob(QslAbstractJob):
         default=0.0, metadata={"type": "Element", "required": False}
     )
 
-    def get_layer_by_name(self, name: str) -> Raster | Vector | Custom:
+    def get_dataset_by_name(self, name: str) -> Raster | Vector | Custom:
         for layer in self.raster_layers + self.vector_layers + self.custom_layers:
             if layer.name == name:
                 return layer
