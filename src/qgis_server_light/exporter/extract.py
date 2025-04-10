@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+import zlib
 from base64 import urlsafe_b64encode
 from os import path
 from typing import List
@@ -9,6 +10,7 @@ from typing import Union
 
 import pgserviceparser
 from PyQt5.QtXml import QDomDocument
+from qgis._core import QgsMapLayer
 from qgis.core import QgsLayerTree
 from qgis.core import QgsLayerTreeGroup
 from qgis.core import QgsLayerTreeLayer
@@ -34,6 +36,7 @@ from qgis_server_light.interface.qgis import PostgresSource
 from qgis_server_light.interface.qgis import Project
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Service
+from qgis_server_light.interface.qgis import Style
 from qgis_server_light.interface.qgis import Tree
 from qgis_server_light.interface.qgis import TreeGroup
 from qgis_server_light.interface.qgis import Vector
@@ -55,6 +58,24 @@ def create_unified_short_name(name: str, path: list[str]):
     return ".".join(short_name_part)
 
 
+def create_style_list(qgs_layer: QgsMapLayer) -> List[Style]:
+    style_names = qgs_layer.styleManager().styles()
+    style_list = []
+    for style_name in style_names:
+        style_doc = QDomDocument()
+        qgs_layer.styleManager().setCurrentStyle(style_name)
+        qgs_layer.exportNamedStyle(style_doc)
+        style_list.append(
+            Style(
+                name=style_name,
+                definition=urlsafe_b64encode(
+                    zlib.compress(style_doc.toByteArray())
+                ).decode(),
+            )
+        )
+    return style_list
+
+
 def extract_save_layer(
     project: QgsProject,
     child: QgsLayerTreeLayer,
@@ -67,8 +88,9 @@ def extract_save_layer(
     if isinstance(child, QgsLayerTreeLayer):
         child = child.layer()
     os.path.join("/tmp", f"{str(uuid.uuid4())}.qml")
-    style_doc = QDomDocument()
-    child.exportNamedStyle(style_doc)
+
+    QDomDocument()
+
     layer_type = get_layer_type(child)
     decoded = QgsProviderRegistry.instance().decodeUri(
         child.providerType(), child.dataProvider().dataSourceUri()
@@ -159,13 +181,12 @@ def extract_save_layer(
                 f"Unknown provider type: {child.providerType().lower()}"
             )
         fields = extract_fields(child)
-
         datasets.vector.append(
             Vector(
                 path=source_path.replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
                 title=child.title() or child.name(),
-                style=urlsafe_b64encode(style_doc.toByteArray()).decode(),
+                styles=create_style_list(child),
                 driver=child.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 fields=fields,
@@ -175,6 +196,7 @@ def extract_save_layer(
                 bbox=bbox,
                 minimum_scale=child.minimumScale(),
                 maximum_scale=child.maximumScale(),
+                geometry_type=child.wkbType(),
             )
         )
     elif layer_type == "raster":
@@ -220,7 +242,7 @@ def extract_save_layer(
                 path=child.source().replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
                 title=child.title(),
-                style=urlsafe_b64encode(style_doc.toByteArray()).decode(),
+                styles=create_style_list(child),
                 driver=child.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 source=source,
@@ -252,7 +274,7 @@ def extract_save_layer(
                 path=child.source().replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
                 title=child.title(),
-                style=urlsafe_b64encode(style_doc.toByteArray()).decode(),
+                styles=create_style_list(child),
                 driver=child.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 source=source,
