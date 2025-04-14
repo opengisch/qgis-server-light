@@ -141,6 +141,13 @@ class QslGetFeatureInfoJob(QslAbstractJob):
         metadata={"type": "Element", "required": True}
     )
 
+@dataclass(kw_only=True)
+class QslGetFeatureJob(QslAbstractJob):
+    pass
+
+@dataclass(kw_only=True)
+class QslGetPropertyValueJob(QslAbstractJob):
+    pass
 
 @dataclass(kw_only=True)
 class QslLegendJob(QslAbstractJob):
@@ -167,6 +174,16 @@ class JobRunnerInfoQslGetMapJob(AbstractJobRunnerInfo):
 @dataclass
 class JobRunnerInfoQslGetFeatureInfoJob(AbstractJobRunnerInfo):
     job: QslGetFeatureInfoJob = field(metadata={"type": "Element", "required": True})
+
+
+@dataclass
+class JobRunnerInfoQslGetFeatureJob(AbstractJobRunnerInfo):
+    job: QslGetFeatureJob = field(metadata={"type": "Element", "required": True})
+
+
+@dataclass
+class JobRunnerInfoQslGetPropertyValueJob(AbstractJobRunnerInfo):
+    job: QslGetPropertyValueJob = field(metadata={"type": "Element", "required": True})
 
 
 @dataclass

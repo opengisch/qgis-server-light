@@ -3,10 +3,11 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union, cast
 
-from qgis_server_light.interface.job import QslGetFeatureInfoJob, QslGetMapJob, JobResult
+from qgis_server_light.interface.job import QslGetFeatureInfoJob, QslGetFeatureJob, QslGetMapJob, JobResult
 from qgis_server_light.worker.qgis import Qgis
 from qgis_server_light.worker.runner import (
     GetFeatureInfoRunner,
+    GetFeatureRunner,
     MapRunner,
     RenderRunner, RunnerContext,
 )
@@ -47,6 +48,18 @@ class Engine:
             runner = cast(
                 MapRunner,
                 GetFeatureInfoRunner(
+                    self.qgis,
+                    RunnerContext(
+                        self.context.base_path
+                    ),
+                    job,
+                    layer_cache=self.layer_cache
+                ),
+            )
+        elif isinstance(job, QslGetFeatureJob):
+            runner = cast(
+                MapRunner,
+                GetFeatureRunner(
                     self.qgis,
                     RunnerContext(
                         self.context.base_path

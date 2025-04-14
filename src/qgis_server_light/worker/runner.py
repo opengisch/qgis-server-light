@@ -247,6 +247,9 @@ class RenderRunner(MapRunner):
         return JobResult(content_type, image_data)
 
 
+class GetFeatureRunner(MapRunner):
+    pass
+
 class GetFeatureInfoRunner(MapRunner):
     def __init__(
         self,

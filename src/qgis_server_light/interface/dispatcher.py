@@ -7,7 +7,9 @@ from uuid import uuid4
 import async_timeout
 import redis.asyncio as redis
 from qgis_server_light.interface.job import JobResult, QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob, \
-    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob
+    QslGetFeatureJob, QslGetPropertyValueJob, \
+    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob, \
+    JobRunnerInfoQslGetFeatureJob, JobRunnerInfoQslGetPropertyValueJob
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 
@@ -38,6 +40,12 @@ class RedisQueue:
             job = JobRunnerInfoQslGetFeatureInfoJob(
                 id=job_id,
                 type=JobRunnerInfoQslGetFeatureInfoJob.__name__,
+                job=job
+            )
+        elif isinstance(job, QslGetFeatureJob):
+            job = JobRunnerInfoQslGetFeatureJob(
+                id=job_id,
+                type=JobRunnerInfoQslGetFeatureJob.__name__,
                 job=job
             )
         elif isinstance(job, QslLegendJob):
