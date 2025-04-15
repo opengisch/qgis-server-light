@@ -68,8 +68,9 @@ class WmsGetMapParams(AbstractWmsParams):
         return self.LAYERS.split(",")
 
     @property
-    def styles(self) -> List[str]:
-        return self.STYLES.split(",")
+    def styles(self) -> List[str] | None:
+        if self.STYLES:
+            return self.STYLES.split(",")
 
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
