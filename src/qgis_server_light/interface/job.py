@@ -24,9 +24,6 @@ class AbstractWmsParams:
     FORMAT_OPTIONS: str = field(
         default=None, metadata={"type": "Element", "required": False}
     )
-    STYLES: str = field(
-        default_factory=list, metadata={"type": "Element", "required": False}
-    )
 
     @property
     def dpi(self) -> int | None:
@@ -58,6 +55,9 @@ class WmsGetMapParams(AbstractWmsParams):
 
     LAYERS: str = field(metadata={"type": "Element", "required": True})
 
+    # We make that mandatory, to force clients talking to QSL to always specify a style per layer
+    STYLES: str = field(default=None, metadata={"type": "Element", "required": True})
+
     # mime type of the requested image
     FORMAT: str = field(
         default="image/png", metadata={"type": "Element", "required": True}
@@ -66,6 +66,11 @@ class WmsGetMapParams(AbstractWmsParams):
     @property
     def layers(self) -> List[str]:
         return self.LAYERS.split(",")
+
+    @property
+    def styles(self) -> List[str] | None:
+        if self.STYLES:
+            return self.STYLES.split(",")
 
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
@@ -126,7 +131,7 @@ class QslGetMapJob(QslAbstractJob):
         default=0.0, metadata={"type": "Element", "required": False}
     )
 
-    def get_layer_by_name(self, name: str) -> Raster | Vector | Custom:
+    def get_dataset_by_name(self, name: str) -> Raster | Vector | Custom:
         for layer in self.raster_layers + self.vector_layers + self.custom_layers:
             if layer.name == name:
                 return layer

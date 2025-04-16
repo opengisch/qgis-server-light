@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import uuid
+import zlib
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,6 +38,7 @@ from qgis_server_light.interface.job import QslGetFeatureInfoJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.interface.job import QslLegendJob
 from qgis_server_light.interface.qgis import Custom
+from qgis_server_light.interface.qgis import DataSet
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
@@ -99,40 +101,60 @@ class MapRunner:
         settings.setDestinationCrs(destinationCrs)
         return settings
 
-    def _init_layers(self, layer: Vector | Raster):
+    def _load_style(
+        self, requested_style_name: str, qgs_layer: QgsMapLayer, dataset: DataSet
+    ):
+        logging.info(f"Preparing layer Style: {requested_style_name}")
+        style_doc = QDomDocument()
+        style_doc.setContent(
+            zlib.decompress(
+                urlsafe_b64decode(
+                    dataset.get_style_by_name(requested_style_name).definition
+                )
+            )
+        )
+        style_loaded = qgs_layer.importNamedStyle(style_doc)
+        qgs_layer.styleManager().setCurrentStyle(requested_style_name)
+        logging.info(f" ✓ Style loaded: {style_loaded}")
+
+    def _init_layers(self, dataset: Vector | Raster | Custom, style_name: str):
         """Initializes the map_layers list with all the specified layer_names, looking up style and other
         information in layer_registry
         Returns:
             None
         Parameters:
             layer_name: the layer or group to initialize. In case of a group, will recursively follow.
+            style_name: The name of the style which is requested fo rendering.
         """
 
-        if isinstance(layer, Vector):
-            self.map_layers.append(self._prepare_vector_layer(layer))
-        elif isinstance(layer, Raster):
-            self.map_layers.append(self._prepare_raster_layer(layer))
-        elif isinstance(layer, Custom):
-            self.map_layers.append(self._prepare_custom_layer(layer))
+        if isinstance(dataset, Vector):
+            qgs_layer = self._prepare_vector_layer(dataset)
+        elif isinstance(dataset, Raster):
+            qgs_layer = self._prepare_raster_layer(dataset)
+        elif isinstance(dataset, Custom):
+            qgs_layer = self._prepare_custom_layer(dataset)
         else:
-            raise KeyError(f"Type not implemented: {layer}")
+            raise KeyError(f"Type not implemented: {dataset}")
+        # applying the style to the layer
+        self._load_style(style_name, qgs_layer, dataset)
+        self.map_layers.append(qgs_layer)
 
-    def _prepare_vector_layer(self, layer: Vector) -> QgsVectorLayer:
+    def _prepare_vector_layer(self, dataset: Vector) -> QgsVectorLayer:
         """Initializes a vector layer"""
-        if layer.source.ogr is not None:
-            if layer.source.ogr.remote:
-                layer_source_path = layer.path
+        if dataset.source.ogr is not None:
+            if dataset.source.ogr.remote:
+                layer_source_path = dataset.path
             else:
-                layer_source_path = os.path.join(self.context.base_path, layer.path)
-        elif (layer.source.postgres or layer.source.wfs) is not None:
-            layer_source_path = layer.path
+                layer_source_path = os.path.join(self.context.base_path, dataset.path)
+        elif (dataset.source.postgres or dataset.source.wfs) is not None:
+            layer_source_path = dataset.path
         else:
-            raise KeyError(f"Driver not implemented: {layer.driver}")
+            raise KeyError(f"Driver not implemented: {dataset.driver}")
 
         # TODO: make sure cached layers reload the style if changed
-        if self.layer_cache is not None and layer.name in self.layer_cache:
-            logging.debug(f"Using cached layer {layer.name}")
-            qgs_layer = self.layer_cache[layer.name]
+        if self.layer_cache is not None and dataset.name in self.layer_cache:
+            logging.debug(f"Using cached layer {dataset.name}")
+            qgs_layer = self.layer_cache[dataset.name]
         else:
             logging.debug(f"Load layer {layer_source_path}")
             options = QgsVectorLayer.LayerOptions(
@@ -141,82 +163,67 @@ class MapRunner:
             options.skipCrValidation = True
             options.forceReadOnly = True
             qgs_layer = QgsVectorLayer(
-                layer_source_path, layer.name, layer.driver, options
+                layer_source_path, dataset.name, dataset.driver, options
             )
 
             if not qgs_layer.isValid():
                 raise RuntimeError(
-                    f"Layer {layer.name} is not valid.\n    Path: {layer_source_path}"
+                    f"Layer {dataset.name} is not valid.\n    Path: {layer_source_path}"
                 )
             else:
-                logging.info(f" ✓ Layer: {layer.name}")
+                logging.info(f" ✓ Layer: {dataset.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[layer.name] = qgs_layer
-            if layer.style:
-                style_doc = QDomDocument()
-                style_doc.setContent(urlsafe_b64decode(layer.style))
-                style_loaded = qgs_layer.importNamedStyle(style_doc)
-                logging.info(f"Style loaded: {style_loaded}")
+                    self.layer_cache[dataset.name] = qgs_layer
         return qgs_layer
 
-    def _prepare_custom_layer(self, layer: Custom) -> QgsVectorTileLayer:
+    def _prepare_custom_layer(self, dataset: Custom) -> QgsVectorTileLayer:
         """Initializes a raster layer"""
-        if layer.source.vector_tile is not None:
-            if layer.source.vector_tile.remote:
-                layer_source_path = layer.path
+        if dataset.source.vector_tile is not None:
+            if dataset.source.vector_tile.remote:
+                layer_source_path = dataset.path
             else:
                 raise NotImplementedError(
                     "Currently only remote VectorTiles are supported"
                 )
         else:
-            raise KeyError(f"Driver not implemented: {layer.driver}")
+            raise KeyError(f"Driver not implemented: {dataset.driver}")
         # TODO: make sure cached layers reload the style if changed
-        if self.layer_cache is not None and layer.name in self.layer_cache:
-            logging.debug(f"Using cached layer {layer.name}")
-            qgs_layer = self.layer_cache[layer.name]
+        if self.layer_cache is not None and dataset.name in self.layer_cache:
+            logging.debug(f"Using cached layer {dataset.name}")
+            qgs_layer = self.layer_cache[dataset.name]
         else:
-            qgs_layer = QgsVectorTileLayer(layer_source_path, layer.name)
+            qgs_layer = QgsVectorTileLayer(layer_source_path, dataset.name)
             if not qgs_layer.isValid():
-                raise RuntimeError(f"Layer {layer.name} is not valid")
+                raise RuntimeError(f"Layer {dataset.name} is not valid")
             else:
-                logging.info(f" ✓ Layer: {layer.name}")
+                logging.info(f" ✓ Layer: {dataset.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[layer.name] = qgs_layer
-            if layer.style:
-                style_doc = QDomDocument()
-                style_doc.setContent(urlsafe_b64decode(layer.style))
-                style_loaded = qgs_layer.importNamedStyle(style_doc)
-                logging.info(f"Style loaded: {style_loaded}")
+                    self.layer_cache[dataset.name] = qgs_layer
         return qgs_layer
 
-    def _prepare_raster_layer(self, layer: Raster) -> QgsRasterLayer:
+    def _prepare_raster_layer(self, dataset: Raster) -> QgsRasterLayer:
         """Initializes a raster layer"""
-        if layer.source.gdal is not None:
-            if layer.source.gdal.remote:
-                layer_source_path = layer.path
+        if dataset.source.gdal is not None:
+            if dataset.source.gdal.remote:
+                layer_source_path = dataset.path
             else:
-                layer_source_path = os.path.join(self.context.base_path, layer.path)
-        elif layer.source.wms is not None:
-            layer_source_path = layer.path
+                layer_source_path = os.path.join(self.context.base_path, dataset.path)
+        elif dataset.source.wms is not None:
+            layer_source_path = dataset.path
         else:
-            raise KeyError(f"Driver not implemented: {layer.driver}")
+            raise KeyError(f"Driver not implemented: {dataset.driver}")
         # TODO: make sure cached layers reload the style if changed
-        if self.layer_cache is not None and layer.name in self.layer_cache:
-            logging.debug(f"Using cached layer {layer.name}")
-            qgs_layer = self.layer_cache[layer.name]
+        if self.layer_cache is not None and dataset.name in self.layer_cache:
+            logging.debug(f"Using cached layer {dataset.name}")
+            qgs_layer = self.layer_cache[dataset.name]
         else:
-            qgs_layer = QgsRasterLayer(layer_source_path, layer.name, layer.driver)
+            qgs_layer = QgsRasterLayer(layer_source_path, dataset.name, dataset.driver)
             if not qgs_layer.isValid():
-                raise RuntimeError(f"Layer {layer.name} is not valid")
+                raise RuntimeError(f"Layer {dataset.name} is not valid")
             else:
-                logging.info(f" ✓ Layer: {layer.name}")
+                logging.info(f" ✓ Layer: {dataset.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[layer.name] = qgs_layer
-            if layer.style:
-                style_doc = QDomDocument()
-                style_doc.setContent(urlsafe_b64decode(layer.style))
-                style_loaded = qgs_layer.importNamedStyle(style_doc)
-                logging.info(f"Style loaded: {style_loaded}")
+                    self.layer_cache[dataset.name] = qgs_layer
         return qgs_layer
 
     def run(self):
@@ -241,8 +248,10 @@ class RenderRunner(MapRunner):
         Returns:
             A JobResult with the content_type and image_data (bytes) of the rendered image.
         """
-        for layer_name in self.job.service_params.layers:
-            self._init_layers(self.job.get_layer_by_name(layer_name))
+        for index, layer_name in enumerate(self.job.service_params.layers):
+            # list of styles passed to QSL has to be always the same order and length as layers
+            style_name = self.job.service_params.styles[index]
+            self._init_layers(self.job.get_dataset_by_name(layer_name), style_name)
         map_settings = self._get_map_settings(self.map_layers)
         renderer = QgsMapRendererParallelJob(map_settings)
         event_loop = QEventLoop(self.qgis)
@@ -285,8 +294,8 @@ class GetFeatureInfoRunner(MapRunner):
 
     def run(self):
         layer_registry = self.context.theme.config.get("layers")
-        for layer in self.job.query_layers:
-            self._init_layers(layer_registry, layer)
+        for dataset in self.job.query_layers:
+            self._init_layers(layer_registry, dataset)
         map_settings = self._get_map_settings(self.map_layers)
         # Estimate queryable bbox (2mm)
         map_to_pixel = map_settings.mapToPixel()
