@@ -9,7 +9,11 @@ from typing import Tuple
 from typing import Union
 
 import pgserviceparser
+from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
+from qgis._core import QgsDateTimeFieldFormatter
+from qgis._core import QgsField
+from qgis._core import QgsFieldConstraints
 from qgis._core import QgsMapLayer
 from qgis.core import QgsLayerTree
 from qgis.core import QgsLayerTreeGroup
@@ -46,10 +50,109 @@ from qgis_server_light.interface.qgis import WmsSource
 from qgis_server_light.interface.qgis import WmtsSource
 
 
-def extract_fields(layer: QgsVectorLayer) -> List[Field]:
+def obtain_simple_types(field: QgsField) -> str:
+    """
+
+    Args:
+        field: The field of an `QgsVectorLayer`.
+
+    Returns:
+        Unified type name regarding
+        [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes)
+        IMPORTANT: If type is not matched within the function it will be `string` always!
+    """
+    attribute_type = field.type()
+    if attribute_type == QMetaType.Type.Int:
+        return "int"
+    elif attribute_type == QMetaType.Type.UInt:
+        return "unsignedInt"
+    elif attribute_type == QMetaType.Type.LongLong:
+        return "long"
+    elif attribute_type == QMetaType.Type.ULongLong:
+        return "unsignedLong"
+    elif attribute_type == QMetaType.Type.Double:
+        if field.length() > 0 and field.precision() == 0:
+            return "integer"
+        else:
+            return "decimal"
+    elif attribute_type == QMetaType.Type.Bool:
+        return "boolean"
+    elif attribute_type == QMetaType.Type.QDate:
+        return "date"
+    elif attribute_type == QMetaType.Type.QTime:
+        return "time"
+    elif attribute_type == QMetaType.Type.QDateTime:
+        return "dateTime"
+    else:
+        return "string"
+
+
+def obtain_simple_types_from_editor_widget(field: QgsField) -> str | None:
+    """
+    We simply mimikri [QGIS Server here](https://github.com/qgis/QGIS/blob/de98779ebb117547364ec4cff433f062374e84a3/src/server/services/wfs/qgswfsdescribefeaturetype.cpp#L153-L192)
+
+    TODO: This could be improved alot! Maybe we can also backport that to QGIS core some day?
+
+    Args:
+        field: The field of an `QgsVectorLayer`.
+
+    Returns:
+        Unified type name regarding
+        [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes)
+    """
+    attribute_type = field.type()
+    setup = field.editorWidgetSetup()
+    config = setup.config()
+    if setup.type() == "DateTime":
+        field_format = config.get(
+            "field_format", QgsDateTimeFieldFormatter.defaultFormat(attribute_type)
+        )
+        if field_format == QgsDateTimeFieldFormatter.TIME_FORMAT:
+            return "time"
+        elif field_format == QgsDateTimeFieldFormatter.DATE_FORMAT:
+            return "date"
+        elif field_format == QgsDateTimeFieldFormatter.DATETIME_FORMAT:
+            return "dateTime"
+        elif field_format == QgsDateTimeFieldFormatter.QT_ISO_FORMAT:
+            return "dateTime"
+    elif setup.type() == "Range":
+        if config.get("Precision"):
+            config_precision = int(config["Precision"])
+            if config_precision != field.precision():
+                if config_precision == 0:
+                    return "integer"
+                else:
+                    return "decimal"
+
+
+def obtain_nullable(field: QgsField):
+    if not (
+        field.constraints().constraints()
+        == QgsFieldConstraints.Constraint.ConstraintNotNull
+    ):
+        return True
+
+
+def extract_fields(
+    layer: QgsVectorLayer, types_from_editor_widget: bool = False
+) -> List[Field]:
     fields = []
-    for field in layer.fields():
-        fields.append(Field(name=field.name(), type=field.typeName()))
+    pk_indexes = layer.dataProvider().pkAttributeIndexes()
+    for field_index, field in enumerate(layer.fields()):
+        attribute_type = obtain_simple_types(field)
+        if types_from_editor_widget:
+            editor_widget_type = obtain_simple_types_from_editor_widget(field)
+            if editor_widget_type:
+                attribute_type = editor_widget_type
+        fields.append(
+            Field(
+                name=field.name(),
+                type=field.typeName(),
+                type_simple=attribute_type,
+                alias=field.alias() or field.name().title(),
+                nullable=(field_index not in pk_indexes) and obtain_nullable(field),
+            )
+        )
     return fields
 
 
@@ -82,7 +185,8 @@ def extract_save_layer(
     tree: Tree,
     datasets: Datasets,
     path: list[str],
-    unify_layer_names_by_group=False,
+    unify_layer_names_by_group: bool = False,
+    types_from_editor_widget: bool = False,
 ):
     """Save the given layer to the output path."""
     if isinstance(child, QgsLayerTreeLayer):
@@ -180,7 +284,7 @@ def extract_save_layer(
             raise NotImplementedError(
                 f"Unknown provider type: {child.providerType().lower()}"
             )
-        fields = extract_fields(child)
+        fields = extract_fields(child, types_from_editor_widget)
         datasets.vector.append(
             Vector(
                 path=source_path.replace(f'{project.readPath("./")}/', ""),
@@ -196,7 +300,8 @@ def extract_save_layer(
                 bbox=bbox,
                 minimum_scale=child.minimumScale(),
                 maximum_scale=child.maximumScale(),
-                geometry_type=child.wkbType(),
+                geometry_type_simple=child.geometryType().name,
+                geometry_type_wkb=child.wkbType().name,
             )
         )
     elif layer_type == "raster":
@@ -295,6 +400,7 @@ def extract_group(
     datasets: Datasets,
     path: list[str],
     unify_layer_names_by_group=False,
+    types_from_editor_widget: bool = False,
 ):
     """Collects data pertaining to a QGIS layer tree group."""
     children = []
@@ -330,20 +436,40 @@ def extract_entities(
     datasets: Datasets,
     path: list[str],
     unify_layer_names_by_group=False,
+    types_from_editor_widget: bool = False,
 ):
     if isinstance(entity, QgsLayerTreeLayer):
         extract_save_layer(
-            project, entity, tree, datasets, path, unify_layer_names_by_group
+            project,
+            entity,
+            tree,
+            datasets,
+            path,
+            unify_layer_names_by_group,
+            types_from_editor_widget,
         )
 
     # If the entity has an attribute `children`, assume it's a group
     elif isinstance(entity, QgsLayerTreeGroup) or isinstance(entity, QgsLayerTree):
         if entity.customProperty("wmsShortName") is not None:
             path = path + [entity.customProperty("wmsShortName")]
-        extract_group(entity, tree, datasets, path, unify_layer_names_by_group)
+        extract_group(
+            entity,
+            tree,
+            datasets,
+            path,
+            unify_layer_names_by_group,
+            types_from_editor_widget,
+        )
         for child in entity.children():
             extract_entities(
-                project, child, tree, datasets, path, unify_layer_names_by_group
+                project,
+                child,
+                tree,
+                datasets,
+                path,
+                unify_layer_names_by_group,
+                types_from_editor_widget,
             )
 
 
