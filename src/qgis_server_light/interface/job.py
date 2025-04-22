@@ -107,14 +107,14 @@ class WmsGetFeatureInfoParams(AbstractWmsParams):
 
 
 @dataclass
-class QslAbstractJob:
+class QslAbstractMapJob:
     svg_paths: List[str] = field(
         default_factory=list, metadata={"type": "Element", "required": True}
     )
 
 
 @dataclass(kw_only=True)
-class QslGetMapJob(QslAbstractJob):
+class QslGetMapJob(QslAbstractMapJob):
     """A job to be rendered as an image"""
 
     service_params: WmsGetMapParams = field(
@@ -139,7 +139,7 @@ class QslGetMapJob(QslAbstractJob):
 
 
 @dataclass(kw_only=True)
-class QslGetFeatureInfoJob(QslAbstractJob):
+class QslGetFeatureInfoJob(QslAbstractMapJob):
     """A job to extract feature info"""
 
     service_params: WmsGetFeatureInfoParams = field(
@@ -148,8 +148,20 @@ class QslGetFeatureInfoJob(QslAbstractJob):
 
 
 @dataclass(kw_only=True)
-class QslLegendJob(QslAbstractJob):
+class QslLegendJob(QslAbstractMapJob):
     """Render legend"""
+
+
+@dataclass
+class FeatureQuery:
+    datasets: List[Vector] = field(metadata={"type": "Element", "required": True})
+    alias: Optional[List[str]] = field(default=None, metadata={"type": "Element"})
+    filter: Optional[str] = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass
+class QslGetFeatureJob:
+    queries: List[FeatureQuery] = field(metadata={"type": "Element", "required": True})
 
 
 @dataclass
