@@ -35,6 +35,7 @@ from qgis.core import QgsVectorLayer
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetFeatureJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.interface.job import QslLegendJob
 from qgis_server_light.interface.qgis import Custom
@@ -60,7 +61,7 @@ class MapRunner:
         self,
         qgis: QgsApplication,
         context: RunnerContext,
-        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob,
+        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob | QslGetFeatureJob,
         layer_cache: Optional[Dict] = None,
     ) -> None:
         self.qgis = qgis
@@ -354,3 +355,89 @@ class GetLegendRunner(MapRunner):
     def run(self):
         # TODO Implement ....
         raise NotImplementedError()
+
+
+class GetFeatureRunner(MapRunner):
+    def __init__(
+        self,
+        qgis: QgsApplication,
+        context: RunnerContext,
+        job: QslGetFeatureJob,
+        layer_cache: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(qgis, context, job, layer_cache)
+
+    def _clean_attribute(self, attribute, idx, layer):
+        if attribute == NULL:
+            return None
+        setup = layer.editorWidgetSetup(idx)
+        fieldFormatter = QgsApplication.fieldFormatterRegistry().fieldFormatter(
+            setup.type()
+        )
+        return fieldFormatter.representValue(
+            layer, idx, setup.config(), None, attribute
+        )
+
+    def _clean_attributes(self, attributes, layer):
+        return [
+            self._clean_attribute(attr, idx, layer)
+            for idx, attr in enumerate(attributes)
+        ]
+
+    def _load_style(
+        self, requested_style_name: str, qgs_layer: QgsMapLayer, dataset: DataSet
+    ):
+        logging.info(f" ✓ Omit style loading on WFS layer operation.")
+
+    def run(self):
+        for query in self.job.queries:
+            for dataset in query.datasets:
+                self._init_layers(dataset, "")
+            map_settings = self._get_map_settings(self.map_layers)
+            # Estimate queryable bbox (2mm)
+            # map_to_pixel = map_settings.mapToPixel()
+            # map_point = map_to_pixel.toMapCoordinates(self.job.x, self.job.y)
+            # Create identifiable bbox in map coordinates, ±2mm
+            # tolerance = 0.002 * 39.37 * map_settings.outputDpi()
+            # tl = QgsPointXY(map_point.x() - tolerance, map_point.y() - tolerance)
+            # br = QgsPointXY(map_point.x() + tolerance, map_point.y() + tolerance)
+            # rect = QgsRectangle(tl, br)
+            render_context = QgsRenderContext.fromMapSettings(map_settings)
+
+            features = list()
+            for layer in self.map_layers:
+                renderer = layer.renderer().clone() if layer.renderer() else None
+                # this can be removed since we have only vector layers...
+                if isinstance(layer, QgsVectorLayer):
+                    if renderer:
+                        renderer.startRender(render_context, layer.fields())
+                    # layer_rect = map_settings.mapToLayerCoordinates(layer, rect)
+                    # request = (
+                    #    QgsFeatureRequest()
+                    #    .setFilterRect(layer_rect)
+                    #    .setFlags(QgsFeatureRequest.ExactIntersect)
+                    # )
+                    # we get all features
+                    for feature in layer.getFeatures():
+                        if renderer.willRenderFeature(feature, render_context):
+                            properties = OrderedDict(
+                                zip(
+                                    feature.fields().names(),
+                                    self._clean_attributes(feature.attributes(), layer),
+                                )
+                            )
+                            features.append(
+                                {"type": "Feature", "properties": properties}
+                            )
+                    if renderer:
+                        renderer.stopRender(render_context)
+                else:
+                    raise RuntimeError(
+                        f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
+                    )
+
+            featurecollection = {"features": features, "type": "FeatureCollection"}
+        return JobResult(
+            data=json.dumps(featurecollection).encode("utf-8"),
+            content_type="application/json",
+        )
