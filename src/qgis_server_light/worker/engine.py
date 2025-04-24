@@ -10,9 +10,11 @@ from typing import cast
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetFeatureJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.worker.qgis import Qgis
 from qgis_server_light.worker.runner import GetFeatureInfoRunner
+from qgis_server_light.worker.runner import GetFeatureRunner
 from qgis_server_light.worker.runner import MapRunner
 from qgis_server_light.worker.runner import RenderRunner
 from qgis_server_light.worker.runner import RunnerContext
@@ -53,6 +55,16 @@ class Engine:
             runner = cast(
                 MapRunner,
                 GetFeatureInfoRunner(
+                    self.qgis,
+                    RunnerContext(self.context.base_path),
+                    job,
+                    layer_cache=self.layer_cache,
+                ),
+            )
+        elif isinstance(job, QslGetFeatureJob):
+            runner = cast(
+                MapRunner,
+                GetFeatureRunner(
                     self.qgis,
                     RunnerContext(self.context.base_path),
                     job,

@@ -189,3 +189,8 @@ class JobRunnerInfoQslGetFeatureInfoJob(AbstractJobRunnerInfo):
 @dataclass
 class JobRunnerInfoQslLegendJob(AbstractJobRunnerInfo):
     job: QslLegendJob = field(metadata={"type": "Element", "required": True})
+
+
+@dataclass
+class JobRunnerInfoQslGetFeatureJob(AbstractJobRunnerInfo):
+    job: QslGetFeatureJob = field(metadata={"type": "Element", "required": True})

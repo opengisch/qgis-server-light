@@ -298,6 +298,10 @@ class DataSet(AbstractDataset):
         default=None,
         metadata={"name": "MaximumScale", "type": "Element", "required": True},
     )
+    filter: Optional[str] = field(
+        default=None,
+        metadata={"name": "Filter", "type": "Element", "required": True},
+    )
 
     def get_style_by_name(self, name: str) -> Style | None:
         for style in self.styles:

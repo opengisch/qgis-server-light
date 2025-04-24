@@ -14,6 +14,7 @@ import redis
 from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
+from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
 from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
 from qgis_server_light.worker.engine import Engine
@@ -73,6 +74,10 @@ class RedisEngine(Engine):
                 elif JobRunnerInfoQslLegendJob.__name__ == job_info_dict["type"]:
                     job_info = JsonParser().from_bytes(
                         job_info_json, JobRunnerInfoQslLegendJob
+                    )
+                elif JobRunnerInfoQslGetFeatureJob.__name__ == job_info_dict["type"]:
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslGetFeatureJob
                     )
                 else:
 
