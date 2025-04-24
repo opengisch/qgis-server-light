@@ -154,6 +154,15 @@ class QslLegendJob(QslAbstractMapJob):
 
 @dataclass
 class FeatureQuery:
+    """Represents definitions of a query to obtain features.
+
+    Attributes:
+        datasets: A list vector datasets which should be queried (and the filter will be applied to).
+        alias: An optional list of alias names. This has to be the same length as the list of datasets.
+        filter: An optional filter. It is a String which can be interpreted as a OgcFilter consumable by
+            `qgis.core.QgsOgcUtils.expressionFromOgcFilter`.
+    """
+
     datasets: List[Vector] = field(metadata={"type": "Element", "required": True})
     alias: Optional[List[str]] = field(default=None, metadata={"type": "Element"})
     filter: Optional[str] = field(default=None, metadata={"type": "Element"})
@@ -161,7 +170,29 @@ class FeatureQuery:
 
 @dataclass
 class QslGetFeatureJob:
+    """As defined in WFS 2.0 specs, a request can be subdivided in a list of queries.
+    This class is representing that.
+
+    Attributes:
+        queries: A list of `FeatureQuery` objects.
+        start_index: The offset for paging
+        count: The number of results to return.
+    """
+
     queries: List[FeatureQuery] = field(metadata={"type": "Element", "required": True})
+    start_index: int = field(
+        default=0,
+        metadata={
+            "name": "startIndex",
+            "type": "Attribute",
+        },
+    )
+    count: Optional[int] = field(
+        default=None,
+        metadata={
+            "type": "Attribute",
+        },
+    )
 
 
 @dataclass
