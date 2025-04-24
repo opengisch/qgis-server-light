@@ -231,6 +231,9 @@ class Crs:
     ogc_uri: str = field(
         default=None, metadata={"name": "OgcUri", "type": "Element", "required": False}
     )
+    ogc_urn: str = field(
+        default=None, metadata={"name": "OgcUrn", "type": "Element", "required": False}
+    )
 
 
 @dataclass
@@ -291,6 +294,10 @@ class DataSet(AbstractDataset):
     maximum_scale: float = field(
         default=None,
         metadata={"name": "MaximumScale", "type": "Element", "required": True},
+    )
+    filter: Optional[str] = field(
+        default=None,
+        metadata={"name": "Filter", "type": "Element", "required": True},
     )
 
     def get_style_by_name(self, name: str) -> Style | None:
