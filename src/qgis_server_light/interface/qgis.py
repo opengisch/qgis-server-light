@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
-from typing import Any
 from typing import List
 from typing import Optional
+from typing import Union
 
 
 @dataclass
@@ -496,7 +496,7 @@ class Attribute:
     """
 
     name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
-    value: Any[int | float | str | bool | None | bytes | bytearray] = field(
+    value: Union[int | float | str | bool | None | bytes | bytearray] = field(
         metadata={"name": "Value", "type": "Element", "required": True}
     )
 
