@@ -10,6 +10,7 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
+from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
 from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
@@ -52,6 +53,12 @@ class RedisQueue:
             job = JobRunnerInfoQslLegendJob(
                 id=job_id, type=JobRunnerInfoQslLegendJob.__name__, job=job
             )
+        elif isinstance(job, QslGetFeatureJob):
+            job = JobRunnerInfoQslGetFeatureJob(
+                id=job_id, type=JobRunnerInfoQslGetFeatureJob.__name__, job=job
+            )
+        else:
+            raise TypeError(f"Unsupported job type: {type(job)}")
         async with r.pipeline() as p:
             logging.info(f"{job_id} pushed")
             p.rpush("jobs", JsonSerializer().render(job))
