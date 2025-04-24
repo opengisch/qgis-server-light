@@ -32,14 +32,19 @@ from qgis.core import QgsRasterLayer
 from qgis.core import QgsRectangle
 from qgis.core import QgsRenderContext
 from qgis.core import QgsVectorLayer
+from xsdata.formats.dataclass.serializers import DictEncoder
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
 from qgis_server_light.interface.job import QslGetFeatureJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.interface.job import QslLegendJob
+from qgis_server_light.interface.qgis import Attribute
 from qgis_server_light.interface.qgis import Custom
 from qgis_server_light.interface.qgis import DataSet
+from qgis_server_light.interface.qgis import Feature
+from qgis_server_light.interface.qgis import FeatureCollection
+from qgis_server_light.interface.qgis import QueryCollection
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
@@ -390,6 +395,7 @@ class GetFeatureRunner(MapRunner):
         logging.info(f" ✓ Omit style loading on WFS layer operation.")
 
     def run(self):
+        query_collection = QueryCollection()
         for query in self.job.queries:
             for dataset in query.datasets:
                 self._init_layers(dataset, "")
@@ -404,8 +410,9 @@ class GetFeatureRunner(MapRunner):
             # rect = QgsRectangle(tl, br)
             render_context = QgsRenderContext.fromMapSettings(map_settings)
 
-            features = list()
             for layer in self.map_layers:
+                feature_collection = FeatureCollection(layer.name())
+                query_collection.feature_collections.append(feature_collection)
                 renderer = layer.renderer().clone() if layer.renderer() else None
                 # this can be removed since we have only vector layers...
                 if isinstance(layer, QgsVectorLayer):
@@ -418,26 +425,27 @@ class GetFeatureRunner(MapRunner):
                     #    .setFlags(QgsFeatureRequest.ExactIntersect)
                     # )
                     # we get all features
-                    for feature in layer.getFeatures():
-                        if renderer.willRenderFeature(feature, render_context):
-                            properties = OrderedDict(
-                                zip(
-                                    feature.fields().names(),
-                                    self._clean_attributes(feature.attributes(), layer),
+                    for layer_feature in layer.getFeatures():
+                        if renderer.willRenderFeature(layer_feature, render_context):
+                            property_list = zip(
+                                layer_feature.fields().names(),
+                                self._clean_attributes(
+                                    layer_feature.attributes(), layer
+                                ),
+                            )
+                            feature = Feature(geometry=layer_feature.geometry())
+                            feature_collection.features.append(feature)
+                            for name, value in property_list:
+                                feature.attributes.append(
+                                    Attribute(name=name, value=value)
                                 )
-                            )
-                            features.append(
-                                {"type": "Feature", "properties": properties}
-                            )
                     if renderer:
                         renderer.stopRender(render_context)
                 else:
                     raise RuntimeError(
                         f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
                     )
-
-            featurecollection = {"features": features, "type": "FeatureCollection"}
         return JobResult(
-            data=json.dumps(featurecollection).encode("utf-8"),
-            content_type="application/json",
+            data=DictEncoder().encode(query_collection),
+            content_type="application/qgis-server-light.interface.qgis.QueryCollection",
         )

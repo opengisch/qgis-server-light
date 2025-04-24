@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -479,3 +480,72 @@ class Config:
     )
     tree: Tree = field(metadata={"name": "Tree", "type": "Element"})
     datasets: Datasets = field(metadata={"name": "DataSet", "type": "Element"})
+
+
+@dataclass
+class Attribute:
+    """An attribute belonging to a feature. The aim here is to drill down to simple types which can be used
+    in consuming applications without further handling. This does not include the geometry attribute!
+
+    Attributes:
+        name: The name of the attribute. Has to match with the name used for exported fields with `Field`
+            class.
+        value: Value as simple as possible. It has to be
+            [pickleable](https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled)
+
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    value: Any[int | float | str | bool | None | bytes | bytearray] = field(
+        metadata={"name": "Value", "type": "Element", "required": True}
+    )
+
+
+@dataclass
+class Feature:
+    """Feature to hold information of extracted QgsFeature.
+
+    Attributes:
+        attributes: List of attributes definined in this feature.
+        geometry: The geometry representing the feature.
+    """
+
+    geometry: Optional[Attribute] = field(
+        default=None, metadata={"name": "Geometry", "type": "Element"}
+    )
+    attributes: Optional[List[Attribute]] = field(
+        default_factory=list,
+        metadata={"name": "Attributes", "type": "Element"},
+    )
+
+
+@dataclass
+class FeatureCollection:
+    """This construction is used to abstract the content of extracted features for pickelable transportation
+    from QSL to the queue. This way we ensure how things are constructed and transported.
+
+    Attributes:
+        name: The name of the feature collection. This is the key to match it to requested layers.
+        features: The features belonging to the feature collection.
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    features: List[Feature] = field(
+        default_factory=list,
+        metadata={"name": "Features", "type": "Element", "required": True},
+    )
+
+
+@dataclass
+class QueryCollection:
+    """Holds all feature collections which are bound to the passed queries. The order in the list has to be
+    not changed, so that consuming applications can map the response to the passed queries.
+
+    Attributes:
+        feature_collections: The feature collections belonging to the passed queries.
+    """
+
+    feature_collections: List[FeatureCollection] = field(
+        default_factory=list,
+        metadata={"name": "FeatureCollections", "type": "Element", "required": True},
+    )
