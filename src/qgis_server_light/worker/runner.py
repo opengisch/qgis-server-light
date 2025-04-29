@@ -32,7 +32,7 @@ from qgis.core import QgsRasterLayer
 from qgis.core import QgsRectangle
 from qgis.core import QgsRenderContext
 from qgis.core import QgsVectorLayer
-from xsdata.formats.dataclass.serializers import DictEncoder
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
@@ -399,7 +399,7 @@ class GetFeatureRunner(MapRunner):
         for query in self.job.queries:
             for dataset in query.datasets:
                 self._init_layers(dataset, "")
-            map_settings = self._get_map_settings(self.map_layers)
+            # map_settings = self._get_map_settings(self.map_layers)
             # Estimate queryable bbox (2mm)
             # map_to_pixel = map_settings.mapToPixel()
             # map_point = map_to_pixel.toMapCoordinates(self.job.x, self.job.y)
@@ -408,16 +408,16 @@ class GetFeatureRunner(MapRunner):
             # tl = QgsPointXY(map_point.x() - tolerance, map_point.y() - tolerance)
             # br = QgsPointXY(map_point.x() + tolerance, map_point.y() + tolerance)
             # rect = QgsRectangle(tl, br)
-            render_context = QgsRenderContext.fromMapSettings(map_settings)
+            # render_context = QgsRenderContext.fromMapSettings(map_settings)
 
             for layer in self.map_layers:
                 feature_collection = FeatureCollection(layer.name())
                 query_collection.feature_collections.append(feature_collection)
-                renderer = layer.renderer().clone() if layer.renderer() else None
+                layer.renderer().clone() if layer.renderer() else None
                 # this can be removed since we have only vector layers...
                 if isinstance(layer, QgsVectorLayer):
-                    if renderer:
-                        renderer.startRender(render_context, layer.fields())
+                    # if renderer:
+                    #     renderer.startRender(render_context, layer.fields())
                     # layer_rect = map_settings.mapToLayerCoordinates(layer, rect)
                     # request = (
                     #    QgsFeatureRequest()
@@ -426,26 +426,28 @@ class GetFeatureRunner(MapRunner):
                     # )
                     # we get all features
                     for layer_feature in layer.getFeatures():
-                        if renderer.willRenderFeature(layer_feature, render_context):
-                            property_list = zip(
-                                layer_feature.fields().names(),
-                                self._clean_attributes(
-                                    layer_feature.attributes(), layer
-                                ),
+                        # if renderer.willRenderFeature(layer_feature, render_context):
+                        property_list = zip(
+                            layer_feature.fields().names(),
+                            self._clean_attributes(layer_feature.attributes(), layer),
+                        )
+                        feature = Feature(
+                            geometry=Attribute(
+                                name="geometry",
+                                value=bytearray(layer_feature.geometry().asWkb()),
                             )
-                            feature = Feature(geometry=layer_feature.geometry())
-                            feature_collection.features.append(feature)
-                            for name, value in property_list:
-                                feature.attributes.append(
-                                    Attribute(name=name, value=value)
-                                )
-                    if renderer:
-                        renderer.stopRender(render_context)
+                        )
+                        feature_collection.features.append(feature)
+                        for name, value in property_list:
+                            feature.attributes.append(Attribute(name=name, value=value))
+                    # if renderer:
+                    #     renderer.stopRender(render_context)
                 else:
                     raise RuntimeError(
                         f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
                     )
+        data = JsonSerializer().render(query_collection).encode()
         return JobResult(
-            data=DictEncoder().encode(query_collection),
+            data=data,
             content_type="application/qgis-server-light.interface.qgis.QueryCollection",
         )
