@@ -1,3 +1,6 @@
+import zlib
+from base64 import urlsafe_b64decode
+from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
@@ -496,7 +499,7 @@ class Attribute:
     """
 
     name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
-    value: Union[int | float | str | bool | None | bytes | bytearray] = field(
+    value: Union[int, float, str, bool, None] = field(
         metadata={"name": "Value", "type": "Element", "required": True}
     )
 
@@ -517,6 +520,16 @@ class Feature:
         default_factory=list,
         metadata={"name": "Attributes", "type": "Element"},
     )
+
+    def __post_init__(self):
+        """We always make geometry part a string (+base64 +compression)"""
+        if isinstance(self.geometry.value, (bytes, bytearray)):
+            self.geometry.value = urlsafe_b64encode(
+                zlib.compress(self.geometry.value)
+            ).decode()
+
+    def geometry_as_bytes(self) -> bytes:
+        return zlib.decompress(urlsafe_b64decode(self.geometry.value.encode()))
 
 
 @dataclass
