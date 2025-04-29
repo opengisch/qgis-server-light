@@ -76,8 +76,27 @@ class TreeGroup(TreeLayer):
 
 @dataclass
 class Field:
+    """
+    Attributes:
+        name: Machine readable name of the field
+        type: Original type as defined by data source (PostGIS, GPKG, etc.)
+        type_simple: Translated type for further usage. Based on the simple types of
+            [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes).
+        alias: Human readable name.
+        nullable: If this field can be NULL or not.
+    """
+
     name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
     type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
+    type_simple: Optional[str] = field(
+        default=None, metadata={"name": "SimpleType", "type": "Element"}
+    )
+    alias: Optional[str] = field(
+        default=None, metadata={"name": "Alias", "type": "Element"}
+    )
+    nullable: bool = field(
+        default=True, metadata={"name": "Nullable", "type": "Element"}
+    )
 
 
 @dataclass
@@ -299,9 +318,13 @@ class Vector(DataSet):
         default_factory=list,
         metadata={"name": "Fields", "type": "Element", "required": True},
     )
-    geometry_type: Optional[str] = field(
+    geometry_type_simple: Optional[str] = field(
         default=None,
-        metadata={"name": "GeometryType", "type": "Element"},
+        metadata={"name": "GeometryTypeSimple", "type": "Element"},
+    )
+    geometry_type_wkb: Optional[str] = field(
+        default=None,
+        metadata={"name": "GeometryTypeWkb", "type": "Element"},
     )
 
 
