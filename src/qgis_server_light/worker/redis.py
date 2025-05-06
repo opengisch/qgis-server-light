@@ -14,6 +14,7 @@ import redis
 from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
+from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
 from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
 from qgis_server_light.worker.engine import Engine
@@ -71,6 +72,10 @@ class RedisEngine(Engine):
                     job_info = JsonParser().from_bytes(
                         job_info_json, JobRunnerInfoQslLegendJob
                     )
+                elif JobRunnerInfoQslGetFeatureJob.__name__ == job_info_dict["type"]:
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslGetFeatureJob
+                    )
                 else:
 
                     raise NotImplementedError(
@@ -97,7 +102,7 @@ class RedisEngine(Engine):
                 p.hset(key, "data", bytes(result.data))
                 p.hset(key, "status", "succeed")
                 duration = time.time() - start_time
-                p.hset(key, "duration", duration)
+                p.hset(key, "duration", str(duration))
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.debug(f"duration of rendering: {duration}")
             except Exception as e:
