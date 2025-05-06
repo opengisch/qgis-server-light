@@ -558,7 +558,7 @@ class QueryCollection:
         feature_collections: The feature collections belonging to the passed queries.
     """
 
-    numbers_matched: Optional[str, int] = field(
+    numbers_matched: Optional[str | int] = field(
         default="unknown",
         metadata={"name": "NumbersMatched", "type": "Element", "required": True},
     )
