@@ -425,7 +425,13 @@ class GetFeatureRunner(MapRunner):
                     #    .setFlags(QgsFeatureRequest.ExactIntersect)
                     # )
                     # we get all features
-                    for layer_feature in layer.getFeatures():
+                    layer_features = layer.getFeatures()
+                    if self.job.count and self.job.start_index:
+                        layer_features = list(layer_features)[
+                            self.job.start_index : self.job.start_index + self.job.count
+                        ]
+
+                    for layer_feature in layer_features:
                         # if renderer.willRenderFeature(layer_feature, render_context):
                         property_list = zip(
                             layer_feature.fields().names(),
