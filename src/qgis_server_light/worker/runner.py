@@ -396,6 +396,7 @@ class GetFeatureRunner(MapRunner):
 
     def run(self):
         query_collection = QueryCollection()
+        numbers_matched = 0
         for query in self.job.queries:
             for dataset in query.datasets:
                 self._init_layers(dataset, "")
@@ -424,13 +425,15 @@ class GetFeatureRunner(MapRunner):
                     #    .setFilterRect(layer_rect)
                     #    .setFlags(QgsFeatureRequest.ExactIntersect)
                     # )
-                    # we get all features
-                    layer_features = layer.getFeatures()
-                    if self.job.count and self.job.start_index:
-                        layer_features = list(layer_features)[
+
+                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                    #   does not seem to support sliding window feature filter out of the box...
+                    layer_features = list(layer.getFeatures())
+                    numbers_matched += len(layer_features)
+                    if self.job.count:
+                        layer_features = layer_features[
                             self.job.start_index : self.job.start_index + self.job.count
                         ]
-
                     for layer_feature in layer_features:
                         # if renderer.willRenderFeature(layer_feature, render_context):
                         property_list = zip(
@@ -452,6 +455,8 @@ class GetFeatureRunner(MapRunner):
                     raise RuntimeError(
                         f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
                     )
+        if numbers_matched > 0:
+            query_collection.numbers_matched = numbers_matched
         data = JsonSerializer().render(query_collection).encode()
         return JobResult(
             data=data,
