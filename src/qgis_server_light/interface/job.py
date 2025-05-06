@@ -180,7 +180,7 @@ class QslGetFeatureJob:
     """
 
     queries: List[FeatureQuery] = field(metadata={"type": "Element", "required": True})
-    start_index: int = field(
+    start_index: Optional[int] = field(
         default=0,
         metadata={
             "name": "startIndex",
