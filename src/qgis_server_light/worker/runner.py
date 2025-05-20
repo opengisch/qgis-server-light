@@ -430,6 +430,8 @@ class GetFeatureRunner(MapRunner):
                     if wfs_filter_definition:
                         # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
                         #   does not seem to support sliding window feature filter out of the box...
+                        logging.info(" Layer is filtered by:")
+                        logging.info(wfs_filter_definition)
                         filter_doc = QDomDocument()
                         filter_doc.setContent(wfs_filter_definition)
                         expression = QgsOgcUtils.expressionFromOgcFilter(
