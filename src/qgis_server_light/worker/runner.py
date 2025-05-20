@@ -18,6 +18,7 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
 from qgis._core import QgsExpressionContext
 from qgis._core import QgsExpressionContextScope
+from qgis._core import QgsOgcUtils
 from qgis._core import QgsVectorTileLayer
 from qgis.core import NULL
 from qgis.core import QgsApplication
@@ -398,6 +399,7 @@ class GetFeatureRunner(MapRunner):
         query_collection = QueryCollection()
         numbers_matched = 0
         for query in self.job.queries:
+            wfs_filter_definition = query.filter
             for dataset in query.datasets:
                 self._init_layers(dataset, "")
             # map_settings = self._get_map_settings(self.map_layers)
@@ -425,10 +427,20 @@ class GetFeatureRunner(MapRunner):
                     #    .setFilterRect(layer_rect)
                     #    .setFlags(QgsFeatureRequest.ExactIntersect)
                     # )
-
-                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
-                    #   does not seem to support sliding window feature filter out of the box...
-                    layer_features = list(layer.getFeatures())
+                    if wfs_filter_definition:
+                        # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                        #   does not seem to support sliding window feature filter out of the box...
+                        filter_doc = QDomDocument()
+                        filter_doc.setContent(wfs_filter_definition)
+                        expression = QgsOgcUtils.expressionFromOgcFilter(
+                            filter_doc.documentElement(),
+                            QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
+                            layer,
+                        )
+                        feature_request = QgsFeatureRequest(expression)
+                    else:
+                        feature_request = QgsFeatureRequest()
+                    layer_features = list(layer.getFeatures(feature_request))
                     numbers_matched += len(layer_features)
                     if self.job.count:
                         layer_features = layer_features[
