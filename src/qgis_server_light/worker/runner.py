@@ -399,34 +399,16 @@ class GetFeatureRunner(MapRunner):
         query_collection = QueryCollection()
         numbers_matched = 0
         for query in self.job.queries:
+            # we need to reset this because we want always only the layers related to the current query
+            self.map_layers = []
             wfs_filter_definition = query.filter
             for dataset in query.datasets:
                 self._init_layers(dataset, "")
-            # map_settings = self._get_map_settings(self.map_layers)
-            # Estimate queryable bbox (2mm)
-            # map_to_pixel = map_settings.mapToPixel()
-            # map_point = map_to_pixel.toMapCoordinates(self.job.x, self.job.y)
-            # Create identifiable bbox in map coordinates, ±2mm
-            # tolerance = 0.002 * 39.37 * map_settings.outputDpi()
-            # tl = QgsPointXY(map_point.x() - tolerance, map_point.y() - tolerance)
-            # br = QgsPointXY(map_point.x() + tolerance, map_point.y() + tolerance)
-            # rect = QgsRectangle(tl, br)
-            # render_context = QgsRenderContext.fromMapSettings(map_settings)
 
             for layer in self.map_layers:
                 feature_collection = FeatureCollection(layer.name())
                 query_collection.feature_collections.append(feature_collection)
-                layer.renderer().clone() if layer.renderer() else None
-                # this can be removed since we have only vector layers...
                 if isinstance(layer, QgsVectorLayer):
-                    # if renderer:
-                    #     renderer.startRender(render_context, layer.fields())
-                    # layer_rect = map_settings.mapToLayerCoordinates(layer, rect)
-                    # request = (
-                    #    QgsFeatureRequest()
-                    #    .setFilterRect(layer_rect)
-                    #    .setFlags(QgsFeatureRequest.ExactIntersect)
-                    # )
                     if wfs_filter_definition:
                         # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
                         #   does not seem to support sliding window feature filter out of the box...
@@ -434,6 +416,8 @@ class GetFeatureRunner(MapRunner):
                         logging.info(wfs_filter_definition)
                         filter_doc = QDomDocument()
                         filter_doc.setContent(wfs_filter_definition)
+                        # This is not correct in the WFS 2.0 way. We apply a filter to a layer. But WFS 2.0
+                        # allows filters on multiple layers.
                         expression = QgsOgcUtils.expressionFromOgcFilter(
                             filter_doc.documentElement(),
                             QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
@@ -449,7 +433,6 @@ class GetFeatureRunner(MapRunner):
                             self.job.start_index : self.job.start_index + self.job.count
                         ]
                     for layer_feature in layer_features:
-                        # if renderer.willRenderFeature(layer_feature, render_context):
                         property_list = zip(
                             layer_feature.fields().names(),
                             self._clean_attributes(layer_feature.attributes(), layer),
@@ -463,8 +446,6 @@ class GetFeatureRunner(MapRunner):
                         feature_collection.features.append(feature)
                         for name, value in property_list:
                             feature.attributes.append(Attribute(name=name, value=value))
-                    # if renderer:
-                    #     renderer.stopRender(render_context)
                 else:
                     raise RuntimeError(
                         f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
