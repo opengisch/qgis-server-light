@@ -151,6 +151,7 @@ class MapRunner:
         else:
             raise KeyError(f"Driver not implemented: {dataset.driver}")
 
+        logging.debug(f"Loading layer source: {layer_source_path}")
         # TODO: make sure cached layers reload the style if changed
         if self.layer_cache is not None and dataset.name in self.layer_cache:
             logging.debug(f"Using cached layer {dataset.name}")
@@ -181,6 +182,7 @@ class MapRunner:
         if dataset.source.vector_tile is not None:
             if dataset.source.vector_tile.remote:
                 layer_source_path = dataset.path
+                logging.debug(f"Loading layer source: {layer_source_path}")
             else:
                 raise NotImplementedError(
                     "Currently only remote VectorTiles are supported"
@@ -212,6 +214,7 @@ class MapRunner:
             layer_source_path = dataset.path
         else:
             raise KeyError(f"Driver not implemented: {dataset.driver}")
+        logging.debug(f"Loading layer source: {layer_source_path}")
         # TODO: make sure cached layers reload the style if changed
         if self.layer_cache is not None and dataset.name in self.layer_cache:
             logging.debug(f"Using cached layer {dataset.name}")
