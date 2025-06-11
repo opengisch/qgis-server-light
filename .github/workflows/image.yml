@@ -28,7 +28,7 @@ jobs:
         context: .
         push: true
         cache-from: type=local,src=cache
-        tags: qgis-server-light:latest
+        tags: opengisch/qgis-server-light:latest
   docker-image-latest-dev:
     runs-on: ubuntu-latest
     steps:
@@ -51,4 +51,4 @@ jobs:
           push: true
           target: dev
           cache-from: type=local,src=cache
-          tags: qgis-server-light-dev:latest
+          tags: opengisch/qgis-server-light-dev:latest
