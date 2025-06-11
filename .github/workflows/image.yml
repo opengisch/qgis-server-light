@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - dockerhub
 
 jobs:
   docker-image-latest:
