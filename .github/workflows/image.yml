@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - dockerhub
 
 jobs:
   docker-image-latest:
@@ -18,9 +19,8 @@ jobs:
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ env.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Build release
       uses: docker/build-push-action@v6
@@ -28,7 +28,7 @@ jobs:
         context: .
         push: true
         cache-from: type=local,src=cache
-        tags: ghcr.io/${{ github.repository }}:latest
+        tags: qgis-server-light:latest
   docker-image-latest-dev:
     runs-on: ubuntu-latest
     steps:
@@ -41,9 +41,8 @@ jobs:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build release
         uses: docker/build-push-action@v6
@@ -52,4 +51,4 @@ jobs:
           push: true
           target: dev
           cache-from: type=local,src=cache
-          tags: ghcr.io/${{ github.repository }}-dev:latest
+          tags: qgis-server-light-dev:latest
