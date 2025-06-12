@@ -1,6 +1,6 @@
 services:
   qgis-server-light:
-    image: opengisch/qgis-server-light:dev
+    image: opengisch/qgis-server-light-dev:latest
     env_file:
       - .env
     build:
