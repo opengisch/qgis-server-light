@@ -18,6 +18,7 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
 from qgis._core import QgsExpressionContext
 from qgis._core import QgsExpressionContextScope
+from qgis._core import QgsOgcUtils
 from qgis._core import QgsVectorTileLayer
 from qgis.core import NULL
 from qgis.core import QgsApplication
@@ -32,13 +33,19 @@ from qgis.core import QgsRasterLayer
 from qgis.core import QgsRectangle
 from qgis.core import QgsRenderContext
 from qgis.core import QgsVectorLayer
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetFeatureJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.interface.job import QslLegendJob
+from qgis_server_light.interface.qgis import Attribute
 from qgis_server_light.interface.qgis import Custom
 from qgis_server_light.interface.qgis import DataSet
+from qgis_server_light.interface.qgis import Feature
+from qgis_server_light.interface.qgis import FeatureCollection
+from qgis_server_light.interface.qgis import QueryCollection
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
@@ -60,7 +67,7 @@ class MapRunner:
         self,
         qgis: QgsApplication,
         context: RunnerContext,
-        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob,
+        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob | QslGetFeatureJob,
         layer_cache: Optional[Dict] = None,
     ) -> None:
         self.qgis = qgis
@@ -354,3 +361,99 @@ class GetLegendRunner(MapRunner):
     def run(self):
         # TODO Implement ....
         raise NotImplementedError()
+
+
+class GetFeatureRunner(MapRunner):
+    def __init__(
+        self,
+        qgis: QgsApplication,
+        context: RunnerContext,
+        job: QslGetFeatureJob,
+        layer_cache: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(qgis, context, job, layer_cache)
+
+    def _clean_attribute(self, attribute, idx, layer):
+        if attribute == NULL:
+            return None
+        setup = layer.editorWidgetSetup(idx)
+        fieldFormatter = QgsApplication.fieldFormatterRegistry().fieldFormatter(
+            setup.type()
+        )
+        return fieldFormatter.representValue(
+            layer, idx, setup.config(), None, attribute
+        )
+
+    def _clean_attributes(self, attributes, layer):
+        return [
+            self._clean_attribute(attr, idx, layer)
+            for idx, attr in enumerate(attributes)
+        ]
+
+    def _load_style(
+        self, requested_style_name: str, qgs_layer: QgsMapLayer, dataset: DataSet
+    ):
+        logging.info(f" ✓ Omit style loading on WFS layer operation.")
+
+    def run(self):
+        query_collection = QueryCollection()
+        numbers_matched = 0
+        for query in self.job.queries:
+            # we need to reset this because we want always only the layers related to the current query
+            self.map_layers = []
+            wfs_filter_definition = query.filter
+            for dataset in query.datasets:
+                self._init_layers(dataset, "")
+
+            for layer in self.map_layers:
+                feature_collection = FeatureCollection(layer.name())
+                query_collection.feature_collections.append(feature_collection)
+                if isinstance(layer, QgsVectorLayer):
+                    if wfs_filter_definition:
+                        # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                        #   does not seem to support sliding window feature filter out of the box...
+                        logging.info(" Layer is filtered by:")
+                        logging.info(wfs_filter_definition)
+                        filter_doc = QDomDocument()
+                        filter_doc.setContent(wfs_filter_definition)
+                        # This is not correct in the WFS 2.0 way. We apply a filter to a layer. But WFS 2.0
+                        # allows filters on multiple layers.
+                        expression = QgsOgcUtils.expressionFromOgcFilter(
+                            filter_doc.documentElement(),
+                            QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
+                            layer,
+                        )
+                        feature_request = QgsFeatureRequest(expression)
+                    else:
+                        feature_request = QgsFeatureRequest()
+                    layer_features = list(layer.getFeatures(feature_request))
+                    numbers_matched += len(layer_features)
+                    if self.job.count:
+                        layer_features = layer_features[
+                            self.job.start_index : self.job.start_index + self.job.count
+                        ]
+                    for layer_feature in layer_features:
+                        property_list = zip(
+                            layer_feature.fields().names(),
+                            self._clean_attributes(layer_feature.attributes(), layer),
+                        )
+                        feature = Feature(
+                            geometry=Attribute(
+                                name="geometry",
+                                value=bytearray(layer_feature.geometry().asWkb()),
+                            )
+                        )
+                        feature_collection.features.append(feature)
+                        for name, value in property_list:
+                            feature.attributes.append(Attribute(name=name, value=value))
+                else:
+                    raise RuntimeError(
+                        f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
+                    )
+        if numbers_matched > 0:
+            query_collection.numbers_matched = numbers_matched
+        data = JsonSerializer().render(query_collection).encode()
+        return JobResult(
+            data=data,
+            content_type="application/qgis-server-light.interface.qgis.QueryCollection",
+        )

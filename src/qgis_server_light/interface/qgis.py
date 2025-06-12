@@ -1,8 +1,12 @@
+import zlib
+from base64 import urlsafe_b64decode
+from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from typing import List
 from typing import Optional
+from typing import Union
 
 
 @dataclass
@@ -231,6 +235,9 @@ class Crs:
     ogc_uri: str = field(
         default=None, metadata={"name": "OgcUri", "type": "Element", "required": False}
     )
+    ogc_urn: str = field(
+        default=None, metadata={"name": "OgcUrn", "type": "Element", "required": False}
+    )
 
 
 @dataclass
@@ -291,6 +298,10 @@ class DataSet(AbstractDataset):
     maximum_scale: float = field(
         default=None,
         metadata={"name": "MaximumScale", "type": "Element", "required": True},
+    )
+    filter: Optional[str] = field(
+        default=None,
+        metadata={"name": "Filter", "type": "Element", "required": True},
     )
 
     def get_style_by_name(self, name: str) -> Style | None:
@@ -469,3 +480,86 @@ class Config:
     )
     tree: Tree = field(metadata={"name": "Tree", "type": "Element"})
     datasets: Datasets = field(metadata={"name": "DataSet", "type": "Element"})
+
+
+@dataclass
+class Attribute:
+    """An attribute belonging to a feature. The aim here is to drill down to simple types which can be used
+    in consuming applications without further handling. This does not include the geometry attribute!
+
+    Attributes:
+        name: The name of the attribute. Has to match with the name used for exported fields with `Field`
+            class.
+        value: Value as simple as possible. It has to be
+            [pickleable](https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled)
+
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    value: Union[int, float, str, bool, None] = field(
+        metadata={"name": "Value", "type": "Element", "required": True}
+    )
+
+
+@dataclass
+class Feature:
+    """Feature to hold information of extracted QgsFeature.
+
+    Attributes:
+        attributes: List of attributes definined in this feature.
+        geometry: The geometry representing the feature.
+    """
+
+    geometry: Optional[Attribute] = field(
+        default=None, metadata={"name": "Geometry", "type": "Element"}
+    )
+    attributes: Optional[List[Attribute]] = field(
+        default_factory=list,
+        metadata={"name": "Attributes", "type": "Element"},
+    )
+
+    def __post_init__(self):
+        """We always make geometry part a string (+base64 +compression)"""
+        if isinstance(self.geometry.value, (bytes, bytearray)):
+            self.geometry.value = urlsafe_b64encode(
+                zlib.compress(self.geometry.value)
+            ).decode()
+
+    def geometry_as_bytes(self) -> bytes:
+        return zlib.decompress(urlsafe_b64decode(self.geometry.value.encode()))
+
+
+@dataclass
+class FeatureCollection:
+    """This construction is used to abstract the content of extracted features for pickelable transportation
+    from QSL to the queue. This way we ensure how things are constructed and transported.
+
+    Attributes:
+        name: The name of the feature collection. This is the key to match it to requested layers.
+        features: The features belonging to the feature collection.
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    features: List[Feature] = field(
+        default_factory=list,
+        metadata={"name": "Features", "type": "Element", "required": True},
+    )
+
+
+@dataclass
+class QueryCollection:
+    """Holds all feature collections which are bound to the passed queries. The order in the list has to be
+    not changed, so that consuming applications can map the response to the passed queries.
+
+    Attributes:
+        feature_collections: The feature collections belonging to the passed queries.
+    """
+
+    numbers_matched: Optional[str | int] = field(
+        default="unknown",
+        metadata={"name": "NumbersMatched", "type": "Element", "required": True},
+    )
+    feature_collections: List[FeatureCollection] = field(
+        default_factory=list,
+        metadata={"name": "FeatureCollections", "type": "Element", "required": True},
+    )
