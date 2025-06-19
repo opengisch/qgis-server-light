@@ -6,6 +6,7 @@ import zlib
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -373,16 +374,10 @@ class GetFeatureRunner(MapRunner):
     ) -> None:
         super().__init__(qgis, context, job, layer_cache)
 
-    def _clean_attribute(self, attribute, idx, layer):
-        if attribute == NULL:
+    def _clean_attribute(self, attribute_value: Any, idx: int, layer: QgsVectorLayer):
+        if attribute_value == NULL:
             return None
-        setup = layer.editorWidgetSetup(idx)
-        fieldFormatter = QgsApplication.fieldFormatterRegistry().fieldFormatter(
-            setup.type()
-        )
-        return fieldFormatter.representValue(
-            layer, idx, setup.config(), None, attribute
-        )
+        return attribute_value
 
     def _clean_attributes(self, attributes, layer):
         return [
