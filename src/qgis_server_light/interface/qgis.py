@@ -277,6 +277,25 @@ class Style:
 
 
 @dataclass
+class AbstractFilter:
+    definition: str = field(metadata={"name": "Definition", "type": "Element"})
+
+
+@dataclass
+class OgcFilter110(AbstractFilter):
+    """
+    A filter conforming to https://schemas.opengis.net/filter/1.1.0/filter.xsd
+    """
+
+
+@dataclass
+class OgcFilterFES20(AbstractFilter):
+    """
+    A filter conforming to http://www.opengis.net/fes/2.0
+    """
+
+
+@dataclass
 class DataSet(AbstractDataset):
     id: str = field(metadata={"name": "Id", "type": "Element", "required": False})
     bbox: BBox = field(metadata={"name": "BBox", "type": "Element", "required": True})
@@ -296,21 +315,28 @@ class DataSet(AbstractDataset):
     )
     minimum_scale: float = field(
         default=None,
-        metadata={"name": "MinimumScale", "type": "Element", "required": True},
+        metadata={"name": "MinimumScale", "type": "Element"},
     )
     maximum_scale: float = field(
         default=None,
-        metadata={"name": "MaximumScale", "type": "Element", "required": True},
+        metadata={"name": "MaximumScale", "type": "Element"},
     )
-    filter: Optional[str] = field(
+    filter: Optional[Union[OgcFilter110, OgcFilterFES20]] = field(
         default=None,
-        metadata={"name": "Filter", "type": "Element", "required": True},
+        metadata={"name": "Filter", "type": "Element"},
+    )
+    style_name: str = field(
+        default="default", metadata={"name": "Style", "type": "Element"}
     )
 
     def get_style_by_name(self, name: str) -> Style | None:
         for style in self.styles:
             if name == style.name:
                 return style
+        return None
+
+    def style(self) -> Style | None:
+        return self.get_style_by_name(self.style_name)
 
 
 @dataclass

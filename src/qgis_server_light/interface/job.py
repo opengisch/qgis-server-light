@@ -55,22 +55,12 @@ class WmsGetMapParams(AbstractWmsParams):
 
     LAYERS: str = field(metadata={"type": "Element", "required": True})
 
-    # We make that mandatory, to force clients talking to QSL to always specify a style per layer
-    STYLES: str = field(default=None, metadata={"type": "Element", "required": True})
-
     # mime type of the requested image
-    FORMAT: str = field(
-        default="image/png", metadata={"type": "Element", "required": True}
-    )
+    FORMAT: str = field(default="image/png", metadata={"type": "Element"})
 
     @property
     def layers(self) -> List[str]:
         return self.LAYERS.split(",")
-
-    @property
-    def styles(self) -> List[str] | None:
-        if self.STYLES:
-            return self.STYLES.split(",")
 
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
