@@ -311,7 +311,7 @@ class DataSet(AbstractDataset):
     )
     crs: Crs = field(metadata={"name": "Crs", "type": "Element", "required": True})
     styles: List[Style] = field(
-        metadata={"name": "Style", "type": "Element", "required": True}
+        metadata={"name": "Styles", "type": "Element", "required": True}
     )
     minimum_scale: float = field(
         default=None,

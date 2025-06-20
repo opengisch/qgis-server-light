@@ -11,6 +11,7 @@ from typing import List
 from typing import Optional
 
 import redis
+from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
@@ -61,9 +62,10 @@ class RedisEngine(Engine):
                 logging.debug(f"Waiting for jobs")
                 _, job_info_json = r.blpop("jobs")
                 job_info_dict = json.loads(job_info_json)
+                logging.debug(f"Job info received: {job_info_json}")
                 if JobRunnerInfoQslGetMapJob.__name__ == job_info_dict["type"]:
-                    job_info = JsonParser().from_bytes(
-                        job_info_json, JobRunnerInfoQslGetMapJob
+                    job_info = DictDecoder().decode(
+                        job_info_dict, JobRunnerInfoQslGetMapJob
                     )
                 elif (
                     JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]
@@ -80,7 +82,6 @@ class RedisEngine(Engine):
                         job_info_json, JobRunnerInfoQslGetFeatureJob
                     )
                 else:
-
                     raise NotImplementedError(
                         f'type {job_info_dict["type"]} is not supported by qgis-server-light'
                     )
