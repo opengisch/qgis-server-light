@@ -21,6 +21,8 @@ from qgis._core import QgsExpressionContext
 from qgis._core import QgsExpressionContextScope
 from qgis._core import QgsOgcUtils
 from qgis._core import QgsVectorTileLayer
+from qgis._server import QgsFeatureFilter
+from qgis._server import QgsFeatureFilterProviderGroup
 from qgis.core import NULL
 from qgis.core import QgsApplication
 from qgis.core import QgsCoordinateReferenceSystem
@@ -46,6 +48,7 @@ from qgis_server_light.interface.qgis import Custom
 from qgis_server_light.interface.qgis import DataSet
 from qgis_server_light.interface.qgis import Feature
 from qgis_server_light.interface.qgis import FeatureCollection
+from qgis_server_light.interface.qgis import OgcFilter110
 from qgis_server_light.interface.qgis import QueryCollection
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
@@ -125,18 +128,38 @@ class MapRunner:
         qgs_layer.styleManager().setCurrentStyle(requested_style_name)
         logging.info(f" ✓ Style loaded: {style_loaded}")
 
-    def _init_layers(self, dataset: Vector | Raster | Custom, style_name: str):
+    def _init_layers(
+        self, dataset: Vector | Raster | Custom, feature_filter: QgsFeatureFilter
+    ):
         """Initializes the map_layers list with all the specified layer_names, looking up style and other
         information in layer_registry
         Returns:
             None
         Parameters:
             layer_name: the layer or group to initialize. In case of a group, will recursively follow.
-            style_name: The name of the style which is requested fo rendering.
         """
 
         if isinstance(dataset, Vector):
             qgs_layer = self._prepare_vector_layer(dataset)
+            if dataset.filter:
+                if isinstance(dataset.filter, OgcFilter110):
+                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                    #   does not seem to support sliding window feature filter out of the box...
+                    logging.info(" Layer is filtered by:")
+                    logging.info(dataset.filter.definition)
+                    filter_doc = QDomDocument()
+                    filter_doc.setContent(dataset.filter.definition)
+                    expression = QgsOgcUtils.expressionFromOgcFilter(
+                        filter_doc.documentElement(),
+                        QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
+                        qgs_layer,
+                    )
+                    feature_request = QgsFeatureRequest(expression)
+                else:
+                    feature_request = QgsFeatureRequest()
+            else:
+                feature_request = QgsFeatureRequest()
+            feature_filter.filterFeatures(qgs_layer, feature_request)
         elif isinstance(dataset, Raster):
             qgs_layer = self._prepare_raster_layer(dataset)
         elif isinstance(dataset, Custom):
@@ -144,7 +167,7 @@ class MapRunner:
         else:
             raise KeyError(f"Type not implemented: {dataset}")
         # applying the style to the layer
-        self._load_style(style_name, qgs_layer, dataset)
+        self._load_style(dataset.style_name, qgs_layer, dataset)
         self.map_layers.append(qgs_layer)
 
     def _prepare_vector_layer(self, dataset: Vector) -> QgsVectorLayer:
@@ -259,12 +282,13 @@ class RenderRunner(MapRunner):
         Returns:
             A JobResult with the content_type and image_data (bytes) of the rendered image.
         """
+        feature_filter = QgsFeatureFilter()
         for index, layer_name in enumerate(self.job.service_params.layers):
-            # list of styles passed to QSL has to be always the same order and length as layers
-            style_name = self.job.service_params.styles[index]
-            self._init_layers(self.job.get_dataset_by_name(layer_name), style_name)
+            self._init_layers(self.job.get_dataset_by_name(layer_name), feature_filter)
         map_settings = self._get_map_settings(self.map_layers)
-        renderer = QgsMapRendererParallelJob(map_settings)
+        filter_providers = QgsFeatureFilterProviderGroup()
+        filter_providers.addProvider(feature_filter)
+        renderer = QgsMapRendererParallelJob(map_settings, filter_providers)
         event_loop = QEventLoop(self.qgis)
         renderer.finished.connect(event_loop.quit)
         renderer.start()
