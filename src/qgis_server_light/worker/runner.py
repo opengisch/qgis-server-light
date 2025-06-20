@@ -128,9 +128,7 @@ class MapRunner:
         qgs_layer.styleManager().setCurrentStyle(requested_style_name)
         logging.info(f" ✓ Style loaded: {style_loaded}")
 
-    def _init_layers(
-        self, dataset: Vector | Raster | Custom, feature_filter: QgsFeatureFilter
-    ):
+    def _init_layers(self, dataset: Vector | Raster | Custom):
         """Initializes the map_layers list with all the specified layer_names, looking up style and other
         information in layer_registry
         Returns:
@@ -141,25 +139,6 @@ class MapRunner:
 
         if isinstance(dataset, Vector):
             qgs_layer = self._prepare_vector_layer(dataset)
-            if dataset.filter:
-                if isinstance(dataset.filter, OgcFilter110):
-                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
-                    #   does not seem to support sliding window feature filter out of the box...
-                    logging.info(" Layer is filtered by:")
-                    logging.info(dataset.filter.definition)
-                    filter_doc = QDomDocument()
-                    filter_doc.setContent(dataset.filter.definition)
-                    expression = QgsOgcUtils.expressionFromOgcFilter(
-                        filter_doc.documentElement(),
-                        QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
-                        qgs_layer,
-                    )
-                    feature_request = QgsFeatureRequest(expression)
-                else:
-                    feature_request = QgsFeatureRequest()
-            else:
-                feature_request = QgsFeatureRequest()
-            feature_filter.filterFeatures(qgs_layer, feature_request)
         elif isinstance(dataset, Raster):
             qgs_layer = self._prepare_raster_layer(dataset)
         elif isinstance(dataset, Custom):
@@ -182,11 +161,14 @@ class MapRunner:
         else:
             raise KeyError(f"Driver not implemented: {dataset.driver}")
 
-        logging.debug(f"Loading layer source: {layer_source_path}")
-        # TODO: make sure cached layers reload the style if changed
-        if self.layer_cache is not None and dataset.name in self.layer_cache:
-            logging.debug(f"Using cached layer {dataset.name}")
-            qgs_layer = self.layer_cache[dataset.name]
+        cache_name = (
+            f"{dataset.name}.{dataset.style_name}.{dataset.filter}.{dataset.path}"
+        )
+        if self.layer_cache is not None and cache_name in self.layer_cache:
+            logging.debug(
+                f"Using cached layer {dataset.name} (identifier: {cache_name}"
+            )
+            qgs_layer = self.layer_cache[cache_name]
         else:
             logging.debug(f"Load layer {layer_source_path}")
             options = QgsVectorLayer.LayerOptions(
@@ -197,6 +179,26 @@ class MapRunner:
             qgs_layer = QgsVectorLayer(
                 layer_source_path, dataset.name, dataset.driver, options
             )
+            if dataset.filter:
+                if isinstance(dataset.filter, OgcFilter110):
+                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                    #   does not seem to support sliding window feature filter out of the box...
+                    logging.info(" Layer is filtered by:")
+                    logging.info(dataset.filter.definition)
+                    filter_doc = QDomDocument()
+                    filter_doc.setContent(dataset.filter.definition)
+                    filter_expression = QgsOgcUtils.expressionFromOgcFilter(
+                        filter_doc.documentElement(),
+                        QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
+                        qgs_layer,
+                    )
+                    existingExpression = qgs_layer.subsetString()
+                    if existingExpression:
+                        # Combining with AND the originally defined expression always takes precedence
+                        expression = f"({existingExpression}) AND ({filter_expression.expression()})"
+                    else:
+                        expression = filter_expression.expression()
+                    qgs_layer.setSubsetString(expression)
 
             if not qgs_layer.isValid():
                 raise RuntimeError(
@@ -205,7 +207,7 @@ class MapRunner:
             else:
                 logging.info(f" ✓ Layer: {dataset.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[dataset.name] = qgs_layer
+                    self.layer_cache[cache_name] = qgs_layer
         return qgs_layer
 
     def _prepare_custom_layer(self, dataset: Custom) -> QgsVectorTileLayer:
@@ -284,11 +286,12 @@ class RenderRunner(MapRunner):
         """
         feature_filter = QgsFeatureFilter()
         for index, layer_name in enumerate(self.job.service_params.layers):
-            self._init_layers(self.job.get_dataset_by_name(layer_name), feature_filter)
+            self._init_layers(self.job.get_dataset_by_name(layer_name))
         map_settings = self._get_map_settings(self.map_layers)
         filter_providers = QgsFeatureFilterProviderGroup()
         filter_providers.addProvider(feature_filter)
-        renderer = QgsMapRendererParallelJob(map_settings, filter_providers)
+        renderer = QgsMapRendererParallelJob(map_settings)
+        renderer.setFeatureFilterProvider(filter_providers)
         event_loop = QEventLoop(self.qgis)
         renderer.finished.connect(event_loop.quit)
         renderer.start()
