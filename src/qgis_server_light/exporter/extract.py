@@ -215,10 +215,12 @@ def extract_save_layer(
         short_name = child.shortName()
     if unify_layer_names_by_group:
         short_name = create_unified_short_name(short_name, path)
+    layer_crs = child.dataProvider().crs()
     crs = Crs(
-        postgis_srid=child.dataProvider().crs().postgisSrid(),
-        auth_id=child.dataProvider().crs().authid(),
-        ogc_uri=child.dataProvider().crs().toOgcUri(),
+        postgis_srid=layer_crs.postgisSrid(),
+        auth_id=layer_crs.authid(),
+        ogc_uri=layer_crs.toOgcUri(),
+        ogc_urn=layer_crs.toOgcUrn(),
     )
 
     extent_wgs_84 = extent_in_wgs84(project, child)
