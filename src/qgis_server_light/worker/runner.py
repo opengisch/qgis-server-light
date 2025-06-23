@@ -425,7 +425,7 @@ class GetFeatureRunner(MapRunner):
             self.map_layers = []
             wfs_filter_definition = query.filter
             for dataset in query.datasets:
-                self._init_layers(dataset, "")
+                self._init_layers(dataset)
 
             for layer in self.map_layers:
                 feature_collection = FeatureCollection(layer.name())
@@ -435,7 +435,7 @@ class GetFeatureRunner(MapRunner):
                         # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
                         #   does not seem to support sliding window feature filter out of the box...
                         logging.info(" Layer is filtered by:")
-                        logging.info(wfs_filter_definition)
+                        logging.info(f" {wfs_filter_definition}")
                         filter_doc = QDomDocument()
                         filter_doc.setContent(wfs_filter_definition)
                         # This is not correct in the WFS 2.0 way. We apply a filter to a layer. But WFS 2.0
@@ -450,6 +450,7 @@ class GetFeatureRunner(MapRunner):
                         feature_request = QgsFeatureRequest()
                     layer_features = list(layer.getFeatures(feature_request))
                     numbers_matched += len(layer_features)
+                    logging.info(f" Found {len(layer_features)} features")
                     if self.job.count:
                         layer_features = layer_features[
                             self.job.start_index : self.job.start_index + self.job.count
