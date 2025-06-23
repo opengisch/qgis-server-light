@@ -1,12 +1,15 @@
 import os.path
+
 import click
-from qgis_server_light.exporter.extract import extract
-from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from qgis.core import QgsApplication
+from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers import XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
+from qgis_server_light.exporter.extract import extract
+
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-QgsApplication.setPrefixPath('/usr', True)
+QgsApplication.setPrefixPath("/usr", True)
 qgs = QgsApplication([], False)
 qgs.initQgis()
 
@@ -26,7 +29,11 @@ def cli():
     "export",
     help=f"Export a QGIS project ({f'|'.join(allowed_extensions)}) (1st argument) file to json format",
 )
-def export(project: str, unify_layer_names_by_group: bool = False, output_format: str | None = None) -> None:
+def export(
+    project: str,
+    unify_layer_names_by_group: bool = False,
+    output_format: str | None = None,
+) -> None:
     serializer_config = SerializerConfig(indent="  ")
     if output_format is None:
         output_format = "json"
@@ -39,15 +46,18 @@ def export(project: str, unify_layer_names_by_group: bool = False, output_format
             f'Allowed output formats are: {"|".join(allowed_output_formats)} not => {output_format}'
         )
     if os.path.isfile(project):
-        config = extract(path_to_project=project, unify_layer_names_by_group=bool(unify_layer_names_by_group))
+        config = extract(
+            path_to_project=project,
+            unify_layer_names_by_group=bool(unify_layer_names_by_group),
+        )
         if output_format == "json":
             click.echo(JsonSerializer(config=serializer_config).render(config))
         elif output_format == "xml":
             click.echo(XmlSerializer(config=serializer_config).render(config))
 
     else:
-        raise AttributeError
+        raise AttributeError("Project file does not exist")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     export()
