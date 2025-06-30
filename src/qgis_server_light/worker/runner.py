@@ -445,6 +445,8 @@ class GetFeatureRunner(MapRunner):
                             QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
                             layer,
                         )
+                        logging.info(" This was transformed to the QGIS expression")
+                        logging.info(f" '{expression.dump()}'")
                         feature_request = QgsFeatureRequest(expression)
                     else:
                         feature_request = QgsFeatureRequest()
