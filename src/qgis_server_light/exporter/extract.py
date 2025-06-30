@@ -1,6 +1,6 @@
 import json
-import os
-import uuid
+import re
+import unicodedata
 import zlib
 from base64 import urlsafe_b64encode
 from os import path
@@ -189,15 +189,13 @@ def extract_save_layer(
     types_from_editor_widget: bool = False,
 ):
     """Save the given layer to the output path."""
-    if isinstance(child, QgsLayerTreeLayer):
-        child = child.layer()
-    os.path.join("/tmp", f"{str(uuid.uuid4())}.qml")
+    layer = child.layer()
 
     QDomDocument()
 
-    layer_type = get_layer_type(child)
+    layer_type = get_layer_type(layer)
     decoded = QgsProviderRegistry.instance().decodeUri(
-        child.providerType(), child.dataProvider().dataSourceUri()
+        layer.providerType(), layer.dataProvider().dataSourceUri()
     )
     for key in decoded:
         if str(decoded[key]) == "None":
@@ -208,27 +206,25 @@ def extract_save_layer(
             decoded[key] = str(decoded[key])
         if key == "path":
             decoded[key] = decoded[key].replace(f'{project.readPath("./")}/', "")
-    if child.shortName() == "":
-        # if layer has no short name we fallback to the qgis_layer_id
-        short_name = child.id()
-    else:
-        short_name = child.shortName()
+    short_name = get_layer_short_name(child)
     if unify_layer_names_by_group:
         short_name = create_unified_short_name(short_name, path)
+    layer_crs = layer.dataProvider().crs()
     crs = Crs(
-        postgis_srid=child.dataProvider().crs().postgisSrid(),
-        auth_id=child.dataProvider().crs().authid(),
-        ogc_uri=child.dataProvider().crs().toOgcUri(),
+        postgis_srid=layer_crs.postgisSrid(),
+        auth_id=layer_crs.authid(),
+        ogc_uri=layer_crs.toOgcUri(),
+        ogc_urn=layer_crs.toOgcUrn(),
     )
 
-    extent_wgs_84 = extent_in_wgs84(project, child)
+    extent_wgs_84 = extent_in_wgs84(project, layer)
     bbox_wgs84 = BBox(
         x_min=extent_wgs_84[0],
         x_max=extent_wgs_84[2],
         y_min=extent_wgs_84[1],
         y_max=extent_wgs_84[3],
     )
-    extent = child.extent()
+    extent = layer.extent()
     bbox = BBox.from_list(
         [
             extent.xMinimum(),
@@ -240,8 +236,8 @@ def extract_save_layer(
         ]
     )
     if layer_type == "vector":
-        source_path = child.source()
-        if child.providerType().lower() == "ogr":
+        source_path = layer.source()
+        if layer.providerType().lower() == "ogr":
             source = DataSource(
                 ogr=OgrSource(
                     path=decoded["path"],
@@ -249,7 +245,7 @@ def extract_save_layer(
                     layer_id=decoded["layerId"],
                 )
             )
-        elif child.providerType().lower() == "postgres":
+        elif layer.providerType().lower() == "postgres":
             config = decoded
             if decoded.get("service"):
                 service_config = pgserviceparser.service_config(decoded["service"])
@@ -274,42 +270,42 @@ def extract_save_layer(
             if decoded.get("service"):
                 del config["service"]
             source_path = QgsProviderRegistry.instance().encodeUri(
-                child.providerType(), config
+                layer.providerType(), config
             )
 
-        elif child.providerType().lower() == "wfs":
+        elif layer.providerType().lower() == "wfs":
             # TODO: Correctly implement source!
             source = WfsSource()
         else:
             raise NotImplementedError(
-                f"Unknown provider type: {child.providerType().lower()}"
+                f"Unknown provider type: {layer.providerType().lower()}"
             )
-        fields = extract_fields(child, types_from_editor_widget)
+        fields = extract_fields(layer, types_from_editor_widget)
         datasets.vector.append(
             Vector(
                 path=source_path.replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
-                title=child.title() or child.name(),
-                styles=create_style_list(child),
-                driver=child.providerType(),
+                title=layer.title() or layer.name(),
+                styles=create_style_list(layer),
+                driver=layer.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 fields=fields,
                 source=source,
-                id=child.id(),
+                id=layer.id(),
                 crs=crs,
                 bbox=bbox,
-                minimum_scale=child.minimumScale(),
-                maximum_scale=child.maximumScale(),
-                geometry_type_simple=child.geometryType().name,
-                geometry_type_wkb=child.wkbType().name,
+                minimum_scale=layer.minimumScale(),
+                maximum_scale=layer.maximumScale(),
+                geometry_type_simple=layer.geometryType().name,
+                geometry_type_wkb=layer.wkbType().name,
             )
         )
     elif layer_type == "raster":
-        if child.providerType() == "gdal":
+        if layer.providerType() == "gdal":
             source = DataSource(
                 gdal=GdalSource(path=decoded["path"], layer_name=decoded["layerName"])
             )
-        elif child.providerType() == "wms":
+        elif layer.providerType() == "wms":
             if "tileMatrixSet" in decoded:
                 source = DataSource(
                     wmts=WmtsSource(
@@ -340,26 +336,26 @@ def extract_save_layer(
                 )
         else:
             raise NotImplementedError(
-                f"Unknown provider type: {child.providerType().lower()}"
+                f"Unknown provider type: {layer.providerType().lower()}"
             )
         datasets.raster.append(
             Raster(
-                path=child.source().replace(f'{project.readPath("./")}/', ""),
+                path=layer.source().replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
-                title=child.title(),
-                styles=create_style_list(child),
-                driver=child.providerType(),
+                title=layer.title() or layer.name(),
+                styles=create_style_list(layer),
+                driver=layer.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 source=source,
-                id=child.id(),
+                id=layer.id(),
                 crs=crs,
                 bbox=bbox,
-                minimum_scale=child.minimumScale(),
-                maximum_scale=child.maximumScale(),
+                minimum_scale=layer.minimumScale(),
+                maximum_scale=layer.maximumScale(),
             )
         )
     elif layer_type == "custom":
-        if child.providerType().lower() == "xyzvectortiles":
+        if layer.providerType().lower() == "xyzvectortiles":
             source = DataSource(
                 vector_tile=VectorTileSource(
                     styleUrl=decoded["styleUrl"],
@@ -371,27 +367,95 @@ def extract_save_layer(
             )
         else:
             raise NotImplementedError(
-                f"Unknown provider type: {child.providerType().lower()}"
+                f"Unknown provider type: {layer.providerType().lower()}"
             )
             # TODO: make this more configurable
         datasets.custom.append(
             Custom(
-                path=child.source().replace(f'{project.readPath("./")}/', ""),
+                path=layer.source().replace(f'{project.readPath("./")}/', ""),
                 name=short_name,
-                title=child.title(),
-                styles=create_style_list(child),
-                driver=child.providerType(),
+                title=layer.title() or layer.name(),
+                styles=create_style_list(layer),
+                driver=layer.providerType(),
                 bbox_wgs84=bbox_wgs84,
                 source=source,
-                id=child.id(),
+                id=layer.id(),
                 crs=crs,
                 bbox=bbox,
-                minimum_scale=child.minimumScale(),
-                maximum_scale=child.maximumScale(),
+                minimum_scale=layer.minimumScale(),
+                maximum_scale=layer.maximumScale(),
             )
         )
     else:
         raise NotImplementedError(f'Unknown layer_type "{layer_type}"')
+
+
+def sanitize_name(raw: str, lower: bool = False) -> str:
+    """
+    Wandelt einen beliebigen String in einen WMS/WFS‑ und URL‑Pfad‑
+    kompatiblen Layer‑Kurznamen um.
+
+    Schritte:
+    1. Unicode‑NFD → ASCII‑Transliteration (entfernt Umlaute/Diakritika).
+    2. Alle Zeichen, die NICHT [A‑Za‑z0‑9_.‑] sind, durch '_' ersetzen.
+    3. Mehrere Unterstriche auf einen reduzieren.
+    4. Führende/abschließende '_', '.', '-' entfernen.
+    5. Falls der Name leer ist ODER nicht mit Buchstabe bzw. '_' beginnt,
+       vorne '_' voranstellen.
+    6. Optional alles in Kleinbuchstaben konvertieren (lower=True).
+    """
+    # 1. cleaning to ASCII
+    ascii_str = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode()
+    # 2. not allowed → '_'
+    ascii_str = re.sub(r"[^A-Za-z0-9_.-]+", "_", ascii_str)
+    # 3. remove multiple '_'
+    ascii_str = re.sub(r"_+", "_", ascii_str)
+    # 4. remove trailing chars
+    ascii_str = ascii_str.strip("._-")
+    # 5. ensure first char is correct (mainly xml stuff and URL)
+    if not ascii_str or not re.match(r"[A-Za-z_]", ascii_str[0]):
+        ascii_str = "_" + ascii_str
+    # 6. Optional lowercase
+    if lower:
+        ascii_str = ascii_str.lower()
+    return ascii_str
+
+
+def get_group_short_name(group: QgsLayerTreeGroup) -> str:
+    if group.customProperty("wmsShortName"):
+        return group.customProperty("wmsShortName")
+    elif hasattr(group, "groupLayer"):
+        # since QGIS 3.38
+        if group.groupLayer():
+            if group.groupLayer().serverProperties():
+                if group.groupLayer().serverProperties().shortName():
+                    return group.groupLayer().serverProperties().shortName()
+    short_name = sanitize_name(group.name(), lower=True)
+    if short_name == "_":
+        # this is the tree root, we return empty string here
+        return ""
+    return short_name
+
+
+def get_group_title(group: QgsLayerTreeGroup) -> str:
+    if group.customProperty("wmsTitle"):
+        return group.customProperty("wmsTitle")
+    elif hasattr(group, "groupLayer"):
+        # since QGIS 3.38
+        if group.groupLayer():
+            if group.groupLayer().serverProperties():
+                if group.groupLayer().serverProperties().title():
+                    return group.groupLayer().serverProperties().title()
+    return group.name()
+
+
+def get_layer_short_name(layer: QgsLayerTreeLayer) -> str:
+    if layer.layer().shortName():
+        return layer.layer().shortName()
+    elif hasattr(layer.layer(), "serverProperties"):
+        if layer.layer().serverProperties().shortName():
+            return layer.layer().serverProperties().shortName()
+    return layer.layer().id()
 
 
 def extract_group(
@@ -406,25 +470,19 @@ def extract_group(
     children = []
     for child in group.children():
         if isinstance(child, QgsLayerTreeGroup):
-            children.append(child.customProperty("wmsShortName"))
+            children.append(get_group_short_name(child))
         else:
             if unify_layer_names_by_group:
                 children.append(
-                    create_unified_short_name(
-                        child.layer().shortName() or child.layer().id(), path
-                    )
+                    create_unified_short_name(get_layer_short_name(child), path)
                 )
             else:
-                children.append(child.layer().shortName() or child.layer().id())
-    tree.members.append(
-        TreeGroup(
-            name=group.customProperty("wmsShortName") or group.name(), children=children
-        )
-    )
+                children.append(get_layer_short_name(child))
+    tree.members.append(TreeGroup(name=get_group_short_name(group), children=children))
     datasets.group.append(
         Group(
-            name=group.customProperty("wmsShortName"),
-            title=group.customProperty("wmsTitle"),
+            name=get_group_short_name(group),
+            title=get_group_title(group),
         )
     )
 
@@ -451,8 +509,10 @@ def extract_entities(
 
     # If the entity has an attribute `children`, assume it's a group
     elif isinstance(entity, QgsLayerTreeGroup) or isinstance(entity, QgsLayerTree):
-        if entity.customProperty("wmsShortName") is not None:
-            path = path + [entity.customProperty("wmsShortName")]
+        short_name = get_group_short_name(entity)
+        if short_name != "":
+            # '' is the root of the tree, we dont want it to be part of the path
+            path = path + [short_name]
         extract_group(
             entity,
             tree,

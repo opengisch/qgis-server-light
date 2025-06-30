@@ -430,7 +430,7 @@ class Project:
 class Tree:
     members: list[TreeGroup] = field(
         default_factory=list,
-        metadata={"name": "Memeber", "type": "Element", "required": False},
+        metadata={"name": "Member", "type": "Element", "required": False},
     )
 
     def find_by_name(self, name: str) -> TreeGroup | None:
