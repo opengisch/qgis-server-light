@@ -1,4 +1,4 @@
-FROM ghcr.io/opengisch/qgis-slim:3.34.10 AS base
+FROM ghcr.io/opengisch/qgis-slim:3.38.3 AS base
 
 # switch to root user for install
 USER 0
