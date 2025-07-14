@@ -13,7 +13,7 @@ RUN apt-get update && \
 #########################
 FROM base AS dev
 
-LABEL org.opengisch.author="Clemens Rudert <clemens.rudert@bl.ch>"
+LABEL org.opengisch.author="Clemens Rudert <clemens@opengis.ch>"
 LABEL org.opengisch.image.title="QGIS-Server-Light"
 USER 0
 
