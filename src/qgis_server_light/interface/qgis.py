@@ -231,6 +231,9 @@ class Crs:
     ogc_uri: str = field(
         default=None, metadata={"name": "OgcUri", "type": "Element", "required": False}
     )
+    ogc_urn: str = field(
+        default=None, metadata={"name": "OgcUrn", "type": "Element", "required": False}
+    )
 
 
 @dataclass
