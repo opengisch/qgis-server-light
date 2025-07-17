@@ -133,6 +133,7 @@ def obtain_nullable(field: QgsField):
         == QgsFieldConstraints.Constraint.ConstraintNotNull
     ):
         return True
+    return False
 
 
 def extract_fields(
