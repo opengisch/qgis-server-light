@@ -415,6 +415,12 @@ class Vector(DataSet):
         metadata={"name": "GeometryTypeWkb", "type": "Element"},
     )
 
+    def get_field_by_name(self, name: str) -> Field | None:
+        for field in self.fields:
+            if field.name == name:
+                return field
+        return None
+
 
 @dataclass
 class Custom(DataSet):
