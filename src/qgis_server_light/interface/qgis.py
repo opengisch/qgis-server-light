@@ -121,8 +121,18 @@ class Field:
 
     name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
     type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
-    type_simple: Optional[str] = field(
-        default=None, metadata={"name": "SimpleType", "type": "Element"}
+    is_primary_key: bool = field(
+        default=False,
+        metadata={"name": "IsPrimaryKey", "type": "Element", "required": True},
+    )
+    type_wfs: Optional[str] = field(
+        default=None, metadata={"name": "TypeWfs", "type": "Element"}
+    )
+    type_oapif: Optional[str] = field(
+        default=None, metadata={"name": "TypeOapif", "type": "Element"}
+    )
+    type_oapif_format: Optional[str] = field(
+        default=None, metadata={"name": "TypeOapifFormat", "type": "Element"}
     )
     alias: Optional[str] = field(
         default=None, metadata={"name": "Alias", "type": "Element"}
