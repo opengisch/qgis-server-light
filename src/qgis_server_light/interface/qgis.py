@@ -133,6 +133,12 @@ class Field:
     nullable: bool = field(
         default=True, metadata={"name": "Nullable", "type": "Element"}
     )
+    length: Optional[int] = field(
+        default=None, metadata={"name": "Length", "type": "Element"}
+    )
+    precision: Optional[int] = field(
+        default=None, metadata={"name": "Precision", "type": "Element"}
+    )
 
 
 @dataclass

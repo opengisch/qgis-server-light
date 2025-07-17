@@ -137,6 +137,22 @@ def obtain_nullable(field: QgsField):
     return False
 
 
+def provide_field_length(field: QgsField) -> int | None:
+    length = field.length()
+    if length >= 0:
+        return length
+    else:
+        return None
+
+
+def provide_field_precision(field: QgsField) -> int | None:
+    precision = field.precision()
+    if precision >= 0:
+        return precision
+    else:
+        return None
+
+
 def extract_fields(
     layer: QgsVectorLayer, types_from_editor_widget: bool = False
 ) -> List[Field]:
@@ -156,6 +172,8 @@ def extract_fields(
                 alias=field.alias() or field.name().title(),
                 comment=field.comment(),
                 nullable=(field_index not in pk_indexes) and obtain_nullable(field),
+                length=provide_field_length(field),
+                precision=provide_field_precision(field),
             )
         )
     return fields
