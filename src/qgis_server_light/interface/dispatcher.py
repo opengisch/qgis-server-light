@@ -66,7 +66,6 @@ class RedisQueue:
                             # TODO: handle errors
 
                             result = pickle.loads(message["data"])
-                            logging.debug(f"Result was of type {message}")
                             if result is None:
                                 logging.info(f"{job_id} failed")
                             else:
