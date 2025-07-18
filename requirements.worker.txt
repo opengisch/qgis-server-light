@@ -1,3 +1,4 @@
 redis==5.0.8
 fpng-py==0.0.2
 xsdata==24.7
+hupper==1.12.1

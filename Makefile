@@ -36,7 +36,7 @@ $(VENV_REQUIREMENTS):
 	touch $@
 
 $(QGIS_VENV_PATH):
-	echo "/usr/share/qgis/python" > $@
+	echo "$(QGIS_PY_PATH)" > $@
 
 $(PIP_REQUIREMENTS): $(VENV_REQUIREMENTS) requirements.interface.txt requirements.worker.txt requirements.exporter.txt $(QGIS_VENV_PATH)
 	$(VENV_BIN)/$(PIP_COMMAND) install --upgrade pip wheel
@@ -71,6 +71,8 @@ clean:
 
 .PHONY: clean-all
 clean-all: clean
+	rm -rf build
+	rm -rf dist
 	rm -rf $(VENV_PATH)
 	rm -rf src/$(PACKAGE).egg-info
 
@@ -99,9 +101,9 @@ doc-gh-deploy: $(DOC_REQUIREMENTS) docs/mkdocs.yml
 updates: $(PIP_REQUIREMENTS)
 	$(VENV_BIN)/pip list --outdated
 
-.PHONY: dev
-dev: setup.py build
-	$(VENV_BIN)/python $< develop
+.PHONY: install-dev
+install-dev: $(PIP_REQUIREMENTS)
+	WITH_WORKER=True $(VENV_BIN)/pip install -e .
 
 .PHONY: serve
 serve: build

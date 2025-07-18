@@ -49,7 +49,7 @@ class RedisEngine(Engine):
                 time.sleep(1)
             else:
                 break
-
+        logging.info(f"Connection to redis on `{redis_url}`successful.")
         while not self.shutdown:
             retry_count = 0
 
@@ -84,12 +84,12 @@ class RedisEngine(Engine):
                 logging.warning(f"Retrying in {retry_rate} seconds...")
                 time.sleep(retry_rate)
                 continue
-            retry_count = 0
             key = job_info.id
 
             p = r.pipeline()
             p.hset(key, "status", "running")
             p.hset(key, "timestamp", datetime.datetime.now().isoformat())
+            result = None
             try:
                 start_time = time.time()
                 result = self.process(job_info.job)
@@ -106,8 +106,9 @@ class RedisEngine(Engine):
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.error(e, exc_info=True)
             finally:
-                data = pickle.dumps(result)
-                p.publish(f"notifications:{key}", data)
+                if result is not None:
+                    data = pickle.dumps(result)
+                    p.publish(f"notifications:{key}", data)
                 p.execute()
 
 
@@ -144,10 +145,8 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    LOG_LEVEL = os.environ.get("QSL_LOG_LEVEL", "WARNING").upper()
-
     logging.basicConfig(
-        level=LOG_LEVEL, format="%(asctime)s [%(levelname)s] %(message)s"
+        level=args.log_level.upper(), format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
     log = logging.getLogger(__name__)
