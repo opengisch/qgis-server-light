@@ -13,6 +13,7 @@ from typing import Optional
 import redis
 from xsdata.formats.dataclass.parsers import JsonParser
 
+from qgis_server_light.interface.job import JobError
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
 from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
@@ -107,10 +108,18 @@ class RedisEngine(Engine):
                 logging.error(e, exc_info=True)
                 logging.debug("Job Failed")
             finally:
-                if result is not None:
+
+                if p.hget(key, "error") == "failed":
                     data = pickle.dumps(result)
                 else:
-                    data = pickle.dumps(None)
+                    data = pickle.dumps(
+                        JobError(
+                            error=p.hget(key, "error"),
+                            duration=p.hget(key, "duration"),
+                            status=p.hget(key, "status"),
+                            timestamp=p.hget(key, "timestamp"),
+                        )
+                    )
                 p.publish(f"notifications:{key}", data)
                 p.execute()
 

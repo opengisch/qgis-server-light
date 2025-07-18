@@ -8,6 +8,7 @@ import async_timeout
 import redis.asyncio as redis
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
+from qgis_server_light.interface.job import JobError
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
@@ -63,14 +64,10 @@ class RedisQueue:
                             )
                             if not message:
                                 continue  # https://github.com/redis/redis-py/issues/733
-                            # TODO: handle errors
-
                             result = pickle.loads(message["data"])
-                            if result is None:
-                                logging.info(f"{job_id} failed")
-                            else:
-                                logging.info(f"{job_id} succeeded")
                             await asyncio.create_task(r.delete(job_id))
+                            if isinstance(result, JobError):
+                                raise RuntimeError(result.error)
                             return result
                 except (asyncio.TimeoutError, asyncio.exceptions.CancelledError) as err:
                     logging.info(f"{job_id} timeout")
