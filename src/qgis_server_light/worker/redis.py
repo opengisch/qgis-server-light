@@ -105,10 +105,13 @@ class RedisEngine(Engine):
                 p.hset(key, "error", f"{e}")
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.error(e, exc_info=True)
+                logging.debug("Job Failed")
             finally:
                 if result is not None:
                     data = pickle.dumps(result)
-                    p.publish(f"notifications:{key}", data)
+                else:
+                    data = pickle.dumps(None)
+                p.publish(f"notifications:{key}", data)
                 p.execute()
 
 

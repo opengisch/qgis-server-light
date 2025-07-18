@@ -62,13 +62,15 @@ class RedisQueue:
                                 timeout=timeout, ignore_subscribe_messages=True
                             )
                             if not message:
-                                if p.hget(job_id, "status") == "failed":
-                                    raise RuntimeError(p.hget(job_id, "error"))
-                                else:
-                                    continue  # https://github.com/redis/redis-py/issues/733
+                                continue  # https://github.com/redis/redis-py/issues/733
                             # TODO: handle errors
-                            logging.info(f"{job_id} succeeded")
+
                             result = pickle.loads(message["data"])
+                            logging.debug(f"Result was of type {type(result)}")
+                            if result is None:
+                                logging.info(f"{job_id} failed")
+                            else:
+                                logging.info(f"{job_id} succeeded")
                             await asyncio.create_task(r.delete(job_id))
                             return result
                 except (asyncio.TimeoutError, asyncio.exceptions.CancelledError) as err:
