@@ -108,10 +108,7 @@ class RedisEngine(Engine):
                 logging.error(e, exc_info=True)
                 logging.debug("Job Failed")
             finally:
-
                 if p.hget(key, "error") == "failed":
-                    data = pickle.dumps(result)
-                else:
                     data = pickle.dumps(
                         JobError(
                             error=p.hget(key, "error"),
@@ -120,6 +117,8 @@ class RedisEngine(Engine):
                             timestamp=p.hget(key, "timestamp"),
                         )
                     )
+                else:
+                    data = pickle.dumps(result)
                 p.publish(f"notifications:{key}", data)
                 p.execute()
 

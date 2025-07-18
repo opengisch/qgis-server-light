@@ -161,7 +161,7 @@ class JobResult:
 @dataclass
 class JobError:
     error: str = field(metadata={"type": "Element", "required": True})
-    duration: float = field(metadata={"type": "Element", "required": True})
+    duration: str = field(metadata={"type": "Element", "required": True})
     status: str = field(metadata={"type": "Element", "required": True})
     timestamp: str = field(metadata={"type": "Element", "required": True})
 
