@@ -209,6 +209,7 @@ def extract_fields(
                 type_oapif=attribute_type_json,
                 type_oapif_format=attribute_type_json_format,
                 alias=field.alias() or field.name().title(),
+                comment=field.comment(),
                 nullable=(field_index not in pk_indexes) and obtain_nullable(field),
                 length=provide_field_length(field),
                 precision=provide_field_precision(field),
