@@ -115,6 +115,7 @@ class Field:
         type_simple: Translated type for further usage. Based on the simple types of
             [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes).
         alias: Human readable name.
+        comment: Field description.
         nullable: If this field can be NULL or not.
     """
 
@@ -125,6 +126,9 @@ class Field:
     )
     alias: Optional[str] = field(
         default=None, metadata={"name": "Alias", "type": "Element"}
+    )
+    comment: Optional[str] = field(
+        default=None, metadata={"name": "Comment", "type": "Element"}
     )
     nullable: bool = field(
         default=True, metadata={"name": "Nullable", "type": "Element"}

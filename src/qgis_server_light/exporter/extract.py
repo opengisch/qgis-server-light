@@ -153,6 +153,7 @@ def extract_fields(
                 type=field.typeName(),
                 type_simple=attribute_type,
                 alias=field.alias() or field.name().title(),
+                comment=field.comment(),
                 nullable=(field_index not in pk_indexes) and obtain_nullable(field),
             )
         )
