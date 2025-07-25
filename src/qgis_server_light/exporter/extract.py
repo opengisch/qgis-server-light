@@ -11,13 +11,13 @@ from typing import Union
 import pgserviceparser
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
-from qgis._core import QgsDateTimeFieldFormatter
-from qgis._core import QgsField
-from qgis._core import QgsFieldConstraints
-from qgis._core import QgsMapLayer
+from qgis.core import QgsDateTimeFieldFormatter
+from qgis.core import QgsField
+from qgis.core import QgsFieldConstraints
 from qgis.core import QgsLayerTree
 from qgis.core import QgsLayerTreeGroup
 from qgis.core import QgsLayerTreeLayer
+from qgis.core import QgsMapLayer
 from qgis.core import QgsProject
 from qgis.core import QgsProviderRegistry
 from qgis.core import QgsVectorLayer

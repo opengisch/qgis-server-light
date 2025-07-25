@@ -1,0 +1,1 @@
+redis_worker --redis-url $QSL_REDIS_URL --svg-path $QSL_SVG_PATH --data-root $QSL_DATA_ROOT --log-level $QSL_LOG_LEVEL
