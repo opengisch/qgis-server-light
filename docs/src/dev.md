@@ -47,7 +47,7 @@ the recommended way of running this stack is Docker (docker need to be installed
 
 First you need to build the image:
 ```shell
-docker build -t opengisch/qgis-server-light:dev --target dev .
+docker build -t opengisch/qgis-server-light-dev:latest --target dev .
 ```
 
 #### Run QGIS-Server-Light worker

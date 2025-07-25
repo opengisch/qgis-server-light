@@ -16,7 +16,7 @@ docker run --rm -d -p 1234:6379 --name georama-redis redis
 ```
 
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 --net host ghcr.io/opengisch/qgis-server-light:latest
+docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 --net host opengisch/qgis-server-light:latest
 ```
 
 ## Quick start DEV

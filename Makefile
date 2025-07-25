@@ -45,7 +45,7 @@ SRC_PY = $(shell find $(LOCATION)/$(PACKAGE) -name '*.py')
 # *******************
 
 $(VENV_REQUIREMENTS):
-	$(PYTHON_PATH) -m venv $(VENV_PATH)
+	$(PYTHON_PATH) -m venv $(VENV_PATH) --system-site-packages
 	touch $@
 
 $(QGIS_VENV_PATH): $(VENV_REQUIREMENTS)
