@@ -20,6 +20,9 @@ from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
 from qgis_server_light.worker.engine import Engine
 from qgis_server_light.worker.engine import EngineContext
 
+DEFAULT_DATA_ROOT = "/io/data"
+DEFAULT_SVG_PATH = "/io/svg"
+
 
 class RedisEngine(Engine):
     def __init__(
@@ -126,32 +129,27 @@ class RedisEngine(Engine):
 def main() -> None:
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--redis-url",
-        type=str,
-        help="redis url",
-        default=os.environ.get("QSL_REDIS_URL"),
-    )
+    parser.add_argument("--redis-url", type=str, help="redis url")
 
     parser.add_argument(
         "--log-level",
         type=str,
         help="log level (debug, info, warning or error)",
-        default=os.environ.get("QSL_LOG_LEVEL") or "info",
+        default="info",
     )
 
     parser.add_argument(
         "--data-root",
         type=str,
-        help="Absolute path to the data dir.",
-        default=os.environ.get("QSL_DATA_ROOT") or "/io/data",
+        help=f"Absolute path to the data dir. Defaults to {DEFAULT_DATA_ROOT}",
+        default=DEFAULT_DATA_ROOT,
     )
 
     parser.add_argument(
         "--svg-path",
         type=str,
-        help="Absolute path to additional svg files. Multiple paths can be separated by `:`. Defaults to /io/svg",
-        default=os.environ.get("QSL_SVG_PATH") or "/io/svg",
+        help=f"Absolute path to additional svg files. Multiple paths can be separated by `:`. Defaults to {DEFAULT_SVG_PATH}",
+        default=DEFAULT_SVG_PATH,
     )
 
     args = parser.parse_args()
@@ -164,7 +162,9 @@ def main() -> None:
     log.info(json.dumps(dict(os.environ), indent=2))
 
     if not args.redis_url:
-        raise AssertionError("no redis host specified (--redis-url, QSL_REDIS_URL)")
+        raise AssertionError(
+            "no redis host specified: start qgis-server-light with '--redis-url <QSL_REDIS_URL>'"
+        )
 
     svg_paths = args.svg_path.split(":")
     engine = RedisEngine(EngineContext(args.data_root), svg_paths)

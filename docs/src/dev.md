@@ -6,18 +6,14 @@ You can choose this solution if you have QGIS and Python in the correct versions
 
 #### Preparation
 
-Install a virtual environment for the project like this when pyqgis is installed into your system python
-like `/usr/lib/python3.10/site-packages/` or `/usr/lib/python3.10/dist-packages/` depending on your distro.
+The following command installs all dependencies in a local virtual environment in the project root
+folder to `.venv`:
 
 ```shell
-make install
+make install-dev
 ```
 
-else you must pass the path to pyqgis (`/usr/share/qgis/python`) usually:
-
-```shell
-QGIS_PY_PATH=/usr/share/qgis/python make dev
-```
+It tries to find the correct path to the `pyqgis` of your local QGIS desktop installation.
 
 #### Run QGIS-Server-Light worker
 
@@ -30,7 +26,14 @@ docker run --rm -d -p 1234:6379 --name georama-redis redis
 Spin up QGIS-Server-Light worker:
 
 ```shell
-QSL_REDIS_URL=redis://localhost:1234 .venv/bin/python3 -m qgis_server_light.worker.redis
+make run
+```
+
+You may want start QGIS-Server-Light worker in a reloading mode so that everytime you change the source
+code, the worker gets reloaded. You can do so with:
+
+```shell
+make run-dev
 ```
 
 Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.

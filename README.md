@@ -31,14 +31,3 @@ docker compose up -d
 
 For further details and a better understanding please refer to the
 [documentation](https://opengisch.github.io/qgis-server-light).
-
-
-# run it locally
-
-```shell
-QGIS_PY_PATH=/usr/lib/python3.13/site-packages make clean-all install-dev
-# run worker with hot reload on source changes (useful for development)
-hupper -m qgis_server_light.worker.redis --redis-url redis://localhost:1234 --log-level debug --data-root /home/kalle/projects/opengis/georama.test_data/
-# run worker just as is without hot reload
-python -m qgis_server_light.worker.redis --redis-url redis://localhost:1234 --log-level debug --data-root /home/kalle/projects/opengis/georama.test_data/
-```

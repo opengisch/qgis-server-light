@@ -9,7 +9,7 @@ This redis instance will be available with url: `redis://localhost:1234`
 So we can spin up our QGIS-Server-Light instance and let it connect to the redis.
 
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 --net host ghcr.io/opengisch/qgis-server-light:latest
+docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 --net host opengisch/qgis-server-light-dev:latest
 ```
 
 We see several [parameters](https://docs.docker.com/reference/cli/docker/container/run/#options) here:
