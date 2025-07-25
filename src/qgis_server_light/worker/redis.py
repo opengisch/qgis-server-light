@@ -13,7 +13,6 @@ from typing import Optional
 import redis
 from xsdata.formats.dataclass.parsers import JsonParser
 
-from qgis_server_light.interface.job import JobError
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
 from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
@@ -88,12 +87,12 @@ class RedisEngine(Engine):
                 logging.warning(f"Retrying in {retry_rate} seconds...")
                 time.sleep(retry_rate)
                 continue
+            retry_count = 0
             key = job_info.id
 
             p = r.pipeline()
             p.hset(key, "status", "running")
             p.hset(key, "timestamp", datetime.datetime.now().isoformat())
-            result = None
             try:
                 start_time = time.time()
                 result = self.process(job_info.job)
@@ -109,19 +108,8 @@ class RedisEngine(Engine):
                 p.hset(key, "error", f"{e}")
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.error(e, exc_info=True)
-                logging.debug("Job Failed")
             finally:
-                if p.hget(key, "error") == "failed":
-                    data = pickle.dumps(
-                        JobError(
-                            error=p.hget(key, "error"),
-                            duration=p.hget(key, "duration"),
-                            status=p.hget(key, "status"),
-                            timestamp=p.hget(key, "timestamp"),
-                        )
-                    )
-                else:
-                    data = pickle.dumps(result)
+                data = pickle.dumps(result)
                 p.publish(f"notifications:{key}", data)
                 p.execute()
 

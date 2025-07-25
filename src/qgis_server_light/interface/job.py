@@ -159,14 +159,6 @@ class JobResult:
 
 
 @dataclass
-class JobError:
-    error: str = field(metadata={"type": "Element", "required": True})
-    duration: str = field(metadata={"type": "Element", "required": True})
-    status: str = field(metadata={"type": "Element", "required": True})
-    timestamp: str = field(metadata={"type": "Element", "required": True})
-
-
-@dataclass
 class AbstractJobRunnerInfo:
     id: str = field(metadata={"type": "Element", "required": True})
     type: str = field(metadata={"type": "Element", "required": True})
