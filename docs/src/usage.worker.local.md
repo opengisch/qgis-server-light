@@ -20,7 +20,7 @@ wrapped into a venv in the folder `.venv`.
     successful, QGIS-Server-Light won't work
 - `make run` => Starts up one QGIS-Server-Light process. This only works if above-mentioned step was
     successful.
-- `make run-dev` => Same as above but reloads process everytime code was changed.
+- `make run-reload` => Same as above but reloads process everytime code was changed.
 - `make doc-html` => Produces the HTML version of the documentation in `docs/site`
 - `make test` => Run the tests.
 
