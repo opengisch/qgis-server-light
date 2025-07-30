@@ -12,19 +12,18 @@ All configuration happens at runtime through a lean interface.
 ## Quick start
 
 ```shell
-docker run --rm -d -p 1234:6379 --name georama-redis redis
+docker run --rm -d -p 1234:6379 --name qsl-redis redis
 ```
 
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 --net host opengisch/qgis-server-light:latest
+docker run -ti --rm --net host --name qsl opengisch/qgis-server-light:latest
 ```
 
-## Quick start DEV
-
-Create an .env file and put the content of [.env.example](.env.example) into it. Adapt as needed.
+In case you have local geodata which is used in your QGIS projects, you need to make it available to
+QGIS-Server-Light through a volume mount:
 
 ```shell
-docker compose up -d
+docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light:latest
 ```
 
 ## Documentation

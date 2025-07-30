@@ -54,5 +54,5 @@ ENV QSL_DATA_ROOT=/io/data
 ENV QSL_LOG_LEVEL=info
 
 USER 1001
-
+ENTRYPOINT ["/tini", "--"]
 CMD ["run"]
