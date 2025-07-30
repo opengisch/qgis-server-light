@@ -3,9 +3,11 @@ docs_dir: src
 nav:
   - index.md
   - General Idea: general_idea.md
-  - Structure: structure.md
   - Prerequisites: prerequisites.md
-  - Usage of QGIS-Server-Light: usage.qsl.md
+  - Usage of Worker:
+    - CLI: usage.worker.cli.md
+    - Local-DEV: usage.worker.local.md
+    - Docker-DEV: usage.worker.docker.md
   - Usage of Exporter: usage.exporter.md
   - Usage of interface: usage.interface.md
   - Dev the project: dev.md

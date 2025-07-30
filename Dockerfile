@@ -22,23 +22,14 @@ RUN apt-get install -y \
       make
 
 WORKDIR /opt/qgis-server-light/
-ADD requirements.worker.txt .
-ADD requirements.interface.txt .
-ADD requirements.exporter.txt .
-ADD Makefile .
+WORKDIR /app
+ADD ./ .
 
 ENV VENV_PATH=/opt/qgis-server-light/venv
-RUN VENV_PATH=${VENV_PATH} make install
+RUN make install-dev
 
-WORKDIR /app
-
-COPY ./ .
-
-RUN VENV_PATH=${VENV_PATH} make dev
-
-ENTRYPOINT ["/tini", "--", "/opt/qgis-server-light/venv/bin/python3", "-m"]
-
-CMD ["qgis_server_light.worker.redis"]
+ENTRYPOINT ["/tini", "--", "make"]
+CMD ["run"]
 
 #########################
 #  BUILDER (FOR RELEASE)
@@ -54,8 +45,14 @@ RUN WITH_WORKER=true python3 setup.py bdist_wheel
 #########################
 FROM base AS release
 COPY --from=builder /app/dist/*.whl /tmp
+COPY --chmod=+x docker/run /bin
 RUN pip3 install /tmp/*.whl
 
-USER 1001
+ENV QSL_REDIS_URL=redis://localhost:1234
+ENV QSL_SVG_PATH=/io/svg
+ENV QSL_DATA_ROOT=/io/data
+ENV QSL_LOG_LEVEL=info
 
-CMD ["redis_worker"]
+USER 1001
+ENTRYPOINT ["/tini", "--"]
+CMD ["run"]

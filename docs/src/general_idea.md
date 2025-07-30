@@ -1,4 +1,4 @@
-Driving many instances of QGIS-Server for rendering WMS maps gave us many insights of the actual needs.
+Driving many instances of QGIS-Server for rendering WMS maps gave us detailed insights of the actual needs such environments have.
 Especially when it comes to deployment strategies fitting environments other than a metal server
 driving your QGIS-Server, there are a bit of pitfalls here and there which are difficult to handle.
 

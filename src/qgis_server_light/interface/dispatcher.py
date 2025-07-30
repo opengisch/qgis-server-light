@@ -6,9 +6,15 @@ from uuid import uuid4
 
 import async_timeout
 import redis.asyncio as redis
-from qgis_server_light.interface.job import JobResult, QslGetMapJob, QslGetFeatureInfoJob, QslLegendJob, \
-    JobRunnerInfoQslGetMapJob, JobRunnerInfoQslGetFeatureInfoJob, JobRunnerInfoQslLegendJob
 from xsdata.formats.dataclass.serializers import JsonSerializer
+
+from qgis_server_light.interface.job import JobResult
+from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
+from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
+from qgis_server_light.interface.job import JobRunnerInfoQslLegendJob
+from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetMapJob
+from qgis_server_light.interface.job import QslLegendJob
 
 
 class RedisQueue:
@@ -16,9 +22,9 @@ class RedisQueue:
         self.pool = redis.BlockingConnectionPool.from_url(url)
 
     async def post(
-            self,
-            job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob,
-            timeout: float = 10
+        self,
+        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob,
+        timeout: float = 10,
     ) -> JobResult:
         """
         Posts a new `job` to the job queue and waits maximum `timeout` seconds to complete.
@@ -30,21 +36,15 @@ class RedisQueue:
         datetime.datetime.now()
         if isinstance(job, QslGetMapJob):
             job = JobRunnerInfoQslGetMapJob(
-                id=job_id,
-                type=JobRunnerInfoQslGetMapJob.__name__,
-                job=job
+                id=job_id, type=JobRunnerInfoQslGetMapJob.__name__, job=job
             )
         elif isinstance(job, QslGetFeatureInfoJob):
             job = JobRunnerInfoQslGetFeatureInfoJob(
-                id=job_id,
-                type=JobRunnerInfoQslGetFeatureInfoJob.__name__,
-                job=job
+                id=job_id, type=JobRunnerInfoQslGetFeatureInfoJob.__name__, job=job
             )
         elif isinstance(job, QslLegendJob):
             job = JobRunnerInfoQslLegendJob(
-                id=job_id,
-                type=JobRunnerInfoQslLegendJob.__name__,
-                job=job
+                id=job_id, type=JobRunnerInfoQslLegendJob.__name__, job=job
             )
         async with r.pipeline() as p:
             logging.info(f"{job_id} pushed")
