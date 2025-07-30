@@ -33,7 +33,7 @@ You may want start QGIS-Server-Light worker in a reloading mode so that everytim
 code, the worker gets reloaded. You can do so with:
 
 ```shell
-make run-dev
+make run-reload
 ```
 
 Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
