@@ -36,6 +36,13 @@ This section tells you how to simply start QGIS-Server-Light as built before in 
 docker run --rm -ti --net host --name qsl opengisch/qgis-server-light-dev:latest
 ```
 
+In case you have local geodata which is used in your QGIS projects, you need to make it available to
+QGIS-Server-Light through a volume mount:
+
+```shell
+docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest
+```
+
 This works because QGIS-Server-Light has a default value for the connection to redis which fits redis
 instance we started with the command before.
 
@@ -62,6 +69,12 @@ project directory when calling the `docker` command.
 
 ```shell
 docker run --rm -ti --net host -v $(pwd):/app --name qsl opengisch/qgis-server-light-dev:latest run-reload
+```
+
+or in case you have file geodata locally (e.g. GeoPackage):
+
+```shell
+docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest run-reload
 ```
 
 This mounts the source code directory into the container so that you can change source code locally, and it

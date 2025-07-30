@@ -20,7 +20,7 @@ wrapped into a venv in the folder `.venv`.
     This means, you need to have GNU Make installed on you system!
 
 #### Most important targets
-
+(for QGIS-Server-Light integration)
 - `make install-dev` => Installs QGIS-Server-Light into the `.venv`, so that you can use it locally. This
     trys to find the local path to pyqgis (part of the qgis installation) and links it. If that step is not
     successful, QGIS-Server-Light won't work
@@ -69,3 +69,8 @@ QSL_REDIS_URL=redis://my.redis.host:9999 make run
 In addition, you may want to use an `.env`. If you place such a file
 in the project root you can run the command and variables from the `.env` file
 will be applied as available.
+
+In case you have local geodata which is used in your QGIS projects, you need to make it available to
+QGIS-Server-Light via:
+
+QSL_DATA_ROOT=<local-path-to-your-qgis-projects> make run
