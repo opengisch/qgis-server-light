@@ -127,6 +127,10 @@ doc-html: $(DOC_REQUIREMENTS) $(DOCS_CONFIGURATION)
 doc-serve: $(DOC_REQUIREMENTS) $(DOCS_CONFIGURATION)
 	$(VENV_BIN)/mkdocs serve -f $(DOCS_CONFIGURATION)
 
+.PHONY: doc-gh-deploy
+doc-gh-deploy: $(DOC_REQUIREMENTS) $(DOCS_CONFIGURATION)
+	$(VENV_BIN)/mkdocs gh-deploy -f $(DOCS_CONFIGURATION) -d site --force
+
 .PHONY: updates
 updates: $(PROJECT_REQUIREMENTS) $(DOC_REQUIREMENTS) $(DEV_REQUIREMENTS) $(TEST_REQUIREMENTS)
 	$(VENV_BIN)/pip list --outdated
