@@ -1,3 +1,9 @@
+## Run the worker locally
+
+!!! warning
+    Currently local development is tested only on Linux machines. We know, that **Windows or MacOS are *not*
+    working** with the approaches described here.
+
 This variant is meant to be used for development purpose. In any case you need a running redis
 instance where QGIS-Server-Light can handle the jobs. See
 [Docker Usage](usage.qsl.docker.md#spin-up-a-redis-instance) for instructions how to spin up your own local
