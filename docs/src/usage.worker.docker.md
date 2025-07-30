@@ -74,7 +74,7 @@ docker run --rm -ti --net host -v $(pwd):/app --name qsl opengisch/qgis-server-l
 or in case you have file geodata locally (e.g. GeoPackage):
 
 ```shell
-docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest run-reload
+docker run -ti --rm --net host --name qsl -v $(pwd):/app -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest run-reload
 ```
 
 This mounts the source code directory into the container so that you can change source code locally, and it
