@@ -196,12 +196,15 @@ class PostgresSource(Source):
     schema: str = field(
         metadata={"name": "Schema", "type": "Element", "required": True}
     )
-    srid: str = field(metadata={"name": "Srid", "type": "Element", "required": True})
     table: str = field(metadata={"name": "Table", "type": "Element", "required": True})
     type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
     username: str = field(
         metadata={"name": "Username", "type": "Element", "required": True}
     )
+    srid: str = field(
+        default=None, metadata={"name": "Srid", "type": "Element", "required": True}
+    )
+    sslmode: str = field(default=None)
 
 
 @dataclass

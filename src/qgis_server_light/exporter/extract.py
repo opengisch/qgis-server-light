@@ -11,6 +11,7 @@ from typing import Union
 import pgserviceparser
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
+from qgis._core import QgsDataSourceUri
 from qgis.core import QgsDateTimeFieldFormatter
 from qgis.core import QgsField
 from qgis.core import QgsFieldConstraints
@@ -179,6 +180,34 @@ def create_style_list(qgs_layer: QgsMapLayer) -> List[Style]:
     return style_list
 
 
+def decide_sslmode(ssl_mode: int) -> str:
+    """
+    Mapper to map ssl modes from QGIS to plain postgres.
+
+    Args:
+        ssl_mode: The ssl mode of the datasource.
+
+    Returns:
+        The string representation of the ssl mode as it is used by postgres connections.
+    Raises:
+        LookupError: If the given ssl mode is not supported.
+    """
+    if ssl_mode == QgsDataSourceUri.SslDisable:
+        return "disable"
+    elif ssl_mode == QgsDataSourceUri.SslAllow:
+        return "allow"
+    elif ssl_mode == QgsDataSourceUri.SslPrefer:
+        return "prefer"
+    elif ssl_mode == QgsDataSourceUri.SslRequire:
+        return "require"
+    elif ssl_mode == QgsDataSourceUri.SslVerifyCa:
+        return "verify-ca"
+    elif ssl_mode == QgsDataSourceUri.SslVerifyFull:
+        return "verify-full"
+    else:
+        raise LookupError(f"Unknown ssl mode {ssl_mode}")
+
+
 def extract_save_layer(
     project: QgsProject,
     child: QgsLayerTreeLayer,
@@ -252,6 +281,14 @@ def extract_save_layer(
                 # merging pg_service content with config of qgis project (qgis project config overwrites
                 # pg_service configs
                 config = service_config | decoded
+            if config.get("username"):
+                username = config["username"]
+            elif config.get("user"):
+                username = config["user"]
+            else:
+                raise LookupError(
+                    f"Configuration does not contain any info about the db user name {config}"
+                )
             source = DataSource(
                 postgres=PostgresSource(
                     dbname=config["dbname"],
@@ -261,10 +298,11 @@ def extract_save_layer(
                     password=config["password"],
                     port=config["port"],
                     schema=config["schema"],
-                    srid=config["srid"],
+                    srid=config.get("srid"),
                     table=config["table"],
                     type=config["type"],
-                    username=config["username"],
+                    username=username,
+                    sslmode=decide_sslmode(int(config.get("sslmode", 0))),
                 )
             )
             if decoded.get("service"):
