@@ -55,22 +55,23 @@ class WmsGetMapParams(AbstractWmsParams):
 
     LAYERS: str = field(metadata={"type": "Element", "required": True})
 
-    # We make that mandatory, to force clients talking to QSL to always specify a style per layer
-    STYLES: str = field(default=None, metadata={"type": "Element", "required": True})
-
     # mime type of the requested image
-    FORMAT: str = field(
-        default="image/png", metadata={"type": "Element", "required": True}
-    )
+    FORMAT: str = field(default="image/png", metadata={"type": "Element"})
 
     @property
     def layers(self) -> List[str]:
         return self.LAYERS.split(",")
 
     @property
-    def styles(self) -> List[str] | None:
-        if self.STYLES:
-            return self.STYLES.split(",")
+    def styles(self) -> None:
+        """
+        Compatibility method for WMS request, can be removed after WFS work was merged.
+
+        IMPORTANT: This means we currently only render style 'default'!
+
+        Returns: Nothing since we only want that method for backwards compatibility.
+        """
+        return None
 
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
@@ -107,14 +108,14 @@ class WmsGetFeatureInfoParams(AbstractWmsParams):
 
 
 @dataclass
-class QslAbstractJob:
+class QslAbstractMapJob:
     svg_paths: List[str] = field(
         default_factory=list, metadata={"type": "Element", "required": True}
     )
 
 
 @dataclass(kw_only=True)
-class QslGetMapJob(QslAbstractJob):
+class QslGetMapJob(QslAbstractMapJob):
     """A job to be rendered as an image"""
 
     service_params: WmsGetMapParams = field(
@@ -139,7 +140,7 @@ class QslGetMapJob(QslAbstractJob):
 
 
 @dataclass(kw_only=True)
-class QslGetFeatureInfoJob(QslAbstractJob):
+class QslGetFeatureInfoJob(QslAbstractMapJob):
     """A job to extract feature info"""
 
     service_params: WmsGetFeatureInfoParams = field(
@@ -148,8 +149,51 @@ class QslGetFeatureInfoJob(QslAbstractJob):
 
 
 @dataclass(kw_only=True)
-class QslLegendJob(QslAbstractJob):
+class QslLegendJob(QslAbstractMapJob):
     """Render legend"""
+
+
+@dataclass
+class FeatureQuery:
+    """Represents definitions of a query to obtain features.
+
+    Attributes:
+        datasets: A list vector datasets which should be queried (and the filter will be applied to).
+        alias: An optional list of alias names. This has to be the same length as the list of datasets.
+        filter: An optional filter. It is a String which can be interpreted as a OgcFilter consumable by
+            `qgis.core.QgsOgcUtils.expressionFromOgcFilter`.
+    """
+
+    datasets: List[Vector] = field(metadata={"type": "Element", "required": True})
+    alias: Optional[List[str]] = field(default=None, metadata={"type": "Element"})
+    filter: Optional[str] = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass
+class QslGetFeatureJob:
+    """As defined in WFS 2.0 specs, a request can be subdivided in a list of queries.
+    This class is representing that.
+
+    Attributes:
+        queries: A list of `FeatureQuery` objects.
+        start_index: The offset for paging
+        count: The number of results to return.
+    """
+
+    queries: List[FeatureQuery] = field(metadata={"type": "Element", "required": True})
+    start_index: Optional[int] = field(
+        default=0,
+        metadata={
+            "name": "startIndex",
+            "type": "Attribute",
+        },
+    )
+    count: Optional[int] = field(
+        default=None,
+        metadata={
+            "type": "Attribute",
+        },
+    )
 
 
 @dataclass
@@ -177,3 +221,8 @@ class JobRunnerInfoQslGetFeatureInfoJob(AbstractJobRunnerInfo):
 @dataclass
 class JobRunnerInfoQslLegendJob(AbstractJobRunnerInfo):
     job: QslLegendJob = field(metadata={"type": "Element", "required": True})
+
+
+@dataclass
+class JobRunnerInfoQslGetFeatureJob(AbstractJobRunnerInfo):
+    job: QslGetFeatureJob = field(metadata={"type": "Element", "required": True})

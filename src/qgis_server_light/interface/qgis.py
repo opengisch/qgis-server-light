@@ -1,8 +1,12 @@
+import zlib
+from base64 import urlsafe_b64decode
+from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from typing import List
 from typing import Optional
+from typing import Union
 
 
 @dataclass
@@ -273,6 +277,25 @@ class Style:
 
 
 @dataclass
+class AbstractFilter:
+    definition: str = field(metadata={"name": "Definition", "type": "Element"})
+
+
+@dataclass
+class OgcFilter110(AbstractFilter):
+    """
+    A filter conforming to https://schemas.opengis.net/filter/1.1.0/filter.xsd
+    """
+
+
+@dataclass
+class OgcFilterFES20(AbstractFilter):
+    """
+    A filter conforming to http://www.opengis.net/fes/2.0
+    """
+
+
+@dataclass
 class DataSet(AbstractDataset):
     id: str = field(metadata={"name": "Id", "type": "Element", "required": False})
     bbox: BBox = field(metadata={"name": "BBox", "type": "Element", "required": True})
@@ -288,21 +311,32 @@ class DataSet(AbstractDataset):
     )
     crs: Crs = field(metadata={"name": "Crs", "type": "Element", "required": True})
     styles: List[Style] = field(
-        metadata={"name": "Style", "type": "Element", "required": True}
+        metadata={"name": "Styles", "type": "Element", "required": True}
     )
     minimum_scale: float = field(
         default=None,
-        metadata={"name": "MinimumScale", "type": "Element", "required": True},
+        metadata={"name": "MinimumScale", "type": "Element"},
     )
     maximum_scale: float = field(
         default=None,
-        metadata={"name": "MaximumScale", "type": "Element", "required": True},
+        metadata={"name": "MaximumScale", "type": "Element"},
+    )
+    filter: Optional[Union[OgcFilter110, OgcFilterFES20]] = field(
+        default=None,
+        metadata={"name": "Filter", "type": "Element"},
+    )
+    style_name: str = field(
+        default="default", metadata={"name": "Style", "type": "Element"}
     )
 
     def get_style_by_name(self, name: str) -> Style | None:
         for style in self.styles:
             if name == style.name:
                 return style
+        return None
+
+    def style(self) -> Style | None:
+        return self.get_style_by_name(self.style_name)
 
 
 @dataclass
@@ -475,3 +509,86 @@ class Config:
     )
     tree: Tree = field(metadata={"name": "Tree", "type": "Element"})
     datasets: Datasets = field(metadata={"name": "DataSet", "type": "Element"})
+
+
+@dataclass
+class Attribute:
+    """An attribute belonging to a feature. The aim here is to drill down to simple types which can be used
+    in consuming applications without further handling. This does not include the geometry attribute!
+
+    Attributes:
+        name: The name of the attribute. Has to match with the name used for exported fields with `Field`
+            class.
+        value: Value as simple as possible. It has to be
+            [pickleable](https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled)
+
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    value: Union[int, float, str, bool, None] = field(
+        metadata={"name": "Value", "type": "Element", "required": True}
+    )
+
+
+@dataclass
+class Feature:
+    """Feature to hold information of extracted QgsFeature.
+
+    Attributes:
+        attributes: List of attributes definined in this feature.
+        geometry: The geometry representing the feature.
+    """
+
+    geometry: Optional[Attribute] = field(
+        default=None, metadata={"name": "Geometry", "type": "Element"}
+    )
+    attributes: Optional[List[Attribute]] = field(
+        default_factory=list,
+        metadata={"name": "Attributes", "type": "Element"},
+    )
+
+    def __post_init__(self):
+        """We always make geometry part a string (+base64 +compression)"""
+        if isinstance(self.geometry.value, (bytes, bytearray)):
+            self.geometry.value = urlsafe_b64encode(
+                zlib.compress(self.geometry.value)
+            ).decode()
+
+    def geometry_as_bytes(self) -> bytes:
+        return zlib.decompress(urlsafe_b64decode(self.geometry.value.encode()))
+
+
+@dataclass
+class FeatureCollection:
+    """This construction is used to abstract the content of extracted features for pickelable transportation
+    from QSL to the queue. This way we ensure how things are constructed and transported.
+
+    Attributes:
+        name: The name of the feature collection. This is the key to match it to requested layers.
+        features: The features belonging to the feature collection.
+    """
+
+    name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
+    features: List[Feature] = field(
+        default_factory=list,
+        metadata={"name": "Features", "type": "Element", "required": True},
+    )
+
+
+@dataclass
+class QueryCollection:
+    """Holds all feature collections which are bound to the passed queries. The order in the list has to be
+    not changed, so that consuming applications can map the response to the passed queries.
+
+    Attributes:
+        feature_collections: The feature collections belonging to the passed queries.
+    """
+
+    numbers_matched: Optional[str | int] = field(
+        default="unknown",
+        metadata={"name": "NumbersMatched", "type": "Element", "required": True},
+    )
+    feature_collections: List[FeatureCollection] = field(
+        default_factory=list,
+        metadata={"name": "FeatureCollections", "type": "Element", "required": True},
+    )

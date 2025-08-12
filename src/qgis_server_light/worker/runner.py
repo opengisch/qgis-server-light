@@ -6,6 +6,7 @@ import zlib
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -16,29 +17,39 @@ from PyQt5.QtCore import QSize
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
-from qgis._core import QgsExpressionContext
-from qgis._core import QgsExpressionContextScope
-from qgis._core import QgsVectorTileLayer
 from qgis.core import NULL
 from qgis.core import QgsApplication
 from qgis.core import QgsCoordinateReferenceSystem
+from qgis.core import QgsExpressionContext
+from qgis.core import QgsExpressionContextScope
 from qgis.core import QgsFeatureRequest
 from qgis.core import QgsMapLayer
 from qgis.core import QgsMapLayerType
 from qgis.core import QgsMapRendererParallelJob
 from qgis.core import QgsMapSettings
+from qgis.core import QgsOgcUtils
 from qgis.core import QgsPointXY
 from qgis.core import QgsRasterLayer
 from qgis.core import QgsRectangle
 from qgis.core import QgsRenderContext
 from qgis.core import QgsVectorLayer
+from qgis.core import QgsVectorTileLayer
+from qgis.server import QgsFeatureFilter
+from qgis.server import QgsFeatureFilterProviderGroup
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job import JobResult
 from qgis_server_light.interface.job import QslGetFeatureInfoJob
+from qgis_server_light.interface.job import QslGetFeatureJob
 from qgis_server_light.interface.job import QslGetMapJob
 from qgis_server_light.interface.job import QslLegendJob
+from qgis_server_light.interface.qgis import Attribute
 from qgis_server_light.interface.qgis import Custom
 from qgis_server_light.interface.qgis import DataSet
+from qgis_server_light.interface.qgis import Feature
+from qgis_server_light.interface.qgis import FeatureCollection
+from qgis_server_light.interface.qgis import OgcFilter110
+from qgis_server_light.interface.qgis import QueryCollection
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
@@ -60,7 +71,7 @@ class MapRunner:
         self,
         qgis: QgsApplication,
         context: RunnerContext,
-        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob,
+        job: QslGetMapJob | QslGetFeatureInfoJob | QslLegendJob | QslGetFeatureJob,
         layer_cache: Optional[Dict] = None,
     ) -> None:
         self.qgis = qgis
@@ -117,14 +128,13 @@ class MapRunner:
         qgs_layer.styleManager().setCurrentStyle(requested_style_name)
         logging.info(f" ✓ Style loaded: {style_loaded}")
 
-    def _init_layers(self, dataset: Vector | Raster | Custom, style_name: str):
+    def _init_layers(self, dataset: Vector | Raster | Custom):
         """Initializes the map_layers list with all the specified layer_names, looking up style and other
         information in layer_registry
         Returns:
             None
         Parameters:
             layer_name: the layer or group to initialize. In case of a group, will recursively follow.
-            style_name: The name of the style which is requested fo rendering.
         """
 
         if isinstance(dataset, Vector):
@@ -136,7 +146,7 @@ class MapRunner:
         else:
             raise KeyError(f"Type not implemented: {dataset}")
         # applying the style to the layer
-        self._load_style(style_name, qgs_layer, dataset)
+        self._load_style(dataset.style_name, qgs_layer, dataset)
         self.map_layers.append(qgs_layer)
 
     def _prepare_vector_layer(self, dataset: Vector) -> QgsVectorLayer:
@@ -151,11 +161,14 @@ class MapRunner:
         else:
             raise KeyError(f"Driver not implemented: {dataset.driver}")
 
-        logging.debug(f"Loading layer source: {layer_source_path}")
-        # TODO: make sure cached layers reload the style if changed
-        if self.layer_cache is not None and dataset.name in self.layer_cache:
-            logging.debug(f"Using cached layer {dataset.name}")
-            qgs_layer = self.layer_cache[dataset.name]
+        cache_name = (
+            f"{dataset.name}.{dataset.style_name}.{dataset.filter}.{dataset.path}"
+        )
+        if self.layer_cache is not None and cache_name in self.layer_cache:
+            logging.debug(
+                f"Using cached layer {dataset.name} (identifier: {cache_name}"
+            )
+            qgs_layer = self.layer_cache[cache_name]
         else:
             logging.debug(f"Load layer {layer_source_path}")
             options = QgsVectorLayer.LayerOptions(
@@ -166,6 +179,26 @@ class MapRunner:
             qgs_layer = QgsVectorLayer(
                 layer_source_path, dataset.name, dataset.driver, options
             )
+            if dataset.filter:
+                if isinstance(dataset.filter, OgcFilter110):
+                    # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                    #   does not seem to support sliding window feature filter out of the box...
+                    logging.info(" Layer is filtered by:")
+                    logging.info(dataset.filter.definition)
+                    filter_doc = QDomDocument()
+                    filter_doc.setContent(dataset.filter.definition)
+                    filter_expression = QgsOgcUtils.expressionFromOgcFilter(
+                        filter_doc.documentElement(),
+                        QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
+                        qgs_layer,
+                    )
+                    existingExpression = qgs_layer.subsetString()
+                    if existingExpression:
+                        # Combining with AND the originally defined expression always takes precedence
+                        expression = f"({existingExpression}) AND ({filter_expression.expression()})"
+                    else:
+                        expression = filter_expression.expression()
+                    qgs_layer.setSubsetString(expression)
 
             if not qgs_layer.isValid():
                 raise RuntimeError(
@@ -174,7 +207,7 @@ class MapRunner:
             else:
                 logging.info(f" ✓ Layer: {dataset.name}")
                 if self.layer_cache is not None:
-                    self.layer_cache[dataset.name] = qgs_layer
+                    self.layer_cache[cache_name] = qgs_layer
         return qgs_layer
 
     def _prepare_custom_layer(self, dataset: Custom) -> QgsVectorTileLayer:
@@ -251,12 +284,14 @@ class RenderRunner(MapRunner):
         Returns:
             A JobResult with the content_type and image_data (bytes) of the rendered image.
         """
+        feature_filter = QgsFeatureFilter()
         for index, layer_name in enumerate(self.job.service_params.layers):
-            # list of styles passed to QSL has to be always the same order and length as layers
-            style_name = self.job.service_params.styles[index]
-            self._init_layers(self.job.get_dataset_by_name(layer_name), style_name)
+            self._init_layers(self.job.get_dataset_by_name(layer_name))
         map_settings = self._get_map_settings(self.map_layers)
+        filter_providers = QgsFeatureFilterProviderGroup()
+        filter_providers.addProvider(feature_filter)
         renderer = QgsMapRendererParallelJob(map_settings)
+        renderer.setFeatureFilterProvider(filter_providers)
         event_loop = QEventLoop(self.qgis)
         renderer.finished.connect(event_loop.quit)
         renderer.start()
@@ -354,3 +389,97 @@ class GetLegendRunner(MapRunner):
     def run(self):
         # TODO Implement ....
         raise NotImplementedError()
+
+
+class GetFeatureRunner(MapRunner):
+    def __init__(
+        self,
+        qgis: QgsApplication,
+        context: RunnerContext,
+        job: QslGetFeatureJob,
+        layer_cache: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(qgis, context, job, layer_cache)
+
+    def _clean_attribute(self, attribute_value: Any, idx: int, layer: QgsVectorLayer):
+        if attribute_value == NULL:
+            return None
+        return attribute_value
+
+    def _clean_attributes(self, attributes, layer):
+        return [
+            self._clean_attribute(attr, idx, layer)
+            for idx, attr in enumerate(attributes)
+        ]
+
+    def _load_style(
+        self, requested_style_name: str, qgs_layer: QgsMapLayer, dataset: DataSet
+    ):
+        logging.info(f" ✓ Omit style loading on WFS layer operation.")
+
+    def run(self):
+        query_collection = QueryCollection()
+        numbers_matched = 0
+        for query in self.job.queries:
+            # we need to reset this because we want always only the layers related to the current query
+            self.map_layers = []
+            wfs_filter_definition = query.filter
+            for dataset in query.datasets:
+                self._init_layers(dataset)
+
+            for layer in self.map_layers:
+                feature_collection = FeatureCollection(layer.name())
+                query_collection.feature_collections.append(feature_collection)
+                if isinstance(layer, QgsVectorLayer):
+                    if wfs_filter_definition:
+                        # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                        #   does not seem to support sliding window feature filter out of the box...
+                        logging.info(" Layer is filtered by:")
+                        logging.info(f" {wfs_filter_definition}")
+                        filter_doc = QDomDocument()
+                        filter_doc.setContent(wfs_filter_definition)
+                        # This is not correct in the WFS 2.0 way. We apply a filter to a layer. But WFS 2.0
+                        # allows filters on multiple layers.
+                        expression = QgsOgcUtils.expressionFromOgcFilter(
+                            filter_doc.documentElement(),
+                            QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
+                        )
+                        logging.info(
+                            f" This was transformed to the QGIS expression (valid: {expression.isValid()})"
+                        )
+                        logging.info(f" '{expression.dump()}'")
+                        feature_request = QgsFeatureRequest(expression)
+                    else:
+                        feature_request = QgsFeatureRequest()
+                    layer_features = list(layer.getFeatures(feature_request))
+                    numbers_matched += len(layer_features)
+                    logging.info(f" Found {len(layer_features)} features")
+                    if self.job.count:
+                        layer_features = layer_features[
+                            self.job.start_index : self.job.start_index + self.job.count
+                        ]
+                    for layer_feature in layer_features:
+                        property_list = zip(
+                            layer_feature.fields().names(),
+                            self._clean_attributes(layer_feature.attributes(), layer),
+                        )
+                        feature = Feature(
+                            geometry=Attribute(
+                                name="geometry",
+                                value=bytearray(layer_feature.geometry().asWkb()),
+                            )
+                        )
+                        feature_collection.features.append(feature)
+                        for name, value in property_list:
+                            feature.attributes.append(Attribute(name=name, value=value))
+                else:
+                    raise RuntimeError(
+                        f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
+                    )
+        if numbers_matched > 0:
+            query_collection.numbers_matched = numbers_matched
+        data = JsonSerializer().render(query_collection).encode()
+        return JobResult(
+            data=data,
+            content_type="application/qgis-server-light.interface.qgis.QueryCollection",
+        )
