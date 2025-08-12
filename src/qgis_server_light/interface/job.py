@@ -62,6 +62,17 @@ class WmsGetMapParams(AbstractWmsParams):
     def layers(self) -> List[str]:
         return self.LAYERS.split(",")
 
+    @property
+    def styles(self) -> None:
+        """
+        Compatibility method for WMS request, can be removed after WFS work was merged.
+
+        IMPORTANT: This means we currently only render style 'default'!
+
+        Returns: Nothing since we only want that method for backwards compatibility.
+        """
+        return None
+
 
 class WmsGetFeatureInfoParams(AbstractWmsParams):
     X: str = field(default=None, metadata={"type": "Element", "required": True})
