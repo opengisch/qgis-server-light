@@ -3,6 +3,8 @@ import datetime
 import logging
 import pickle
 import sys
+import time
+from enum import Enum
 from uuid import uuid4
 
 import redis.asyncio as redis
@@ -24,9 +26,28 @@ else:
     from async_timeout import timeout as async_to
 
 
+class Status(Enum):
+    SUCCESS = "succeed"
+    FAILURE = "failed"
+    RUNNING = "running"
+    QUEUED = "queued"
+
+
 class RedisQueue:
-    def __init__(self, url: str) -> None:
-        self.pool = redis.BlockingConnectionPool.from_url(url)
+    def __init__(
+        self, pool: redis.BlockingConnectionPool, redis_client: redis.Redis
+    ) -> None:
+        # we use this to hold connections to redis in a pool, this way we are
+        # event loop safe and when creating the redis client for every call of
+        # post, we only instantiate a minimal wrapper object which is cheap.
+        self.pool = pool
+        self.client = redis_client
+
+    @classmethod
+    async def create(cls, url: str):
+        pool = redis.BlockingConnectionPool.from_url(url)
+        redis_client = await redis.Redis(connection_pool=pool)
+        return cls(pool, redis_client)
 
     async def post(
         self,
@@ -37,10 +58,9 @@ class RedisQueue:
         Posts a new `job` to the job queue and waits maximum `timeout` seconds to complete.
         Will return a JobResult if successful or raise an error.
         """
-        r = await redis.Redis(connection_pool=self.pool)
         job_id = str(uuid4())
         creation_time = datetime.datetime.now().isoformat()
-        datetime.datetime.now()
+        start_time = time.time()
         if isinstance(job, QslGetMapJob):
             job = JobRunnerInfoQslGetMapJob(
                 id=job_id, type=JobRunnerInfoQslGetMapJob.__name__, job=job
@@ -59,14 +79,15 @@ class RedisQueue:
             )
         else:
             raise TypeError(f"Unsupported job type: {type(job)}")
-        async with r.pipeline() as p:
+        async with self.client.pipeline() as p:
             logging.info(f"{job_id} pushed")
-            p.rpush("jobs", JsonSerializer().render(job))
-            p.hset(job_id, "status", "queued")
-            p.hset(job_id, "timestamp", creation_time)
+            await p.rpush("jobs", JsonSerializer().render(job))
+            await p.hset(job_id, "status", Status.QUEUED.value)
+            await p.hset(job_id, f"timestamp.{Status.QUEUED.value}", creation_time)
+            await p.hset(job_id, "timestamp", creation_time)
             await p.execute()
 
-            async with r.pubsub() as ps:
+            async with self.client.pubsub() as ps:
                 await ps.subscribe(f"notifications:{job_id}")
                 try:
                     async with async_to(timeout):
@@ -76,12 +97,22 @@ class RedisQueue:
                             )
                             if not message:
                                 continue  # https://github.com/redis/redis-py/issues/733
-                            # TODO: handle errors
-                            logging.info(f"{job_id} succeeded")
-                            result = pickle.loads(message["data"])
-                            await asyncio.create_task(r.delete(job_id))
-                            return result
+                            status_binary = await self.client.hget(job_id, "status")
+                            status = status_binary.decode()
+                            logging.info(f"Job {job_id} {status}")
+                            if status == Status.SUCCESS.value:
+                                result = pickle.loads(message["data"])
+                                await asyncio.create_task(self.client.delete(job_id))
+                                duration = time.time() - start_time
+                                logging.debug(f"duration of job execution: {duration}")
+                                return result
+                            elif status == Status.FAILURE.value:
+                                error = await self.client.hget(job_id, "error")
+                                logging.error(
+                                    f"Job {job_id} {status} with: {error.decode()}"
+                                )
+                                raise RuntimeError()
                 except (asyncio.TimeoutError, asyncio.exceptions.CancelledError) as err:
                     logging.info(f"{job_id} timeout")
-                    await r.delete(job_id)
+                    await self.client.delete(job_id)
                     raise

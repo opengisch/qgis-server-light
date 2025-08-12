@@ -11,9 +11,9 @@ from typing import List
 from typing import Optional
 
 import redis
-from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers import JsonParser
 
+from qgis_server_light.interface.dispatcher import Status
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureInfoJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetFeatureJob
 from qgis_server_light.interface.job import JobRunnerInfoQslGetMapJob
@@ -41,10 +41,9 @@ class RedisEngine(Engine):
     def run(self, redis_url):
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
-
+        r = redis.Redis.from_url(redis_url)
+        p = r.pipeline()
         while True:
-            r = redis.Redis.from_url(redis_url)
-
             try:
                 r.ping()
             except redis.exceptions.ConnectionError:
@@ -57,34 +56,46 @@ class RedisEngine(Engine):
         logging.info(f"Connection to redis on `{redis_url}`successful.")
         while not self.shutdown:
             retry_count = 0
-
             try:
                 logging.debug(f"Waiting for jobs")
-                _, job_info_json = r.blpop("jobs")
-                job_info_dict = json.loads(job_info_json)
-                logging.debug(f"Job info received: {job_info_json}")
-                if JobRunnerInfoQslGetMapJob.__name__ == job_info_dict["type"]:
-                    job_info = DictDecoder().decode(
-                        job_info_dict, JobRunnerInfoQslGetMapJob
+                # this is blocking the loop until a job is found in the redis queue
+                _, job_info_json = r.blpop(["jobs"])
+
+                if (
+                    f'"type": "{JobRunnerInfoQslGetMapJob.__name__}"'.encode()
+                    in job_info_json
+                ):
+                    job_info = JsonParser().from_bytes(
+                        job_info_json, JobRunnerInfoQslGetMapJob
                     )
                 elif (
-                    JobRunnerInfoQslGetFeatureInfoJob.__name__ == job_info_dict["type"]
+                    f'"type": "{JobRunnerInfoQslGetFeatureInfoJob.__name__}"'.encode()
+                    in job_info_json
                 ):
                     job_info = JsonParser().from_bytes(
                         job_info_json, JobRunnerInfoQslGetFeatureInfoJob
                     )
-                elif JobRunnerInfoQslLegendJob.__name__ == job_info_dict["type"]:
+                elif (
+                    f'"type": "{JobRunnerInfoQslLegendJob.__name__}"'.encode()
+                    in job_info_json
+                ):
                     job_info = JsonParser().from_bytes(
                         job_info_json, JobRunnerInfoQslLegendJob
                     )
-                elif JobRunnerInfoQslGetFeatureJob.__name__ == job_info_dict["type"]:
+                elif (
+                    f'"type": "{JobRunnerInfoQslGetFeatureJob.__name__}"'.encode()
+                    in job_info_json
+                ):
                     job_info = JsonParser().from_bytes(
                         job_info_json, JobRunnerInfoQslGetFeatureJob
                     )
                 else:
                     raise NotImplementedError(
-                        f'type {job_info_dict["type"]} is not supported by qgis-server-light'
+                        f"Type of job not supported by qgis-server-light. {job_info_json}"
                     )
+                logging.debug(
+                    f"Job info received: id: {job_info.id}, type: {job_info.type}"
+                )
             except Exception as e:
                 # TODO handle known exceptions like redis.exceptions.ConnectionError separately
                 retry_count += 1
@@ -93,30 +104,44 @@ class RedisEngine(Engine):
                 logging.warning(f"Retrying in {retry_rate} seconds...")
                 time.sleep(retry_rate)
                 continue
-            retry_count = 0
             key = job_info.id
 
-            p = r.pipeline()
-            p.hset(key, "status", "running")
+            p.hset(key, "status", Status.RUNNING.value)
+            p.hset(
+                key,
+                f"timestamp.{Status.RUNNING.value}",
+                datetime.datetime.now().isoformat(),
+            )
             p.hset(key, "timestamp", datetime.datetime.now().isoformat())
+            p.execute()
             try:
                 start_time = time.time()
                 result = self.process(job_info.job)
+                data = pickle.dumps(result)
+                p.publish(f"notifications:{key}", data)
                 p.hset(key, "content_type", result.content_type)
-                p.hset(key, "data", bytes(result.data))
-                p.hset(key, "status", "succeed")
+                p.hset(key, "status", Status.SUCCESS.value)
                 duration = time.time() - start_time
                 p.hset(key, "duration", str(duration))
+                p.hset(
+                    key,
+                    f"timestamp.{Status.SUCCESS.value}",
+                    datetime.datetime.now().isoformat(),
+                )
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.debug(f"duration of rendering: {duration}")
             except Exception as e:
-                p.hset(key, "status", "failed")
+                p.hset(key, "status", Status.FAILURE.value)
                 p.hset(key, "error", f"{e}")
+                p.publish(f"notifications:{key}", 0)
+                p.hset(
+                    key,
+                    f"timestamp.{Status.FAILURE.value}",
+                    datetime.datetime.now().isoformat(),
+                )
                 p.hset(key, "timestamp", datetime.datetime.now().isoformat())
                 logging.error(e, exc_info=True)
             finally:
-                data = pickle.dumps(result)
-                p.publish(f"notifications:{key}", data)
                 p.execute()
 
 
