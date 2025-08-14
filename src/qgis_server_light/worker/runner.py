@@ -245,7 +245,10 @@ class MapRunner:
                 layer_source_path = os.path.join(self.context.base_path, dataset.path)
         elif dataset.source.wms is not None:
             layer_source_path = dataset.path
+        elif dataset.source.wmts is not None:
+            layer_source_path = dataset.path
         else:
+            logging.error(f"Not able to handle datasource {dataset.source}")
             raise KeyError(f"Driver not implemented: {dataset.driver}")
         logging.debug(f"Loading layer source: {layer_source_path}")
         # TODO: make sure cached layers reload the style if changed
