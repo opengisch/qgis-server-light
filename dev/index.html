@@ -1,0 +1,1002 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../usage.interface/">
+      
+      
+        <link rel="next" href="../interface/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.34">
+    
+    
+      
+        <title>Dev the project - QGIS-Server-Light</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.35f28582.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#prepare-to-run-an-instance-of-qgis-server-light" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="QGIS-Server-Light" class="md-header__button md-logo" aria-label="QGIS-Server-Light" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QGIS-Server-Light
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Dev the project
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="QGIS-Server-Light" class="md-nav__button md-logo" aria-label="QGIS-Server-Light" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QGIS-Server-Light
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../general_idea/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    General Idea
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prerequisites/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Prerequisites
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Usage of Worker
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Usage of Worker
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.worker.cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.worker.local/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Local-DEV
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.worker.docker/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Docker-DEV
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.exporter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Usage of Exporter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Usage of interface
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Dev the project
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Dev the project
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-to-run-an-instance-of-qgis-server-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare to run an instance of QGIS-Server-Light
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prepare to run an instance of QGIS-Server-Light">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-it-with-python-and-with-qgis-installed-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it with python and with QGIS installed locally
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run it with python and with QGIS installed locally">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preparation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-qgis-server-light-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run QGIS-Server-Light worker
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-it-within-a-docker-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it within a Docker container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run it within a Docker container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preparation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-qgis-server-light-worker_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run QGIS-Server-Light worker
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-it-with-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it with Docker Compose
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dev-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      DEV Details
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DEV Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-things" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running things
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypi-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPi Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypy-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPy Package
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PyPy Package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPi
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    ApiDoc
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            ApiDoc
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interface
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../worker/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Worker
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exporter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Exporter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prepare-to-run-an-instance-of-qgis-server-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prepare to run an instance of QGIS-Server-Light
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prepare to run an instance of QGIS-Server-Light">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-it-with-python-and-with-qgis-installed-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it with python and with QGIS installed locally
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run it with python and with QGIS installed locally">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preparation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-qgis-server-light-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run QGIS-Server-Light worker
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-it-within-a-docker-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it within a Docker container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run it within a Docker container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preparation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-qgis-server-light-worker_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run QGIS-Server-Light worker
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-it-with-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run it with Docker Compose
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dev-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      DEV Details
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DEV Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-things" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running things
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypi-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPi Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pypy-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPy Package
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PyPy Package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      PyPi
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitHub
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>Dev the project</h1>
+
+<h2 id="prepare-to-run-an-instance-of-qgis-server-light">Prepare to run an instance of QGIS-Server-Light</h2>
+<h3 id="run-it-with-python-and-with-qgis-installed-locally">Run it with python and with QGIS installed locally</h3>
+<p>You can choose this solution if you have QGIS and Python in the correct versions installed on your system.</p>
+<h4 id="preparation">Preparation</h4>
+<p>The following command installs all dependencies in a local virtual environment in the project root
+folder to <code>.venv</code>:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>install-dev
+</code></pre></div>
+<p>It tries to find the correct path to the <code>pyqgis</code> of your local QGIS desktop installation.</p>
+<h4 id="run-qgis-server-light-worker">Run QGIS-Server-Light worker</h4>
+<p>Spin up a redis instance:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-d<span class="w"> </span>-p<span class="w"> </span><span class="m">1234</span>:6379<span class="w"> </span>--name<span class="w"> </span>georama-redis<span class="w"> </span>redis
+</code></pre></div>
+<p>Spin up QGIS-Server-Light worker:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>run
+</code></pre></div>
+<p>You may want start QGIS-Server-Light worker in a reloading mode so that everytime you change the source
+code, the worker gets reloaded. You can do so with:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>run-reload
+</code></pre></div>
+<p>Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.</p>
+<h3 id="run-it-within-a-docker-container">Run it within a Docker container</h3>
+<p>If you don't have QGIS installed or some versions are not matching on you machine
+the recommended way of running this stack is Docker (docker need to be installed in a recent version).</p>
+<h4 id="preparation_1">Preparation</h4>
+<p>First you need to build the image:
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>opengisch/qgis-server-light-dev:latest<span class="w"> </span>--target<span class="w"> </span>dev<span class="w"> </span>.
+</code></pre></div></p>
+<h4 id="run-qgis-server-light-worker_1">Run QGIS-Server-Light worker</h4>
+<p>Spin up a redis instance:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-d<span class="w"> </span>-p<span class="w"> </span><span class="m">1234</span>:6379<span class="w"> </span>--name<span class="w"> </span>georama-redis<span class="w"> </span>redis
+</code></pre></div>
+<p>Then run:
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span><span class="nv">QSL_REDIS_URL</span><span class="o">=</span>redis://localhost:1234<span class="w"> </span>-e<span class="w"> </span><span class="nv">QSL_LOG_LEVEL</span><span class="o">=</span>debug<span class="w"> </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/app<span class="w"> </span>--net<span class="w"> </span>host<span class="w"> </span>opengisch/qgis-server-light:dev
+</code></pre></div></p>
+<p>Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.</p>
+<h3 id="run-it-with-docker-compose">Run it with Docker Compose</h3>
+<p>Create an .env file and put the content of <a href=".env.example">.env.example</a> into it. Adapt as needed.</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<ul>
+<li><code>QSL_DATA_MOUNT</code> has to be the valid local absolute path where your qgis projects (and their data) are stored</li>
+<li>Optional: <code>QSL_LOG_LEVEL</code> log levels as they are defined by pythons
+  <a href="https://docs.python.org/3/library/logging.html#logging-levels">logging</a> library</li>
+<li>Optional: <code>QSL_REPLICAS</code> can be 1 up to * (note, that this has to be balanced with your system resources)</li>
+<li>Optional: <code>QSL_REDIS_URL</code>=redis://redis (since we are inside our composition, this is optional)</li>
+</ul>
+<h2 id="dev-details">DEV Details</h2>
+<h3 id="running-things">Running things</h3>
+<p>All deps are transparent. The biggest one is QGIS and its relatives of course. If you want to develop
+this package further you can use the local way described above.</p>
+<p>If you have issues with matching QGIS version on your system and the one used by QGIS-Server-Light
+you should prefer the docker way with the source code mounted to the running container.</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-e<span class="w"> </span><span class="nv">QSL_REDIS_URL</span><span class="o">=</span>redis://localhost:1234<span class="w"> </span>-e<span class="w"> </span><span class="nv">QSL_LOG_LEVEL</span><span class="o">=</span>debug<span class="w"> </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/app<span class="w"> </span>--net<span class="w"> </span>host<span class="w"> </span>opengisch/qgis-server-light:dev
+</code></pre></div>
+<p>That way the current changes you make are transparently available in the container.</p>
+<p>For better IDE support it is to be mentioned that the python interpreter inside the container with access
+to all the necessary python libs is available at <code>opt/qgis-server-light/venv/bin/python3</code></p>
+<h3 id="pypi-dependencies">PyPi Dependencies</h3>
+<p>If you decide to add new requirements to this project, please consider for which part of the project
+you need them. Remember, it's split into 3 parts:
+- exporter (<a href="requirements.exporter.txt">requirements.exporter.txt</a>)
+- interface (<a href="requirements.interface.txt">requirements.interface.txt</a>)
+- worker (<a href="requirements.worker.txt">requirements.worker.txt</a>)</p>
+<p>In general its save to add dependencies to <strong>exporter</strong> and <strong>worker</strong> since they are used only in this project.
+The <strong>interface</strong> should have as less dependencies as possible and should implement only the minimal
+understanding of items to be passed around with third party applications through redis. The main goal of all
+this is to keep the 3rd party application clean of heavy deps.</p>
+<h3 id="pypy-package">PyPy Package</h3>
+<p>The pypi package consists only the part of the interface since it is the part we need to use in 3rd party
+apps.</p>
+<h4 id="pypi">PyPi</h4>
+<p>Not set up yet</p>
+<h4 id="github">GitHub</h4>
+<p>It is possible to install a package as a dependency in you 3rd party application requirements using a
+GitHub link.</p>
+<div class="highlight"><pre><span></span><code>git+ssh://git@github.com/opengisch/qgis-server-light.git@master#egg=qgis_server_light
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.07f07601.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.56dfad97.min.js"></script>
+      
+    
+  </body>
+</html>
