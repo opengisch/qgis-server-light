@@ -27,37 +27,65 @@ class BBox:
 
     def to_string(self) -> str:
         return ",".join([str(item) for item in self.to_list()])
+        
+    def to_2d_list(self) -> list:
+        return [self.x_min, self.y_min, self.x_max, self.y_max]
+    
+    def to_2d_string(self) -> str:
+        return ",".join([str(item) for item in self.to_2d_list()])
 
     @staticmethod
     def from_string(bbox_string: str) -> "BBox":
         """
         Takes a CSV string representation of a BBox in the form:
+            '<x_min>,<y_min>,<x_max>,<y_max>' or
             '<x_min>,<y_min>,<z_min>,<x_max>,<y_max>,<z_max>'
         """
         coordinates = bbox_string.split(",")
-        return BBox(
-            x_min=float(coordinates[0]),
-            y_min=float(coordinates[1]),
-            z_min=float(coordinates[2]),
-            x_max=float(coordinates[3]),
-            y_max=float(coordinates[4]),
-            z_max=float(coordinates[5]),
-        )
+        if len(coordinates) == 4:
+            return BBox(
+                    x_min=float(coordinates[0]),
+                    y_min=float(coordinates[1]),
+                    x_max=float(coordinates[2]),
+                    y_max=float(coordinates[3]),
+            )
+        elif len(coordinates) == 6:
+            return BBox(
+                x_min=float(coordinates[0]),
+                y_min=float(coordinates[1]),
+                z_min=float(coordinates[2]),
+                x_max=float(coordinates[3]),
+                y_max=float(coordinates[4]),
+                z_max=float(coordinates[5]),
+            )
+        else:
+            raise ValueError(f"Invalid bbox string: {bbox_string}")
 
     @staticmethod
     def from_list(bbox_list: List[float]) -> "BBox":
         """
         Takes a list representation of a BBox in the form:
+            [<x_min>,<y_min>,<x_max>,<y_max>] or
             [<x_min>,<y_min>,<z_min>,<x_max>,<y_max>,<z_max>]
         """
-        return BBox(
-            x_min=bbox_list[0],
-            y_min=bbox_list[1],
-            z_min=bbox_list[2],
-            x_max=bbox_list[3],
-            y_max=bbox_list[4],
-            z_max=bbox_list[5],
-        )
+        if len(bbox_list) == 4:
+            return BBox(
+                    x_min=bbox_list[0],
+                    y_min=bbox_list[1],
+                    x_max=bbox_list[3],
+                    y_max=bbox_list[4],
+            )
+        elif len(bbox_list) == 6:
+            return BBox(
+                x_min=bbox_list[0],
+                y_min=bbox_list[1],
+                z_min=bbox_list[2],
+                x_max=bbox_list[3],
+                y_max=bbox_list[4],
+                z_max=bbox_list[5],
+            )
+        else:
+            raise ValueError(f"Invalid bbox list: {bbox_list}")
 
 
 @dataclass
