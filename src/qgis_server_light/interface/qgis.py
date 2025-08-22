@@ -115,19 +115,39 @@ class Field:
         type_simple: Translated type for further usage. Based on the simple types of
             [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes).
         alias: Human readable name.
+        comment: Field description.
         nullable: If this field can be NULL or not.
     """
 
     name: str = field(metadata={"name": "Name", "type": "Element", "required": True})
     type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
-    type_simple: Optional[str] = field(
-        default=None, metadata={"name": "SimpleType", "type": "Element"}
+    is_primary_key: bool = field(
+        default=False,
+        metadata={"name": "IsPrimaryKey", "type": "Element", "required": True},
+    )
+    type_wfs: Optional[str] = field(
+        default=None, metadata={"name": "TypeWfs", "type": "Element"}
+    )
+    type_oapif: Optional[str] = field(
+        default=None, metadata={"name": "TypeOapif", "type": "Element"}
+    )
+    type_oapif_format: Optional[str] = field(
+        default=None, metadata={"name": "TypeOapifFormat", "type": "Element"}
     )
     alias: Optional[str] = field(
         default=None, metadata={"name": "Alias", "type": "Element"}
     )
+    comment: Optional[str] = field(
+        default=None, metadata={"name": "Comment", "type": "Element"}
+    )
     nullable: bool = field(
         default=True, metadata={"name": "Nullable", "type": "Element"}
+    )
+    length: Optional[int] = field(
+        default=None, metadata={"name": "Length", "type": "Element"}
+    )
+    precision: Optional[int] = field(
+        default=None, metadata={"name": "Precision", "type": "Element"}
     )
 
 
@@ -394,6 +414,12 @@ class Vector(DataSet):
         default=None,
         metadata={"name": "GeometryTypeWkb", "type": "Element"},
     )
+
+    def get_field_by_name(self, name: str) -> Field | None:
+        for field in self.fields:
+            if field.name == name:
+                return field
+        return None
 
 
 @dataclass

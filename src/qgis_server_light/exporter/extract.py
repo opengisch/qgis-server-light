@@ -1,6 +1,4 @@
 import json
-import os
-import uuid
 import re
 import unicodedata
 import zlib
@@ -53,7 +51,7 @@ from qgis_server_light.interface.qgis import WmsSource
 from qgis_server_light.interface.qgis import WmtsSource
 
 
-def obtain_simple_types(field: QgsField) -> str:
+def obtain_simple_types_xml(field: QgsField) -> str:
     """
 
     Args:
@@ -88,6 +86,42 @@ def obtain_simple_types(field: QgsField) -> str:
         return "dateTime"
     else:
         return "string"
+
+
+def obtain_simple_types_json(field: QgsField) -> Tuple[str, str] | Tuple[str, None]:
+    """
+
+    Args:
+        field: The field of an `QgsVectorLayer`.
+
+    Returns:
+        Unified type name regarding
+        [XSD spec](https://www.w3.org/TR/xmlschema11-2/#built-in-primitive-datatypes)
+        IMPORTANT: If type is not matched within the function it will be `string` always!
+    """
+    attribute_type = field.type()
+    if attribute_type == QMetaType.Type.Int:
+        return "integer", None
+    elif attribute_type == QMetaType.Type.UInt:
+        return "integer", "uint32"
+    elif attribute_type == QMetaType.Type.LongLong:
+        return "integer", "int64"
+    elif attribute_type == QMetaType.Type.ULongLong:
+        return "integer", "uint64"
+    elif attribute_type == QMetaType.Type.Double:
+        return "number", "double"
+    elif attribute_type == QMetaType.Type.Float:
+        return "number", "float"
+    elif attribute_type == QMetaType.Type.Bool:
+        return "boolean", None
+    elif attribute_type == QMetaType.Type.QDate:
+        return "string", "date"
+    elif attribute_type == QMetaType.Type.QTime:
+        return "string", "time"
+    elif attribute_type == QMetaType.Type.QDateTime:
+        return "string", "date-time"
+    else:
+        return "string", None
 
 
 def obtain_simple_types_from_editor_widget(field: QgsField) -> str | None:
@@ -134,6 +168,23 @@ def obtain_nullable(field: QgsField):
         == QgsFieldConstraints.Constraint.ConstraintNotNull
     ):
         return True
+    return False
+
+
+def provide_field_length(field: QgsField) -> int | None:
+    length = field.length()
+    if length > 0:
+        return length
+    else:
+        return None
+
+
+def provide_field_precision(field: QgsField) -> int | None:
+    precision = field.precision()
+    if precision > 0:
+        return precision
+    else:
+        return None
 
 
 def extract_fields(
@@ -142,18 +193,27 @@ def extract_fields(
     fields = []
     pk_indexes = layer.dataProvider().pkAttributeIndexes()
     for field_index, field in enumerate(layer.fields()):
-        attribute_type = obtain_simple_types(field)
+        attribute_type_xml = obtain_simple_types_xml(field)
         if types_from_editor_widget:
             editor_widget_type = obtain_simple_types_from_editor_widget(field)
             if editor_widget_type:
-                attribute_type = editor_widget_type
+                attribute_type_xml = editor_widget_type
+        attribute_type_json, attribute_type_json_format = obtain_simple_types_json(
+            field
+        )
         fields.append(
             Field(
+                is_primary_key=(field_index in pk_indexes),
                 name=field.name(),
                 type=field.typeName(),
-                type_simple=attribute_type,
+                type_wfs=attribute_type_xml,
+                type_oapif=attribute_type_json,
+                type_oapif_format=attribute_type_json_format,
                 alias=field.alias() or field.name().title(),
+                comment=field.comment(),
                 nullable=(field_index not in pk_indexes) and obtain_nullable(field),
+                length=provide_field_length(field),
+                precision=provide_field_precision(field),
             )
         )
     return fields
