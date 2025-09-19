@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import unicodedata
 import zlib
@@ -422,7 +423,7 @@ def extract_save_layer(
                         url=decoded["url"],
                     )
                 )
-            else:
+            elif "layers" in decoded:
                 source = DataSource(
                     wms=WmsSource(
                         contextual_wms_legend=decoded.get("contextualWMSLegend"),
@@ -434,26 +435,31 @@ def extract_save_layer(
                         url=decoded["url"],
                     )
                 )
+            else:
+                # TODO implement layer extraction for other raster layers
+                logging.warning(f"Extraction for the type of raster layer {short_name} not implemented. decoded source: {decoded}")
+                source = None
         else:
             raise NotImplementedError(
                 f"Unknown provider type: {layer.providerType().lower()}"
             )
-        datasets.raster.append(
-            Raster(
-                path=layer.source().replace(f'{project.readPath("./")}/', ""),
-                name=short_name,
-                title=layer.title() or layer.name(),
-                styles=create_style_list(layer),
-                driver=layer.providerType(),
-                bbox_wgs84=bbox_wgs84,
-                source=source,
-                id=layer.id(),
-                crs=crs,
-                bbox=bbox,
-                minimum_scale=layer.minimumScale(),
-                maximum_scale=layer.maximumScale(),
+        if source is not None:
+            datasets.raster.append(
+                Raster(
+                    path=layer.source().replace(f'{project.readPath("./")}/', ""),
+                    name=short_name,
+                    title=layer.title() or layer.name(),
+                    styles=create_style_list(layer),
+                    driver=layer.providerType(),
+                    bbox_wgs84=bbox_wgs84,
+                    source=source,
+                    id=layer.id(),
+                    crs=crs,
+                    bbox=bbox,
+                    minimum_scale=layer.minimumScale(),
+                    maximum_scale=layer.maximumScale(),
+                )
             )
-        )
     elif layer_type == "custom":
         if layer.providerType().lower() == "xyzvectortiles":
             source = DataSource(
