@@ -1,16 +1,17 @@
-
-from dataclasses import dataclass, field
-from typing import Optional
-
+from dataclasses import dataclass
+from dataclasses import field
 
 
 @dataclass
 class ExportParameters:
     mandant: str = field(metadata={"type": "Element"})
     project: str = field(metadata={"type": "Element"})
-    unify_layer_names_by_group: bool = field(metadata={"type": "Element"}, default=False)
+    unify_layer_names_by_group: bool = field(
+        metadata={"type": "Element"}, default=False
+    )
     output_format: str = field(metadata={"type": "Element"}, default="json")
+
 
 @dataclass
 class ExportResult:
-    pass
+    successful: bool = field(metadata={"type": "Element"})
