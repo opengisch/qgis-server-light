@@ -50,6 +50,7 @@ from qgis_server_light.interface.qgis import VectorTileSource
 from qgis_server_light.interface.qgis import WfsSource
 from qgis_server_light.interface.qgis import WmsSource
 from qgis_server_light.interface.qgis import WmtsSource
+from qgis_server_light.interface.qgis import XYZSource
 
 
 def obtain_simple_types_xml(field: QgsField) -> str:
@@ -423,22 +424,28 @@ def extract_save_layer(
                         url=decoded["url"],
                     )
                 )
-            elif "layers" in decoded:
-                source = DataSource(
-                    wms=WmsSource(
-                        contextual_wms_legend=decoded.get("contextualWMSLegend"),
-                        crs=decoded["crs"],
-                        dpi_mode=decoded.get("dpiMode"),
-                        feature_count=decoded.get("featureCount"),
-                        format=decoded["format"],
-                        layers=decoded["layers"],
-                        url=decoded["url"],
-                    )
-                )
             else:
-                # TODO implement layer extraction for other raster layers
-                logging.warning(f"Extraction for the type of raster layer {short_name} not implemented. decoded source: {decoded}")
-                source = None
+                if decoded.get("type") == "xyz":
+
+                    source = DataSource(
+                        xyz=XYZSource(
+                            url=decoded["url"],
+                            zmin=decoded["zmin"],
+                            zmax=decoded["zmax"],
+                        )
+                    )
+                else:
+                    source = DataSource(
+                        wms=WmsSource(
+                            contextual_wms_legend=decoded.get("contextualWMSLegend"),
+                            crs=decoded["crs"],
+                            dpi_mode=decoded.get("dpiMode"),
+                            feature_count=decoded.get("featureCount"),
+                            format=decoded["format"],
+                            layers=decoded["layers"],
+                            url=decoded["url"],
+                        )
+                    )
         else:
             raise NotImplementedError(
                 f"Unknown provider type: {layer.providerType().lower()}"
