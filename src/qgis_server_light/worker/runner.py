@@ -247,6 +247,8 @@ class MapRunner:
             layer_source_path = dataset.path
         elif dataset.source.wmts is not None:
             layer_source_path = dataset.path
+        elif dataset.source.xyz is not None:
+            layer_source_path = dataset.path
         else:
             logging.error(f"Not able to handle datasource {dataset.source}")
             raise KeyError(f"Driver not implemented: {dataset.driver}")

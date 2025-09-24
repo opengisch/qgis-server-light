@@ -27,10 +27,10 @@ class BBox:
 
     def to_string(self) -> str:
         return ",".join([str(item) for item in self.to_list()])
-        
+
     def to_2d_list(self) -> list:
         return [self.x_min, self.y_min, self.x_max, self.y_max]
-    
+
     def to_2d_string(self) -> str:
         return ",".join([str(item) for item in self.to_2d_list()])
 
@@ -44,10 +44,10 @@ class BBox:
         coordinates = bbox_string.split(",")
         if len(coordinates) == 4:
             return BBox(
-                    x_min=float(coordinates[0]),
-                    y_min=float(coordinates[1]),
-                    x_max=float(coordinates[2]),
-                    y_max=float(coordinates[3]),
+                x_min=float(coordinates[0]),
+                y_min=float(coordinates[1]),
+                x_max=float(coordinates[2]),
+                y_max=float(coordinates[3]),
             )
         elif len(coordinates) == 6:
             return BBox(
@@ -70,10 +70,10 @@ class BBox:
         """
         if len(bbox_list) == 4:
             return BBox(
-                    x_min=bbox_list[0],
-                    y_min=bbox_list[1],
-                    x_max=bbox_list[3],
-                    y_max=bbox_list[4],
+                x_min=bbox_list[0],
+                y_min=bbox_list[1],
+                x_max=bbox_list[3],
+                y_max=bbox_list[4],
             )
         elif len(bbox_list) == 6:
             return BBox(
@@ -188,6 +188,14 @@ class WfsSource:
     # currently not implemented because qgis does not allow to
     # use the decode uri approach on that URI
     pass
+
+
+@dataclass
+class XYZSource(Source):
+    url: str = field(metadata={"type": "Element"})
+    zmin: int = field(metadata={"type": "Element"})
+    zmax: int = field(metadata={"type": "Element"})
+    type: str = field(default="xyz", metadata={"type": "Element"})
 
 
 @dataclass
@@ -316,6 +324,7 @@ class DataSource:
         default=None,
         metadata={"name": "VectorTile", "type": "Element", "required": False},
     )
+    xyz: XYZSource = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass
