@@ -59,6 +59,7 @@ setup(
         "qgis_server_light/interface/job",
         "qgis_server_light/interface/dispatcher",
         "qgis_server_light/interface/qgis",
+        "qgis_server_light/interface/exporter",
     ]
     + worker_modules,
     include_package_data=True,
