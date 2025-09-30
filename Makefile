@@ -145,4 +145,4 @@ run-reload: $(DEV_REQUIREMENTS)
 
 .PHONY: run-exporter
 run-exporter:
-	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py
+	$(VENV_BIN)/python src/qgis_server_light/exporter/api.py

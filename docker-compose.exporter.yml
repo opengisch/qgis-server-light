@@ -1,0 +1,17 @@
+services:
+  qgis-server-light-exporter:
+    image: opengisch/qgis-server-light-dev:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: dev
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    command:
+      - "run-exporter"
+    volumes:
+      - "${QSL_DATA_ROOT}:${QSL_DATA_ROOT}"
+    deploy:
+      replicas: ${QSL_REPLICAS}
+
