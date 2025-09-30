@@ -142,3 +142,7 @@ run: $(DEV_REQUIREMENTS)
 .PHONY: run-reload
 run-reload: $(DEV_REQUIREMENTS)
 	$(VENV_BIN)/hupper -m qgis_server_light.worker.redis --redis-url $(QSL_REDIS_URL) --svg-path $(QSL_SVG_PATH) --data-root $(QSL_DATA_ROOT) --log-level $(QSL_LOG_LEVEL)
+
+.PHONY: run-exporter
+run-exporter:
+	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py
