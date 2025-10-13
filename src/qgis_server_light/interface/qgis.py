@@ -269,13 +269,13 @@ class PostgresSource(Source):
 
 @dataclass
 class VectorTileSource(Source):
-    styleUrl: str = field(
-        metadata={"name": "styleUrl", "type": "Element", "required": True}
-    )
+
     type: str = field(metadata={"name": "Type", "type": "Element", "required": True})
-    url: str = field(metadata={"name": "Url", "type": "Element", "required": True})
     zmax: str = field(metadata={"name": "Zmax", "type": "Element", "required": True})
     zmin: str = field(metadata={"name": "Zmin", "type": "Element", "required": True})
+    url: str = field(default=None, metadata={"type": "Element"})
+    path: str = field(default=None, metadata={"type": "Element"})
+    styleUrl: str = field(default=None, metadata={"type": "Element"})
 
     @property
     def remote(self):
