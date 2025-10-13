@@ -1,3 +1,4 @@
+import logging
 import os
 import os.path as path
 
@@ -30,6 +31,7 @@ qgs.initQgis()
 
 @app.route("/export", methods=["POST"])
 def api_export():
+    logging.getLogger().setLevel(logging.DEBUG)
     data_path = os.environ.get("QSL_DATA_ROOT")
     body = request.get_json()
     parser_config = ParserConfig(fail_on_unknown_properties=True)

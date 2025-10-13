@@ -53,6 +53,7 @@ from qgis_server_light.interface.qgis import QueryCollection
 from qgis_server_light.interface.qgis import Raster
 from qgis_server_light.interface.qgis import Vector
 from qgis_server_light.worker.image_utils import _encode_image
+from qgis_server_light.worker.qgis_type_serializer import register_converters_at_runtime
 
 
 @dataclass
@@ -215,10 +216,13 @@ class MapRunner:
         if dataset.source.vector_tile is not None:
             if dataset.source.vector_tile.remote:
                 layer_source_path = dataset.path
-                logging.debug(f"Loading layer source: {layer_source_path}")
+                logging.debug(
+                    f"Loading remote VectorTiles layer source: {layer_source_path}"
+                )
             else:
-                raise NotImplementedError(
-                    "Currently only remote VectorTiles are supported"
+                layer_source_path = f"type={dataset.source.vector_tile.type}&url={os.path.join(self.context.base_path, dataset.path)}"
+                logging.debug(
+                    f"Loading local VectorTiles layer source: {layer_source_path}"
                 )
         else:
             raise KeyError(f"Driver not implemented: {dataset.driver}")
@@ -229,6 +233,7 @@ class MapRunner:
         else:
             qgs_layer = QgsVectorTileLayer(layer_source_path, dataset.name)
             if not qgs_layer.isValid():
+                print(qgs_layer.error().message())
                 raise RuntimeError(f"Layer {dataset.name} is not valid")
             else:
                 logging.info(f" ✓ Layer: {dataset.name}")
@@ -483,8 +488,9 @@ class GetFeatureRunner(MapRunner):
                     )
         if numbers_matched > 0:
             query_collection.numbers_matched = numbers_matched
-        data = JsonSerializer().render(query_collection).encode()
-        return JobResult(
-            data=data,
-            content_type="application/qgis-server-light.interface.qgis.QueryCollection",
-        )
+        with register_converters_at_runtime():
+            data = JsonSerializer().render(query_collection).encode()
+            return JobResult(
+                data=data,
+                content_type="application/qgis-server-light.interface.qgis.QueryCollection",
+            )
