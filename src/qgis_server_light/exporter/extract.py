@@ -290,6 +290,7 @@ def extract_save_layer(
     decoded = QgsProviderRegistry.instance().decodeUri(
         layer.providerType(), layer.dataProvider().dataSourceUri()
     )
+    logging.debug(f"Layer source: {decoded}")
     for key in decoded:
         if str(decoded[key]) == "None":
             decoded[key] = None
@@ -356,7 +357,8 @@ def extract_save_layer(
             source = DataSource(
                 postgres=PostgresSource(
                     dbname=config["dbname"],
-                    geometry_column=config["geometrycolumn"],
+                    # there is no type if it is a non geometric layer
+                    geometry_column=config.get("geometrycolumn"),
                     host=config["host"],
                     key=config["key"],
                     password=config["password"],
@@ -364,7 +366,8 @@ def extract_save_layer(
                     schema=config["schema"],
                     srid=config.get("srid"),
                     table=config["table"],
-                    type=config["type"],
+                    # there is no type if it is a non geometric layer
+                    type=config.get("type"),
                     username=username,
                     sslmode=decide_sslmode(int(config.get("sslmode", 0))),
                 )
@@ -374,14 +377,17 @@ def extract_save_layer(
             source_path = QgsProviderRegistry.instance().encodeUri(
                 layer.providerType(), config
             )
+            password = config["password"]
+            source_path = source_path + f" user='{username}' password='{password}'"
 
         elif layer.providerType().lower() == "wfs":
             # TODO: Correctly implement source!
             source = WfsSource()
         else:
-            raise NotImplementedError(
-                f"Unknown provider type: {layer.providerType().lower()}"
+            logging.error(
+                f"Unknown provider type {layer.providerType().lower()} for layer {layer.title() or layer.name()}"
             )
+            return
         fields = extract_fields(layer, types_from_editor_widget)
         datasets.vector.append(
             Vector(
@@ -430,8 +436,8 @@ def extract_save_layer(
                     source = DataSource(
                         xyz=XYZSource(
                             url=decoded["url"],
-                            zmin=decoded["zmin"],
-                            zmax=decoded["zmax"],
+                            zmin=decoded.get("zmin") or 0,
+                            zmax=decoded.get("zmax") or 14,
                         )
                     )
                 else:
@@ -468,13 +474,13 @@ def extract_save_layer(
                 )
             )
     elif layer_type == "custom":
-        if layer.providerType().lower() == "xyzvectortiles":
+        if layer.providerType().lower() in ["xyzvectortiles", "mbtilesvectortiles"]:
             source = DataSource(
                 vector_tile=VectorTileSource(
-                    styleUrl=decoded["styleUrl"],
-                    url=decoded["url"],
-                    zmax=decoded["zmax"],
-                    zmin=decoded["zmin"],
+                    styleUrl=decoded.get("styleUrl"),
+                    url=decoded.get("url") or decoded.get("path"),
+                    zmax=decoded.get("zmax") or 14,
+                    zmin=decoded.get("zmin") or 0,
                     type=decoded["type"],
                 )
             )
@@ -703,3 +709,6 @@ def extract(path_to_project: str, unify_layer_names_by_group=False) -> Config:
     )
     extract_entities(project, root, tree, datasets, [], unify_layer_names_by_group)
     return config
+
+
+# intersects_bbox($geometry, geom_from_gml('<gml:Envelope srsName="EPSG:2056"><gml:lowerCorner>2728427.2463174164 1395622.070191309</gml:lowerCorner><gml:upperCorner>2728480.1630899166 1395569.1534188087</gml:upperCorner></gml:Envelope>'))
