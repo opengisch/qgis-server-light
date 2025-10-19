@@ -532,7 +532,6 @@ class DataSource(BaseInterface):
 
 @dataclass(repr=False)
 class DataSet(AbstractDataset):
-    id: str = field(metadata={"type": "Element"})
     source: DataSource = field(metadata={"type": "Element"})
     driver: str = field(metadata={"type": "Element"})
     bbox: BBox | None = field(default=None, metadata={"type": "Element"})
