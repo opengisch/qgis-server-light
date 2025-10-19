@@ -1,3 +1,4 @@
+import logging
 import os.path
 
 import click
@@ -6,7 +7,8 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 from xsdata.formats.dataclass.serializers import XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
-from qgis_server_light.exporter.extract import extract
+from qgis_server_light.exporter.common import create_full_pg_service_conf
+from qgis_server_light.exporter.extract import Exporter
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath("/usr", True)
@@ -22,18 +24,43 @@ def cli():
     pass
 
 
-@click.option("--project")
-@click.option("--unify_layer_names_by_group")
-@click.option("--output_format")
+@click.option("--project", help="Absolute path to the QGIS project.")
+@click.option(
+    "--unify_layer_names_by_group",
+    default=False,
+    help="Use the full tree path to unify layer names.",
+)
+@click.option(
+    "--output_format",
+    default="json",
+    help=f"The desired output format. Allowed are {f'|'.join(allowed_output_formats)}.",
+)
+@click.option(
+    "--pg_service_conf",
+    default=None,
+    help="Absolute path to a pg_service.conf file to take connection information from.",
+)
 @cli.command(
     "export",
-    help=f"Export a QGIS project ({f'|'.join(allowed_extensions)}) (1st argument) file to json format",
+    context_settings=dict(max_content_width=120),
+    help=f"""
+    Export a QGIS project ({f'|'.join(allowed_extensions)}) (1st argument) file to {f'|'.join(allowed_output_formats)} format.
+
+    It takes into account the PGSERVICEFILE environment variable. The cli might be called with:
+
+      PGSERVICEFILE=<absolute-path-to-pg_service.conf> python -m qgis_server_light.exporter.cli ...
+
+    The pg_service.conf absolute path can be passed with parameter too. If this is done, the one out of
+    environment will be joined with the passed one. The passed one overwrites values of the environment one.
+    """,
 )
 def export(
     project: str,
     unify_layer_names_by_group: bool = False,
     output_format: str | None = None,
+    pg_service_conf: str | None = None,
 ) -> None:
+    logging.getLogger().setLevel(logging.DEBUG)
     serializer_config = SerializerConfig(indent="  ")
     if output_format is None:
         output_format = "json"
@@ -45,11 +72,14 @@ def export(
         raise NotImplementedError(
             f'Allowed output formats are: {"|".join(allowed_output_formats)} not => {output_format}'
         )
+    full_pg_service_config = create_full_pg_service_conf(pg_service_conf)
     if os.path.isfile(project):
-        config = extract(
-            path_to_project=project,
+        exporter = Exporter(
+            project,
             unify_layer_names_by_group=bool(unify_layer_names_by_group),
+            pg_service_configs=full_pg_service_config,
         )
+        config = exporter.run()
         if output_format == "json":
             click.echo(JsonSerializer(config=serializer_config).render(config))
         elif output_format == "xml":

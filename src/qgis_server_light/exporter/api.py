@@ -12,21 +12,21 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 from xsdata.formats.dataclass.serializers import XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
-from qgis_server_light.exporter.extract import extract
-from qgis_server_light.interface.exporter import ExportParameters
-from qgis_server_light.interface.exporter import ExportResult
+from qgis_server_light.exporter.common import create_full_pg_service_conf
+from qgis_server_light.exporter.extract import Exporter
+from qgis_server_light.interface.exporter.api import ExportParameters
+from qgis_server_light.interface.exporter.api import ExportResult
 
 allowed_output_formats = ("json", "xml")
 allowed_extensions = ("qgz", "qgs")
-
-app = Flask(__name__)
-
 
 # init QGIS
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath("/usr", True)
 qgs = QgsApplication([], False)
 qgs.initQgis()
+
+app = Flask(__name__)
 
 
 @app.route("/export", methods=["POST"])
@@ -63,11 +63,17 @@ def api_export():
         )
     output_format = parameters.output_format.lower()
 
-    # extract
-    config = extract(
-        path_to_project=project_file,
-        unify_layer_names_by_group=bool(parameters.unify_layer_names_by_group),
+    full_pg_service_config = Exporter.merge_dicts(
+        create_full_pg_service_conf(), parameters.pg_service_configs_dict
     )
+
+    # extract
+    exporter = Exporter(
+        qgis_project_path=project_file,
+        unify_layer_names_by_group=bool(parameters.unify_layer_names_by_group),
+        pg_service_configs=full_pg_service_config,
+    )
+    config = exporter.run()
     result = ExportResult(successful=False)
 
     content = None
