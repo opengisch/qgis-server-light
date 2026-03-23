@@ -150,7 +150,7 @@ run-reload: $(DEV_REQUIREMENTS)
 
 .PHONY: serve-exporter-api
 serve-exporter-api:
-	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py.PHONY: serve-exporter-api
+	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py
 
 # This target is for serving DEV georama so that it can be reached within its network,
 # you never want to do that locally on your host machine unless in docker containers
