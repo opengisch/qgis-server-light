@@ -23,7 +23,7 @@ RUN apt-get install -y \
 
 WORKDIR /opt/qgis-server-light/
 WORKDIR /app
-ADD ./ .
+COPY ./ .
 
 ENV VENV_PATH=/opt/qgis-server-light/venv
 RUN make install-dev

@@ -114,9 +114,14 @@ clean-all: clean
 git-attributes:
 	git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
 
-.PHONY: test
-test: $(TEST_REQUIREMENTS)
+.PHONY: tests
+tests: $(TEST_REQUIREMENTS)
 	$(VENV_BIN)/pytest -vv tests
+
+.PHONY: coverage
+coverage: $(TEST_REQUIREMENTS)
+	rm -f .coverage
+	$(VENV_BIN)/pytest -vv --cov $(PACKAGE) --cov-report term-missing:skip-covered --cov-report=xml:.coverage.xml tests
 
 .PHONY: doc-html
 doc-html: $(DOC_REQUIREMENTS) $(DOCS_CONFIGURATION)
@@ -143,6 +148,14 @@ run: $(DEV_REQUIREMENTS)
 run-reload: $(DEV_REQUIREMENTS)
 	$(VENV_BIN)/hupper -m qgis_server_light.worker.redis --redis-url $(QSL_REDIS_URL) --svg-path $(QSL_SVG_PATH) --data-root $(QSL_DATA_ROOT) --log-level $(QSL_LOG_LEVEL)
 
-.PHONY: run-exporter
-run-exporter:
-	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py
+.PHONY: serve-exporter-api
+serve-exporter-api:
+	QSL_DATA_ROOT=$(QSL_DATA_ROOT) $(VENV_BIN)/python src/qgis_server_light/exporter/api.py.PHONY: serve-exporter-api
+
+# This target is for serving DEV georama so that it can be reached within its network,
+# you never want to do that locally on your host machine unless in docker containers
+# or you have a good reason.
+.PHONY: serve-exporter-api-outbound
+serve-exporter-api-outbound:
+	QSL_DATA_ROOT=$(QSL_DATA_ROOT) QSL_EXPORTER_API_HOST=0.0.0.0 $(VENV_BIN)/python
+	src/qgis_server_light/exporter/api.py
