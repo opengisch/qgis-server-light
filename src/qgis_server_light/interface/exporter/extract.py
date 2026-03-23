@@ -1,93 +1,15 @@
-""" This module contains all interface definition to translate from QGIS project to QGIS-Server-Light logic
+"""This module contains all interface definition to translate from QGIS project to QGIS-Server-Light logic
 and to write the JSON export of the QGIS project
 
 """
+
 import logging
 from abc import ABC
-from dataclasses import dataclass
-from dataclasses import field
-from dataclasses import fields
-from datetime import UTC
-from datetime import datetime
-from typing import List
-from typing import Optional
+from dataclasses import dataclass, field, fields
+from datetime import UTC, datetime
+from typing import List, Optional
 
-from qgis_server_light.interface.common import BaseInterface
-
-
-@dataclass(repr=False)
-class BBox(BaseInterface):
-    x_min: float = field(metadata={"type": "Element"})
-    x_max: float = field(metadata={"type": "Element"})
-    y_min: float = field(metadata={"type": "Element"})
-    y_max: float = field(metadata={"type": "Element"})
-    z_min: Optional[float] = field(default=0.0, metadata={"type": "Element"})
-    z_max: Optional[float] = field(default=0.0, metadata={"type": "Element"})
-
-    def to_list(self) -> list:
-        return [self.x_min, self.y_min, self.z_min, self.x_max, self.y_max, self.z_max]
-
-    def to_string(self) -> str:
-        return ",".join([str(item) for item in self.to_list()])
-
-    def to_2d_list(self) -> list:
-        return [self.x_min, self.y_min, self.x_max, self.y_max]
-
-    def to_2d_string(self) -> str:
-        return ",".join([str(item) for item in self.to_2d_list()])
-
-    @staticmethod
-    def from_string(bbox_string: str) -> "BBox":
-        """
-        Takes a CSV string representation of a BBox in the form:
-            '<x_min>,<y_min>,<x_max>,<y_max>' or
-            '<x_min>,<y_min>,<z_min>,<x_max>,<y_max>,<z_max>'
-        """
-        coordinates = bbox_string.split(",")
-        if len(coordinates) == 4:
-            return BBox(
-                x_min=float(coordinates[0]),
-                y_min=float(coordinates[1]),
-                x_max=float(coordinates[2]),
-                y_max=float(coordinates[3]),
-            )
-        elif len(coordinates) == 6:
-            return BBox(
-                x_min=float(coordinates[0]),
-                y_min=float(coordinates[1]),
-                z_min=float(coordinates[2]),
-                x_max=float(coordinates[3]),
-                y_max=float(coordinates[4]),
-                z_max=float(coordinates[5]),
-            )
-        else:
-            raise ValueError(f"Invalid bbox string: {bbox_string}")
-
-    @staticmethod
-    def from_list(bbox_list: List[float]) -> "BBox":
-        """
-        Takes a list representation of a BBox in the form:
-            [<x_min>,<y_min>,<x_max>,<y_max>] or
-            [<x_min>,<y_min>,<z_min>,<x_max>,<y_max>,<z_max>]
-        """
-        if len(bbox_list) == 4:
-            return BBox(
-                x_min=bbox_list[0],
-                y_min=bbox_list[1],
-                x_max=bbox_list[3],
-                y_max=bbox_list[4],
-            )
-        elif len(bbox_list) == 6:
-            return BBox(
-                x_min=bbox_list[0],
-                y_min=bbox_list[1],
-                z_min=bbox_list[2],
-                x_max=bbox_list[3],
-                y_max=bbox_list[4],
-                z_max=bbox_list[5],
-            )
-        else:
-            raise ValueError(f"Invalid bbox list: {bbox_list}")
+from qgis_server_light.interface.common import BaseInterface, BBox, Style
 
 
 @dataclass(repr=False)
@@ -112,7 +34,7 @@ class TreeGroup(TreeLayer):
 @dataclass(repr=False)
 class Field(BaseInterface):
     """
-    Transportable (serializable) form of a QGIS vector layer fiel (attribute). It contains the information of
+    Transportable (serializable) form of a QGIS vector job_layer_definition fiel (attribute). It contains the information of
     the original data datatype and its translated versions and the editor widget one as well.
 
     Attributes:
@@ -181,16 +103,6 @@ class Crs(BaseInterface):
     )
     ogc_uri: str = field(default=None, metadata={"type": "Element"})
     ogc_urn: str = field(default=None, metadata={"type": "Element"})
-
-
-@dataclass(repr=False)
-class Style(BaseInterface):
-    name: str = field(metadata={"type": "Element"})
-    definition: str = field(metadata={"type": "Element"})
-
-    @property
-    def shortened_fields(self) -> set:
-        return {"definition"}
 
 
 @dataclass(repr=False)
@@ -303,6 +215,10 @@ class XYZSource(Source):
             type=decoded_uri.get("type"),
         )
 
+    @property
+    def remote(self):
+        return self.decide_remote(self.url)
+
 
 @dataclass(repr=False)
 class WmsSource(Source):
@@ -324,6 +240,7 @@ class WmsSource(Source):
             "format": self.format,
             "layers": self.layers,
             "url": self.url,
+            "styles": self.styles,
         }
         if self.dpi_mode is not None:
             connection_dict["dpiMode"] = self.dpi_mode
@@ -331,8 +248,6 @@ class WmsSource(Source):
             connection_dict["featureCount"] = self.feature_count
         if self.contextual_wms_legend is not None:
             connection_dict["contextualWMSLegend"] = self.contextual_wms_legend
-        if self.styles is not None:
-            connection_dict["styles"] = self.styles
         return connection_dict
 
     @classmethod
@@ -347,6 +262,10 @@ class WmsSource(Source):
             contextual_wms_legend=decoded_uri.get("contextualWMSLegend"),
             styles=decoded_uri.get("styles"),
         )
+
+    @property
+    def remote(self):
+        return True
 
 
 @dataclass(repr=False, kw_only=True)
@@ -464,10 +383,13 @@ class PostgresSource(Source):
             sql=decoded_uri.get("sql"),
         )
 
+    @property
+    def remote(self):
+        return True
+
 
 @dataclass(repr=False)
 class VectorTileSource(Source):
-
     type: str = field(metadata={"type": "Element"})
     zmin: int | None = field(metadata={"type": "Element"})
     zmax: int | None = field(metadata={"type": "Element"})
@@ -518,7 +440,17 @@ class DataSource(BaseInterface):
     @property
     def definition(
         self,
-    ) -> PostgresSource | WmtsSource | WmsSource | OgrSource | GdalSource | WfsSource | VectorTileSource | XYZSource | None:
+    ) -> (
+        PostgresSource
+        | WmtsSource
+        | WmsSource
+        | OgrSource
+        | GdalSource
+        | WfsSource
+        | VectorTileSource
+        | XYZSource
+        | None
+    ):
         for dataclass_field in fields(self):
             name = dataclass_field.name
             value = getattr(self, name)
@@ -556,7 +488,7 @@ class DataSet(AbstractDataset):
 @dataclass(repr=False)
 class Raster(DataSet):
     """
-    A real QGIS Raster dataset. That are usually all `QgsRasterLayer` (in opposition to `QgsVectorTileLayer`
+    A real QGIS Raster job_layer_definition. That are usually all `QgsRasterLayer` in opposition to `QgsVectorTileLayer`
     which is not a real `QgsRasterLayer`.
     """
 
@@ -564,7 +496,7 @@ class Raster(DataSet):
 @dataclass(repr=False)
 class Vector(DataSet):
     """
-    A real QGIS Vector dataset. That are usually all `QgsVectorLayer` (in opposition to `QgsVectorTileLayer`
+    A real QGIS Vector job_layer_definition. That are usually all `QgsVectorLayer` in opposition to `QgsVectorTileLayer`
     which is not a real `QgsVectorLayer`.
     """
 

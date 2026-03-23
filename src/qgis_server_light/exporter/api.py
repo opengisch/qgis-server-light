@@ -2,20 +2,16 @@ import logging
 import os
 import os.path as path
 
-from flask import Flask
-from flask import Response
-from flask import request
+from flask import Flask, Response, request
 from qgis.core import QgsApplication
 from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers.config import ParserConfig
-from xsdata.formats.dataclass.serializers import JsonSerializer
-from xsdata.formats.dataclass.serializers import XmlSerializer
+from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.common import create_full_pg_service_conf
 from qgis_server_light.exporter.extract import Exporter
-from qgis_server_light.interface.exporter.api import ExportParameters
-from qgis_server_light.interface.exporter.api import ExportResult
+from qgis_server_light.interface.exporter.api import ExportParameters, ExportResult
 
 allowed_output_formats = ("json", "xml")
 allowed_extensions = ("qgz", "qgs")
@@ -57,9 +53,9 @@ def api_export():
     print(f"project_file: {project_file}")
 
     # output format
-    if not parameters.output_format.lower() in allowed_output_formats:
+    if parameters.output_format.lower() not in allowed_output_formats:
         raise NotImplementedError(
-            f'Allowed output formats are: {"|".join(allowed_output_formats)} not => {parameters.output_format}'
+            f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {parameters.output_format}"
         )
     output_format = parameters.output_format.lower()
 
@@ -99,8 +95,10 @@ def api_export():
 
 if __name__ == "__main__":
     data_path = os.environ.get("QSL_DATA_ROOT", None)
+    exporter_host = os.environ.get("QSL_EXPORTER_API_HOST", "127.0.0.1")
+    exporter_port = int(os.environ.get("QSL_EXPORTER_API_PORT", 5000))
     if data_path is None:
         raise RuntimeError(
             "Mandatory 'QSL_DATA_ROOT' does not exist in the environment."
         )
-    app.run(host="0.0.0.0", debug=True, threaded=False)
+    app.run(host=exporter_host, debug=True, threaded=False, port=exporter_port)

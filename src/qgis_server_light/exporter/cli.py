@@ -3,8 +3,7 @@ import os.path
 
 import click
 from qgis.core import QgsApplication
-from xsdata.formats.dataclass.serializers import JsonSerializer
-from xsdata.formats.dataclass.serializers import XmlSerializer
+from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.common import create_full_pg_service_conf
@@ -20,7 +19,12 @@ allowed_extensions = ("qgz", "qgs")
 
 
 @click.group
-def cli():
+def cli() -> None:
+    """
+    Just the central cli entry command. Currently, we don't use it, but its here
+    for future content.
+
+    """
     pass
 
 
@@ -28,12 +32,12 @@ def cli():
 @click.option(
     "--unify_layer_names_by_group",
     default=False,
-    help="Use the full tree path to unify layer names.",
+    help="Use the full tree path to unify job_layer_definition names.",
 )
 @click.option(
     "--output_format",
     default="json",
-    help=f"The desired output format. Allowed are {f'|'.join(allowed_output_formats)}.",
+    help=f"The desired output format. Allowed are {'|'.join(allowed_output_formats)}.",
 )
 @click.option(
     "--pg_service_conf",
@@ -42,9 +46,9 @@ def cli():
 )
 @cli.command(
     "export",
-    context_settings=dict(max_content_width=120),
+    context_settings={"max_content_width": 120},
     help=f"""
-    Export a QGIS project ({f'|'.join(allowed_extensions)}) (1st argument) file to {f'|'.join(allowed_output_formats)} format.
+    Export a QGIS project ({"|".join(allowed_extensions)}) (1st argument) file to {"|".join(allowed_output_formats)} format.
 
     It takes into account the PGSERVICEFILE environment variable. The cli might be called with:
 
@@ -66,11 +70,11 @@ def export(
         output_format = "json"
     if not project.lower().endswith(allowed_extensions):
         raise NotImplementedError(
-            f'Allowed qgis project file extensions are: {"|".join(allowed_extensions)} not => {project}'
+            f"Allowed qgis project file extensions are: {'|'.join(allowed_extensions)} not => {project}"
         )
-    if not output_format.lower() in allowed_output_formats:
+    if output_format.lower() not in allowed_output_formats:
         raise NotImplementedError(
-            f'Allowed output formats are: {"|".join(allowed_output_formats)} not => {output_format}'
+            f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {output_format}"
         )
     full_pg_service_config = create_full_pg_service_conf(pg_service_conf)
     if os.path.isfile(project):

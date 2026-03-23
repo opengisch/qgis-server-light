@@ -6,58 +6,59 @@ from base64 import urlsafe_b64encode
 from dataclasses import fields
 from functools import reduce
 from itertools import zip_longest
-from typing import List
-from typing import Tuple
-from typing import Union
+from typing import List, Tuple, Union
 
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
-from qgis.core import QgsCoordinateReferenceSystem
-from qgis.core import QgsCoordinateTransform
-from qgis.core import QgsDataSourceUri
-from qgis.core import QgsDateTimeFieldFormatter
-from qgis.core import QgsField
-from qgis.core import QgsFieldConstraints
-from qgis.core import QgsLayerTree
-from qgis.core import QgsLayerTreeGroup
-from qgis.core import QgsLayerTreeLayer
-from qgis.core import QgsLayerTreeNode
-from qgis.core import QgsMapLayer
-from qgis.core import QgsMeshLayer
-from qgis.core import QgsPointCloudLayer
-from qgis.core import QgsProject
-from qgis.core import QgsProviderRegistry
-from qgis.core import QgsRasterLayer
-from qgis.core import QgsRectangle
-from qgis.core import QgsTiledSceneLayer
-from qgis.core import QgsVectorLayer
-from qgis.core import QgsVectorTileLayer
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsDataSourceUri,
+    QgsDateTimeFieldFormatter,
+    QgsField,
+    QgsFieldConstraints,
+    QgsLayerTree,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsLayerTreeNode,
+    QgsMapLayer,
+    QgsMeshLayer,
+    QgsPointCloudLayer,
+    QgsProject,
+    QgsProviderRegistry,
+    QgsRasterLayer,
+    QgsRectangle,
+    QgsTiledSceneLayer,
+    QgsVectorLayer,
+    QgsVectorTileLayer,
+)
 from xsdata.formats.dataclass.serializers import DictEncoder
 
-from qgis_server_light.interface.exporter.extract import BBox
-from qgis_server_light.interface.exporter.extract import Config
-from qgis_server_light.interface.exporter.extract import Crs
-from qgis_server_light.interface.exporter.extract import Custom
-from qgis_server_light.interface.exporter.extract import Datasets
-from qgis_server_light.interface.exporter.extract import DataSource
-from qgis_server_light.interface.exporter.extract import Field
-from qgis_server_light.interface.exporter.extract import GdalSource
-from qgis_server_light.interface.exporter.extract import Group
-from qgis_server_light.interface.exporter.extract import MetaData
-from qgis_server_light.interface.exporter.extract import OgrSource
-from qgis_server_light.interface.exporter.extract import PostgresSource
-from qgis_server_light.interface.exporter.extract import Project
-from qgis_server_light.interface.exporter.extract import Raster
-from qgis_server_light.interface.exporter.extract import Service
-from qgis_server_light.interface.exporter.extract import Style
-from qgis_server_light.interface.exporter.extract import Tree
-from qgis_server_light.interface.exporter.extract import TreeGroup
-from qgis_server_light.interface.exporter.extract import Vector
-from qgis_server_light.interface.exporter.extract import VectorTileSource
-from qgis_server_light.interface.exporter.extract import WfsSource
-from qgis_server_light.interface.exporter.extract import WmsSource
-from qgis_server_light.interface.exporter.extract import WmtsSource
-from qgis_server_light.interface.exporter.extract import XYZSource
+from qgis_server_light.interface.common import BBox, Style
+from qgis_server_light.interface.exporter.extract import (
+    Config,
+    Crs,
+    Custom,
+    Datasets,
+    DataSource,
+    Field,
+    GdalSource,
+    Group,
+    MetaData,
+    OgrSource,
+    PostgresSource,
+    Project,
+    Raster,
+    Service,
+    Tree,
+    TreeGroup,
+    Vector,
+    VectorTileSource,
+    WfsSource,
+    WmsSource,
+    WmtsSource,
+    XYZSource,
+)
 
 
 class Exporter:
@@ -102,17 +103,17 @@ class Exporter:
         path: list[str],
     ):
         """
-        This is a highly recursive function which walks to the qgis layer tree to extract all knowledge out
+        This is a highly recursive function which walks to the qgis job_layer_definition tree to extract all knowledge out
         of it. It is called from itself again for each level of group like elements which are found.
 
         Args:
             entity: The QGIS projects tree node which can be a QgsLayerTree, QgsLayerTreeGroup or
                 QgsLayerTreeLayer.
             path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying layer names by their tree path.
+                used to construct a string for unifying job_layer_definition names by their tree path.
         """
         if isinstance(entity, QgsLayerTreeLayer):
-            # this is a layer, we can extract its information
+            # this is a job_layer_definition, we can extract its information
             self.extract_save_layer(
                 entity,
                 path,
@@ -144,13 +145,13 @@ class Exporter:
         path: list[str],
     ):
         """
-        Collects data pertaining to a QGIS layer tree group. Basically this translates a QgsLayerTreeGroup
+        Collects data pertaining to a QGIS job_layer_definition tree group. Basically this translates a QgsLayerTreeGroup
         into a QGIS-Server-Light TreeGroup.
 
         Args:
             group: The group which is handled.
             path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying layer names by their tree path.
+                used to construct a string for unifying job_layer_definition names by their tree path.
         """
         children = []
         for child in group.children():
@@ -179,7 +180,7 @@ class Exporter:
         path: list[str],
         types_from_editor_widget: bool = False,
     ):
-        """Save the given layer to the output path."""
+        """Save the given job_layer_definition to the output path."""
         layer = child.layer()
         layer_type = self.get_layer_type(layer)
         if layer_type is None:
@@ -200,27 +201,22 @@ class Exporter:
             bbox = None
             is_spatial = False
         if layer_type == "vector":
-            source_path = layer.source()
             if layer.providerType().lower() == "ogr":
                 source = DataSource(ogr=self.create_qsl_source_ogr(decoded))
             elif layer.providerType().lower() == "postgres":
                 source = DataSource(postgres=self.create_qsl_source_postgresql(decoded))
-                source_path = QgsProviderRegistry.instance().encodeUri(
-                    layer.providerType(), parts=DictEncoder().encode(source.postgres)
-                )
                 source_path_parts = []
                 DictEncoder().encode(source.postgres)
                 for field in fields(source.postgres):
                     source_path_parts.append(
                         f"{field.name}={getattr(source.postgres, field.name)!r}"
                     )
-                " ".join(source_path_parts)
             elif layer.providerType().lower() == "wfs":
                 # TODO: Correctly implement source!
                 source = WfsSource()
             else:
                 logging.error(
-                    f"Unknown provider type {layer.providerType().lower()} for layer {layer.title() or layer.name()}"
+                    f"Unknown provider type {layer.providerType().lower()} for job_layer_definition {layer.title() or layer.name()}"
                 )
                 return
             qsl_vector_dataset_fields = self.create_qsl_fields_from_qgis_field(layer)
@@ -276,7 +272,7 @@ class Exporter:
                 )
             else:
                 logging.error(
-                    f"Source was None this is not expected. Layer was: {short_name}, QGIS layer ID:{layer.id()}"
+                    f"Source was None this is not expected. Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
                 )
         elif layer_type == "custom":
             if layer.providerType().lower() in ["xyzvectortiles", "mbtilesvectortiles"]:
@@ -285,7 +281,7 @@ class Exporter:
                 )
             else:
                 logging.error(
-                    f"Unknown provider type: {layer.providerType().lower()} Layer was: {short_name}, QGIS layer ID:{layer.id()}"
+                    f"Unknown provider type: {layer.providerType().lower()} Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
                 )
                 # TODO: make this more configurable
                 return
@@ -307,7 +303,7 @@ class Exporter:
             )
         else:
             logging.error(
-                f'Unknown layer_type "{layer_type}" Layer was: {short_name}, QGIS layer ID:{layer.id()}'
+                f'Unknown layer_type "{layer_type}" Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}'
             )
             return
 
@@ -316,9 +312,9 @@ class Exporter:
         Decides if to use the short name itself or the unified version by the tree path.
 
         Args:
-            short_name: The short name either of the group or the layer.
+            short_name: The short name either of the group or the job_layer_definition.
             path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying layer names by their tree path.
+                used to construct a string for unifying job_layer_definition names by their tree path.
 
         Returns:
             The short name itself or its unified tree path.
@@ -333,9 +329,9 @@ class Exporter:
         Creates the unified short name, separated by the configured separator.
 
         Args:
-            short_name: The short name either of the group or the layer.
+            short_name: The short name either of the group or the job_layer_definition.
             path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying layer names by their tree path.
+                used to construct a string for unifying job_layer_definition names by their tree path.
 
         Returns:
 
@@ -345,11 +341,11 @@ class Exporter:
 
     def decode_datasource(self, layer: QgsMapLayer) -> dict:
         """
-        Decodes a QGIS map layer datasource into a dict and ensures that types are pythonic and pathes are
+        Decodes a QGIS map job_layer_definition datasource into a dict and ensures that types are pythonic and pathes are
         clean for further usage.
 
         Args:
-            layer: The layer which the datasource should be extracted from.
+            layer: The job_layer_definition which the datasource should be extracted from.
 
         Returns:
             The decoded and cleaned datasource.
@@ -367,7 +363,7 @@ class Exporter:
                 decoded[key] = str(decoded[key])
             if key == "path":
                 decoded[key] = decoded[key].replace(
-                    f'{self.qgis_project.readPath("./")}/', ""
+                    f"{self.qgis_project.readPath('./')}/", ""
                 )
         return decoded
 
@@ -509,7 +505,7 @@ class Exporter:
     @staticmethod
     def sanitize_name(raw: str, lower: bool = False) -> str:
         """
-        Transforms an arbitrary string into a WMS/WFS and URL compatible short name for a layer or group.
+        Transforms an arbitrary string into a WMS/WFS and URL compatible short name for a job_layer_definition or group.
 
         Steps:
         1. Unicode‑NFD → ASCII‑transliteration (removes umlauts/diacritics).
@@ -657,7 +653,7 @@ class Exporter:
                 logging.error(
                     f"""
                     There was a pg_service configuration in the project but it could not be found in
-                    available configurations: {datasource['service']}
+                    available configurations: {datasource["service"]}
                     Its highly possible that the exported project won't work.
                 """
                 )
@@ -683,7 +679,7 @@ class Exporter:
 
         Args:
             a: Dictionary which is the base.
-            b: Dictionary which is merged in and whose values overwrites the a one.
+            b: Dictionary which is merged in and whose values overwrites the one.
 
         Returns:
             The merged dict.
@@ -716,11 +712,11 @@ class Exporter:
     @staticmethod
     def create_qsl_crs_from_qgs_layer(layer: QgsMapLayer) -> Crs:
         """
-        Translates the QGIS layer CRS information into an instance of the QGIS-Server-Light interface Crs
+        Translates the QGIS job_layer_definition crs information into an instance of the QGIS-Server-Light interface Crs
         instance.
 
         Args:
-            layer: The layer to take the CRS information from.
+            layer: The job_layer_definition to take the crs information from.
 
         Returns:
             The instance of the QSL interface Crs.
@@ -736,10 +732,10 @@ class Exporter:
     @staticmethod
     def get_layer_short_name(layer: QgsLayerTreeLayer) -> str:
         """
-        This method determines which name is used as the short name of the layer.
+        This method determines which name is used as the short name of the job_layer_definition.
 
         Args:
-            layer: The layer which the short name should be derived from.
+            layer: The job_layer_definition which the short name should be derived from.
 
         Returns:
             The short name.
@@ -754,11 +750,11 @@ class Exporter:
     @staticmethod
     def make_wgs84_geom_transform(project, layer) -> QgsCoordinateTransform:
         """
-        Creates a QgisCoordinateTransform context to transform a layer to EPSG:4326 aka wgs84.
+        Creates a QgisCoordinateTransform context to transform a job_layer_definition to EPSG:4326 aka wgs84.
 
         Args:
             project: The QGIS project instance.
-            layer: The layer which's extent should be reprojected.
+            layer: The job_layer_definition which's extent should be reprojected.
 
         Returns:
             The QGIS transformation context.
@@ -772,11 +768,11 @@ class Exporter:
         project: QgsProject, layer: QgsMapLayer, extent: QgsRectangle
     ) -> BBox:
         """
-        Reprojects the layer's extent using WGS84.
+        Reprojects the job_layer_definition's extent using WGS84.
 
         Args:
             project: The QGIS project instance for projection context.
-            layer: The layer which for the projection context.
+            layer: The job_layer_definition which for the projection context.
             extent: The extent which will be reprojected.
 
         Returns:
@@ -798,14 +794,14 @@ class Exporter:
     @staticmethod
     def get_layer_type(layer: QgsMapLayer) -> str | None:
         """
-        Gets the type of the given Qgis layer as a string if the type is supported. This is to flatten the
+        Gets the type of the given Qgis job_layer_definition as a string if the type is supported. This is to flatten the
         understanding of layers from qgis into something we can handle.
 
         Args:
-            layer: The layer to decide the type for.
+            layer: The job_layer_definition to decide the type for.
 
         Returns:
-            "raster", "vector" or "custom" if a layer matched and None otherwise.
+            "raster", "vector" or "custom" if a job_layer_definition matched and None otherwise.
         """
         if isinstance(layer, QgsRasterLayer):
             return "raster"
@@ -915,8 +911,7 @@ class Exporter:
         )
 
         for scope in scopes:
-
-            if not scope in supported_scopes:
+            if scope not in supported_scopes:
                 supported = ", ".join(supported_scopes.keys())
                 error_detail = f"This scope is not supported: {scope}. Supported scopes: {supported}"
                 raise ValueError(error_detail)

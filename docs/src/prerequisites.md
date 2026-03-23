@@ -4,14 +4,14 @@ The [QGIS-Server-Light project](https://github.com/opengisch/qgis-server-light) 
 
 | name          | description                                                               | independent from pyqgis |
 |---------------|---------------------------------------------------------------------------|-------------------------|
-| **exporter** | exports necesary data from a qgis project to a simple json                | ❌                       |
-| **interface**     | defines all entities shipped around and may be used in 3rd party software | ✅                       |
-| **worker**      | the actual rendering system which you can spawn                           | ❌                       |
+| **exporter**  | exports necesary data from a qgis project to a simple json                | ❌                       |
+| **interface** | defines all entities shipped around and may be used in 3rd party software | ✅                       |
+| **worker**    | the actual rendering system which you can spawn                           | ❌                       |
 
 !!! important
-    QGIS-Server-Ligth is also a [pypi package](https://pypi.org/project/qgis-server-light/).
-    This package contains only the **interface**! This way, we ensure the isolation/separation of
-    the dependency to QGIS (pyqgis).
+QGIS-Server-Ligth is also a [pypi package](https://pypi.org/project/qgis-server-light/).
+This package contains only the **interface**! This way, we ensure the isolation/separation of
+the dependency to QGIS (pyqgis).
 
 ### Interface
 
@@ -31,7 +31,7 @@ Redis as an intermediate broker/store where the 3rd party application can push i
 requests, and they will be picked and processed by QGIS-Server-Light.
 
 !!! important
-    So to further proceed you need:
+So to further proceed you need:
 
     - a QGIS installation on the same system as you want to run the QGIS-Server-Light Worker
     - a running instance of Redis
