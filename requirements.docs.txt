@@ -1,5 +1,8 @@
 mkdocs==1.6.1
-mkdocs-material==9.5.34
-mkdocstrings==0.25.2
-mkdocstrings-python==1.10.9
-mkdocs-autorefs==1.4.0
+mkdocs-material==9.7.6
+mkdocstrings==1.0.3
+mkdocstrings-python==2.0.3
+mkdocs-autorefs==1.4.4
+mkdocs-gen-files==0.6.1
+mkdocs-literate-nav==0.6.3
+mkdocs-section-index==0.3.11

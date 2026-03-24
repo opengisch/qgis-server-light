@@ -14,7 +14,6 @@ class BaseInterface:
     Since dataclasses gets a __repr__ method installed automatically when they are created, a dataclass
     inheriting from this base class has to be defined as follows:
 
-        ```python
         @dataclass(repr=False)
         class Config(BaseInterface):
             id: int = field(metadata={"type": "Element"})
@@ -28,14 +27,12 @@ class BaseInterface:
             @property
             def redacted_fields(self) -> set:
                 return {"secure"}
-        ```
 
     This way, when an instance of this example class gets logged somewhere it the output will be redacted,
     meaning the logging output might look like this:
 
-        ```
         Config(id=1, secure=**REDACTED**, long_content=abc12...io345)
-        ```
+
     """
 
     @property
@@ -70,7 +67,7 @@ class BaseInterface:
         """
         return set()
 
-    def _value_string(self, repr_value):
+    def _value_string(self, repr_value: str | bytes):
         return f"{repr_value[: self.shorten_limit]}...{repr_value[((1 + self.shorten_limit) * -1) :]}"
 
     def _type_aware_value_string(self, value, repr_value):
