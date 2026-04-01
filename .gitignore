@@ -10,3 +10,4 @@ dist
 docs/site
 /.coverage
 /.coverage.xml
+/.profile/

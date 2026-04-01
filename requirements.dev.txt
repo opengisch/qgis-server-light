@@ -2,3 +2,4 @@ python-lsp-server[all]
 pylsp-mypy
 pylsp-rope
 ruff
+pyprof2calltree
