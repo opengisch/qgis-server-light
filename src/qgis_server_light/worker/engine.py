@@ -54,7 +54,6 @@ class Engine(ABC):
         self._load_runner_plugins(runner_plugins)
         self.qgis_providers = available_qgis_providers()
         self.info = self._initialize_infos()
-        self.info_expire: int = 30
 
     def __del__(self):
         self.qgis.exitQgis()

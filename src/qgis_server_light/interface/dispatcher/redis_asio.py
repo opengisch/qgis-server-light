@@ -45,21 +45,17 @@ class RedisQueue:
     job_timestamp_key: str = "timestamp"
     job_last_update_key: str = f"{job_timestamp_key}.last_update"
 
-    def __init__(
-        self, pool: redis_aio.BlockingConnectionPool, redis_client: redis_aio.Redis
-    ) -> None:
+    def __init__(self, redis_client: redis_aio.Redis) -> None:
         # we use this to hold connections to redis in a pool, this way we are
         # event loop safe and when creating the redis client for every call of
         # post, we only instantiate a minimal wrapper object which is cheap.
 
-        self.pool = pool
         self.client = redis_client
 
     @classmethod
     async def create(cls, url: str):
-        pool = redis_aio.BlockingConnectionPool.from_url(url)
-        redis_client = await redis_aio.Redis(connection_pool=pool)
-        return cls(pool, redis_client)
+        redis_client = redis_aio.Redis.from_url(url)
+        return cls(redis_client)
 
     async def set_job_runtime_status(
         self,
@@ -70,14 +66,14 @@ class RedisQueue:
     ):
         duration = time.time() - start_time
         ts = datetime.datetime.now().isoformat()
-        await pipeline.hset(job_id, self.job_status_key, status)
+        await pipeline.hset(f"job:{job_id}", self.job_status_key, status)
         await pipeline.hset(
-            job_id,
+            f"job:{job_id}",
             f"{self.job_timestamp_key}.{status}",
             ts,
         )
-        await pipeline.hset(job_id, self.job_last_update_key, ts)
-        await pipeline.hset(job_id, self.job_duration_key, str(duration))
+        await pipeline.hset(f"job:{job_id}", self.job_last_update_key, ts)
+        await pipeline.hset(f"job:{job_id}", self.job_duration_key, str(duration))
         await pipeline.execute()
 
     async def post(
@@ -121,8 +117,12 @@ class RedisQueue:
             raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
         async with self.client.pipeline() as p:
             # Putting job info into redis
-            await p.hset(job_id, self.job_info_key, JsonSerializer().render(job_info))
-            await p.hset(job_id, self.job_info_type_key, job_info.__class__.__name__)
+            await p.hset(
+                f"job:{job_id}", self.job_info_key, JsonSerializer().render(job_info)
+            )
+            await p.hset(
+                f"job:{job_id}", self.job_info_type_key, job_info.__class__.__name__
+            )
             # Queuing the job onto the list/queue
             await p.rpush(self.job_queue_name, job_id)
             await p.execute()
@@ -133,51 +133,62 @@ class RedisQueue:
             await self.set_job_runtime_status(
                 job_id, p, Status.QUEUED.value, start_time
             )
-
-            async with self.client.pubsub() as ps:
-                # we tell redis to let us know if a message is published
-                # for this channel `notifications:{job_id}`.
-                await ps.subscribe(f"{self.job_channel_name}:{job_id}")
+            try:
+                async with self.client.pubsub() as ps:
+                    # we tell redis to let us know if a message is published
+                    # for this channel `notifications:{job_id}`.
+                    await ps.subscribe(f"{self.job_channel_name}:{job_id}")
+                    try:
+                        # this puts a timeout trigger on the subscription, after timeout
+                        # an asyncio.TimeoutError or asyncio.exceptions.CancelledError
+                        # is raised. See except block below.
+                        async with timeout(to):
+                            while True:
+                                message = await ps.get_message(
+                                    timeout=to, ignore_subscribe_messages=True
+                                )
+                                if not message:
+                                    continue  # https://github.com/redis/redis-py/issues/733
+                                status_binary = await self.client.hget(
+                                    f"job:{job_id}", "status"
+                                )
+                                status = status_binary.decode()
+                                result: JobResult = pickle.loads(message["data"])
+                                duration = time.time() - start_time
+                                if status == Status.SUCCESS.value:
+                                    logging.info(
+                                        f"Job id: {job_id}, status: {status}, "
+                                        f"duration: {duration}"
+                                    )
+                                elif status == Status.FAILURE.value:
+                                    logging.info(
+                                        f"Job id: {job_id}, status: {status}, "
+                                        f"duration: {duration}, error: {result.data}"
+                                    )
+                                return result, status
+                    except (asyncio.TimeoutError, asyncio.exceptions.CancelledError):
+                        logging.info(f"{job_id} timeout")
+                        raise
+            except Exception as e:
+                duration = time.time() - start_time
+                logging.info(
+                    f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: "
+                    f"{duration}",
+                    exc_info=True,
+                )
+                return (
+                    JobResult(
+                        id=job_id,
+                        data=str(e),
+                        content_type="application/text",
+                    ),
+                    Status.FAILURE.value,
+                )
+            finally:
                 try:
-                    # this puts a timeout trigger on the subscription, after timeout
-                    # an asyncio.TimeoutError or asyncio.exceptions.CancelledError
-                    # is raised. See except block below.
-                    async with timeout(to):
-                        while True:
-                            message = await ps.get_message(
-                                timeout=to, ignore_subscribe_messages=True
-                            )
-                            if not message:
-                                continue  # https://github.com/redis/redis-py/issues/733
-                            status_binary = await self.client.hget(job_id, "status")
-                            status = status_binary.decode()
-                            result: JobResult = pickle.loads(message["data"])
-                            duration = time.time() - start_time
-                            if status == Status.SUCCESS.value:
-                                logging.info(
-                                    f"Job id: {job_id}, status: {status}, "
-                                    f"duration: {duration}"
-                                )
-                            elif status == Status.FAILURE.value:
-                                logging.info(
-                                    f"Job id: {job_id}, status: {status}, "
-                                    f"duration: {duration}, error: {result.data}"
-                                )
-                            # deletes the hashset, because we don't need it any longer
-                            task = asyncio.create_task(self.client.delete(job_id))
-                            await task
-                            return result, status
-                except (asyncio.TimeoutError, asyncio.exceptions.CancelledError):
-                    logging.info(f"{job_id} timeout")
-                    await self.client.delete(job_id)
-                    raise
-        duration = time.time() - start_time
-        logging.info(
-            f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: {duration}"
-        )
-        return (
-            JobResult(
-                id=job_id, data="Unexpected behaviour", content_type="application/text"
-            ),
-            Status.FAILURE.value,
-        )
+                    await self.client.delete(f"job:{job_id}")
+                except Exception:
+                    logging.warning(
+                        f"Cleanup failed for {job_id}",
+                        exc_info=True,
+                    )

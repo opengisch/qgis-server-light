@@ -1,9 +1,7 @@
 import argparse
 import datetime
-import json
 import logging
 import math
-import os
 import pickle
 import signal
 import time
@@ -30,32 +28,48 @@ class RedisEngine(Engine):
         runner_plugins: list[str],
         svg_paths: Optional[List] = None,
     ) -> None:
+        self.boot_start = time.time()
         super().__init__(context, runner_plugins, svg_paths)
         self.shutdown = False
+        self.retry_wait = 0.01
+        self.max_retries = 11
+        self.info_expire: int = 300
+
+    def retry_handling_with_jitter(self, count: int):
+        if count <= self.max_retries:
+            sleep = math.pow(2, count) * self.retry_wait
+            logging.warning(f"Retrying in {sleep} seconds...")
+            time.sleep(sleep)
+        else:
+            self.exit_connection_error()
+
+    @staticmethod
+    def exit_connection_error():
+        logging.error("Shutting down => now connection to Redis")
+        exit(404)
 
     def exit_gracefully(self, signum, frame):
-        print("Received:", signum)
+        logging.error(f"Received: {signum}")
         self.shutdown = True
-        # actually exit the programm (for some reason it is not working with the shutdown switch)
         exit(0)
 
     @staticmethod
     def set_job_runtime_status(
-        job_id,
+        job_id: str,
         pipeline: Pipeline,
         status: str,
         start_time: float,
     ):
         duration = time.time() - start_time
         ts = datetime.datetime.now().isoformat()
-        pipeline.hset(job_id, RedisQueue.job_status_key, status)
+        pipeline.hset(f"job:{job_id}", RedisQueue.job_status_key, status)
         pipeline.hset(
-            job_id,
+            f"job:{job_id}",
             f"{RedisQueue.job_timestamp_key}.{status}",
             ts,
         )
-        pipeline.hset(job_id, RedisQueue.job_last_update_key, ts)
-        pipeline.hset(job_id, RedisQueue.job_duration_key, str(duration))
+        pipeline.hset(f"job:{job_id}", RedisQueue.job_last_update_key, ts)
+        pipeline.hset(f"job:{job_id}", RedisQueue.job_duration_key, str(duration))
         pipeline.execute()
 
     def heartbeat(self, client: Redis) -> datetime.datetime:
@@ -63,35 +77,47 @@ class RedisEngine(Engine):
         client.hset(f"worker:{self.info.id}", "last_seen", now.isoformat())
         return now
 
-    def run(self, redis_url):
+    def register_worker(self, client: Redis):
+        # writing worker info to redis
+        client.hset(
+            f"worker:{self.info.id}", "info", JsonSerializer().render(self.info)
+        )
+        # set timer to automatically remove worker info from list
+        client.expire(f"worker:{self.info.id}", self.info_expire)
+        # add worker to list of workers in redis
+        client.sadd("workers", self.info.id)
+        self.heartbeat(client)
+        logging.info("Worker was registered in Redis")
+
+    def retry_connection(self, redis_url: str, count: int):
+        logging.warning(f"Could not connect to redis on `{redis_url}`.")
+        self.retry_handling_with_jitter(count)
+
+    def start(self, redis_url) -> redis.Redis:
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
         r = redis.Redis.from_url(redis_url, decode_responses=True)
-        p = r.pipeline()
+        retry_count = 0
         while True:
             try:
+                retry_count += 1
                 r.ping()
             except redis.exceptions.ConnectionError:
-                logging.warning(
-                    f"Could not connect to redis on `{redis_url}`, trying again in 1 second"
-                )
-                time.sleep(1)
+                self.retry_connection(redis_url, retry_count)
             else:
                 break
         logging.info(f"Connection to redis on `{redis_url}`successful.")
+        return r
 
-        # writing worker info to redis
-        r.hset(f"worker:{self.info.id}", "info", JsonSerializer().render(self.info))
-        # set timer to automatically remove worker info from list
-        r.expire(f"worker:{self.info.id}", self.info_expire)
-        # add worker to list of workers in redis
-        r.sadd("workers", self.info.id)
-        self.heartbeat(r)
-        logging.info("Worker was registered in Redis")
+    def run(self, redis_url):
+        r = self.start(redis_url)
+        logging.info(time.time() - self.boot_start)
+        p = r.pipeline()
         expire_limit = self.info_expire * 0.95
+        retry_count = 0
         while not self.shutdown:
-            retry_count = 0
             try:
+                self.register_worker(r)
                 logging.debug("Waiting for jobs")
                 self.set_waiting()
                 # this is blocking the loop until a job is found in the redis
@@ -107,20 +133,19 @@ class RedisEngine(Engine):
                     continue
                 else:
                     _, job_id = result
-            except Exception as e:
+            except redis.exceptions.ConnectionError:
                 retry_count += 1
-                logging.error(e, exc_info=True)
-                retry_rate = math.pow(2, retry_count) * 0.01
-                logging.warning(f"Retrying in {retry_rate} seconds...")
-                time.sleep(retry_rate)
+                self.retry_connection(redis_url, retry_count)
                 continue
             start_time = time.time()
             try:
                 # we inform, that the job is running.
                 self.set_job_runtime_status(job_id, p, Status.RUNNING.value, start_time)
 
-                job_info_json = r.hget(job_id, RedisQueue.job_info_key)
-                job_info_class_name = r.hget(job_id, RedisQueue.job_info_type_key)
+                job_info_json = r.hget(f"job:{job_id}", RedisQueue.job_info_key)
+                job_info_class_name = r.hget(
+                    f"job:{job_id}", RedisQueue.job_info_type_key
+                )
                 job_info_class = self.available_job_info_classes[job_info_class_name]
                 job_info = JsonParser().from_string(job_info_json, job_info_class)
                 result = self.process(job_info)
@@ -138,7 +163,8 @@ class RedisEngine(Engine):
                 data = pickle.dumps(result)
 
                 # we inform, that the job has failed with errors
-                self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
+                # self.set_job_runtime_status(job_id, p, Status.FAILURE.value,
+                # start_time)
 
                 # we publish the result to any subscribers
                 p.publish(f"{RedisQueue.job_channel_name}:{job_id}", data)
@@ -148,6 +174,7 @@ class RedisEngine(Engine):
             finally:
                 p.execute()
             logging.debug(f"Job duration: {time.time() - start_time}")
+        exit(0)
 
 
 def main() -> None:
@@ -182,8 +209,8 @@ def main() -> None:
         level=args.log_level.upper(), format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
-    log = logging.getLogger(__name__)
-    log.info(json.dumps(dict(os.environ), indent=2))
+    # log = logging.getLogger(__name__)
+    # log.info(json.dumps(dict(os.environ), indent=2))
 
     if not args.redis_url:
         raise AssertionError(
@@ -196,7 +223,7 @@ def main() -> None:
         [
             "qgis_server_light.worker.runner.render.RenderRunner",
             "qgis_server_light.worker.runner.feature.GetFeatureRunner",
-            "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
+            # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
         ],
         svg_paths=svg_paths,
     )
