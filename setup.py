@@ -19,7 +19,7 @@ if os.environ.get("WITH_WORKER", False):
     with open(os.path.join(here, "requirements.worker.txt")) as f:
         install_requires = install_requires + f.read().splitlines()
 
-    worker_files = {"qgis_server_light.worker": ["*.py"]}
+    worker_files = {"qgis_server_light.worker": ["**/*.py"]}
     worker_modules = [
         "qgis_server_light/worker/engine",
         "qgis_server_light/worker/image_utils",
@@ -30,7 +30,7 @@ if os.environ.get("WITH_WORKER", False):
     worker_packages = ["qgis_server_light.worker"]
     worker_scripts = ["redis_worker=qgis_server_light.worker.redis:main"]
 
-package_data = {"qgis_server_light.interface": ["*.py"]}
+package_data = {"qgis_server_light.interface": ["**/*.py"]}
 package_data.update(worker_files)
 
 setup(
@@ -56,10 +56,10 @@ setup(
     package_dir={"": "src"},
     package_data=package_data,
     py_modules=[
-        "qgis_server_light/interface/runner",
         "qgis_server_light/interface/dispatcher",
-        "qgis_server_light/interface/qgis",
         "qgis_server_light/interface/exporter",
+        "qgis_server_light/interface/job",
+        "qgis_server_light/interface/worker",
     ]
     + worker_modules,
     include_package_data=True,
