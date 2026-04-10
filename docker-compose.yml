@@ -14,6 +14,6 @@ services:
     deploy:
       replicas: ${QSL_REPLICAS}
   redis:
-    image: redis:7.4.0
+    image: redis:8.6.2
     ports:
       - "1234:6379"
