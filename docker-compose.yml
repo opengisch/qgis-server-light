@@ -1,15 +1,14 @@
 services:
   qgis-server-light:
-    image: opengisch/qgis-server-light-dev:latest
+    image: local/opengisch/qgis-server-light-dev:latest
     build:
       context: .
       dockerfile: ./Dockerfile
       target: dev
     restart: unless-stopped
-    command:
-      - "run-reload"
     environment:
       - "QSL_REDIS_URL=redis://redis"
+      - "QSL_DATA_ROOT=/app/tests/resources"
     volumes:
       - "./:/app"
     deploy:
