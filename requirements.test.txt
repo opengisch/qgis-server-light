@@ -1,1 +1,5 @@
 pytest
+pillow
+pixelmatch
+mypy
+pytest-cov

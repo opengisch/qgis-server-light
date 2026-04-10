@@ -1,7 +1,7 @@
 ## Run the worker locally
 
 !!! warning
-    Currently local development is tested only on Linux machines. We know, that **Windows or MacOS are *not*
+    Currently local development is tested only on Linux machines. We know, that **Windows or macOS are *not*
     working** with the approaches described here.
 
 This variant is meant to be used for development purpose. In any case you need a running redis

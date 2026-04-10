@@ -109,7 +109,7 @@ you need them. Remember, it's split into 3 parts:
 - worker ([requirements.worker.txt](requirements.worker.txt))
 
 In general its save to add dependencies to **exporter** and **worker** since they are used only in this project.
-The **interface** should have as less dependencies as possible and should implement only the minimal
+The **interface** should have as fewer dependencies as possible and should implement only the minimal
 understanding of items to be passed around with third party applications through redis. The main goal of all
 this is to keep the 3rd party application clean of heavy deps.
 

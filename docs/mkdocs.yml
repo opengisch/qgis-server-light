@@ -1,37 +1,53 @@
 site_name: QGIS-Server-Light
 docs_dir: src
 nav:
-  - index.md
+  - Overview: overview.md
   - General Idea: general_idea.md
   - Prerequisites: prerequisites.md
   - Usage of Worker:
-    - CLI: usage.worker.cli.md
-    - Local-DEV: usage.worker.local.md
-    - Docker-DEV: usage.worker.docker.md
+      - CLI: usage.worker.cli.md
+      - Local-DEV: usage.worker.local.md
+      - Docker-DEV: usage.worker.docker.md
   - Usage of Exporter: usage.exporter.md
-  - Usage of interface: usage.interface.md
+  - Usage of Interface: usage.interface.md
   - Dev the project: dev.md
   - ApiDoc:
-    - Interface: interface.md
-    - Worker: worker.md
-    - Exporter: exporter.md
+      - Interface: reference/
+      - Worker: worker.md
+      - Exporter: exporter.md
 theme:
   name: material
 plugins:
+  - search
   - autorefs
+  - gen-files:
+      scripts:
+        - scripts/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
   - mkdocstrings:
       default_handler: python
       handlers:
         python:
-          paths: [../src]
           options:
+            docstring_section_style: list
             show_submodules: true
             show_if_no_docstring: true
+            show_signature: true
+            show_signature_annotations: true
+            show_bases: true
+            show_root_heading: true
+            show_root_full_path: false
+            docstring_style: google  # optional
+
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
   - attr_list
+  - pymdownx.highlight:
+      default_lang: python
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg

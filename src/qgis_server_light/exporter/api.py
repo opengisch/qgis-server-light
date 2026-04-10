@@ -2,31 +2,27 @@ import logging
 import os
 import os.path as path
 
-from flask import Flask
-from flask import Response
-from flask import request
+from flask import Flask, Response, request
 from qgis.core import QgsApplication
 from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers.config import ParserConfig
-from xsdata.formats.dataclass.serializers import JsonSerializer
-from xsdata.formats.dataclass.serializers import XmlSerializer
+from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
-from qgis_server_light.exporter.extract import extract
-from qgis_server_light.interface.exporter import ExportParameters
-from qgis_server_light.interface.exporter import ExportResult
+from qgis_server_light.exporter.common import create_full_pg_service_conf
+from qgis_server_light.exporter.extract import Exporter
+from qgis_server_light.interface.exporter.api import ExportParameters, ExportResult
 
 allowed_output_formats = ("json", "xml")
 allowed_extensions = ("qgz", "qgs")
-
-app = Flask(__name__)
-
 
 # init QGIS
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath("/usr", True)
 qgs = QgsApplication([], False)
 qgs.initQgis()
+
+app = Flask(__name__)
 
 
 @app.route("/export", methods=["POST"])
@@ -57,17 +53,23 @@ def api_export():
     print(f"project_file: {project_file}")
 
     # output format
-    if not parameters.output_format.lower() in allowed_output_formats:
+    if parameters.output_format.lower() not in allowed_output_formats:
         raise NotImplementedError(
-            f'Allowed output formats are: {"|".join(allowed_output_formats)} not => {parameters.output_format}'
+            f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {parameters.output_format}"
         )
     output_format = parameters.output_format.lower()
 
-    # extract
-    config = extract(
-        path_to_project=project_file,
-        unify_layer_names_by_group=bool(parameters.unify_layer_names_by_group),
+    full_pg_service_config = Exporter.merge_dicts(
+        create_full_pg_service_conf(), parameters.pg_service_configs_dict
     )
+
+    # extract
+    exporter = Exporter(
+        qgis_project_path=project_file,
+        unify_layer_names_by_group=bool(parameters.unify_layer_names_by_group),
+        pg_service_configs=full_pg_service_config,
+    )
+    config = exporter.run()
     result = ExportResult(successful=False)
 
     content = None
@@ -93,8 +95,10 @@ def api_export():
 
 if __name__ == "__main__":
     data_path = os.environ.get("QSL_DATA_ROOT", None)
+    exporter_host = os.environ.get("QSL_EXPORTER_API_HOST", "127.0.0.1")
+    exporter_port = int(os.environ.get("QSL_EXPORTER_API_PORT", 5000))
     if data_path is None:
         raise RuntimeError(
             "Mandatory 'QSL_DATA_ROOT' does not exist in the environment."
         )
-    app.run(host="0.0.0.0", debug=True, threaded=False)
+    app.run(host=exporter_host, debug=True, threaded=False, port=exporter_port)
