@@ -16,23 +16,13 @@ from qgis_server_light.interface.worker.info import (
     QgisInfo,
     Status,
 )
-from qgis_server_light.worker.qgis import Qgis, available_qgis_providers, qgis_version
+from qgis_server_light.worker.qgis import Qgis, version, version_name
 from qgis_server_light.worker.runner.common import JobContext, Runner
-from qgis_server_light.worker.runner.feature import GetFeatureRunner
-from qgis_server_light.worker.runner.feature_info import GetFeatureInfoRunner
-from qgis_server_light.worker.runner.render import RenderRunner
 
 
 @dataclass
 class EngineContext:
     base_path: Union[str, pathlib.Path]
-
-
-_default_available_runners = {
-    "qgis_server_light.worker.runner.render.RenderRunner": RenderRunner,
-    "qgis_server_light.worker.runner.feature.GetFeatureRunner": GetFeatureRunner,
-    "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner": GetFeatureInfoRunner,
-}
 
 
 class Engine(ABC):
@@ -47,12 +37,12 @@ class Engine(ABC):
         self.context = context
         self.layer_cache: dict[Any, Any] = {}
         self.available_runner_classes: dict[str, Type[Runner]] = {}
-        self.available_runner_classes_by_job_info: dict[
-            Type[QslJobInfoParameter], Type[Runner]
-        ] = {}
+        self.available_runner_classes_by_job_info: dict[str, Type[Runner]] = {}
         self.available_job_info_classes: dict[str, Type[QslJobInfoParameter]] = {}
         self._load_runner_plugins(runner_plugins)
-        self.qgis_providers = available_qgis_providers()
+        logging.debug(self.available_runner_classes)
+        logging.debug(self.available_runner_classes_by_job_info)
+        logging.debug(self.available_job_info_classes)
         self.info = self._initialize_infos()
 
     def __del__(self):
@@ -60,23 +50,18 @@ class Engine(ABC):
 
     def _load_runner_plugins(self, worker_plugins: list[str]):
         for path in worker_plugins:
-            if path in _default_available_runners:
-                logging.info(
-                    f"The runner with key {path} is a default runner, using this one..."
-                )
-                loaded_class = _default_available_runners[path]
-            else:
-                loaded_class = self._load_runner_class(path)
-            self.available_runner_classes[path] = loaded_class
-            self.available_runner_classes_by_job_info[loaded_class.job_info_class] = (
-                loaded_class
-            )
-            self.available_job_info_classes[loaded_class.job_info_class.__name__] = (
-                loaded_class.job_info_class
-            )
+            loaded_class = self._load_runner_class(path)
+            if loaded_class is not None:
+                self.available_runner_classes[path] = loaded_class
+                self.available_runner_classes_by_job_info[
+                    loaded_class.job_info_class.__name__
+                ] = loaded_class
+                self.available_job_info_classes[
+                    loaded_class.job_info_class.__name__
+                ] = loaded_class.job_info_class
 
     @staticmethod
-    def _load_runner_class(path: str) -> Type[Runner]:
+    def _load_runner_class(path: str) -> Type[Runner] | None:
         """
         Loads a class dynamically at runtime, like:
         "mypackage.mymodule.MyClass"
@@ -102,21 +87,15 @@ class Engine(ABC):
         return cls
 
     def _initialize_infos(self):
-        runner_infos = []
-        for runner_key in self.available_runner_classes:
-            runner_infos.append(
-                self.available_runner_classes[runner_key].info(self.qgis)
-            )
         worker_info = EngineInfo(
             id=str(uuid.uuid4()),
             qgis_info=QgisInfo(
-                version=qgis_version(),
+                version=version(),
+                version_name=version_name(),
                 path=self.qgis.prefixPath(),
-                providers=self.qgis_providers,
             ),
             status=Status.STARTING,
             started=datetime.datetime.now().timestamp(),
-            runner_infos=runner_infos,
         )
         logging.debug(json.dumps(asdict(worker_info), indent=2))
         return worker_info
@@ -133,7 +112,9 @@ class Engine(ABC):
             The selected runner class
         """
         try:
-            return self.available_runner_classes_by_job_info[job_info.__class__]
+            return self.available_runner_classes_by_job_info[
+                job_info.__class__.__name__
+            ]
         except KeyError:
             raise RuntimeError(f"Type {type(job_info)} not supported")
 

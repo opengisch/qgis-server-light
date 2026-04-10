@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
-    Qgis,
     QgsApplication,
     QgsFeatureRequest,
     QgsMapLayer,
@@ -23,7 +22,6 @@ from qgis_server_light.interface.job.feature.output import (
     Geometry,
     QueryCollection,
 )
-from qgis_server_light.interface.worker.info import Features
 from qgis_server_light.worker.qgis_type_serializer import register_converters_at_runtime
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
@@ -123,7 +121,3 @@ class GetFeatureRunner(MapRunner):
                 data=data,
                 content_type="application/qgis-server-light.interface.qgis.QueryCollection",
             )
-
-    @classmethod
-    def info(cls, qgis: Qgis) -> Features:
-        return Features()

@@ -3,7 +3,7 @@ import os
 from typing import List, Optional
 
 from qgis.core import Qgis as Qgis_
-from qgis.core import QgsApplication, QgsCredentials, QgsProviderRegistry
+from qgis.core import QgsApplication, QgsCredentials
 
 
 class CredentialsHelper(QgsCredentials):
@@ -44,9 +44,9 @@ def Qgis(svg_paths: Optional[List[str]], log_level):
     return qgs
 
 
-def available_qgis_providers() -> list[str]:
-    return QgsProviderRegistry.instance().pluginList().split("\n")
+def version() -> int:
+    return Qgis_.versionInt()
 
 
-def qgis_version() -> str:
+def version_name() -> str:
     return Qgis_.version()

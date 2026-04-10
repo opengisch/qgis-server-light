@@ -53,7 +53,7 @@ class RedisQueue:
         self.client = redis_client
 
     @classmethod
-    async def create(cls, url: str):
+    def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
 
@@ -114,7 +114,14 @@ class RedisQueue:
                 id=job_id, type=QslJobInfoFeature.__name__, job=job_parameter
             )
         else:
-            raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
+            return (
+                JobResult(
+                    id=job_id,
+                    data=f"Unsupported runner type: {type(job_parameter)}",
+                    content_type="application/text",
+                ),
+                Status.FAILURE.value,
+            )
         async with self.client.pipeline() as p:
             # Putting job info into redis
             await p.hset(

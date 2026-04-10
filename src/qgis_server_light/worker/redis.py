@@ -4,11 +4,14 @@ import logging
 import math
 import pickle
 import signal
+import socket
 import time
 from typing import List, Optional
 
-import redis
+from redis.backoff import ExponentialBackoff
 from redis.client import Pipeline, Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.retry import Retry
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
@@ -93,16 +96,20 @@ class RedisEngine(Engine):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
         self.retry_handling_with_jitter(count)
 
-    def start(self, redis_url) -> redis.Redis:
+    def start(self, redis_url) -> Redis:
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
-        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        r = Redis.from_url(
+            redis_url, decode_responses=True, retry=Retry(ExponentialBackoff(), 0)
+        )
         retry_count = 0
         while True:
             try:
                 retry_count += 1
+                logging.debug(f"Looking up redis: {redis_url}")
                 r.ping()
-            except redis.exceptions.ConnectionError:
+            except RedisConnectionError as e:
+                logging.debug(f"Connection on Redis not successful => {e}")
                 self.retry_connection(redis_url, retry_count)
             else:
                 break
@@ -111,7 +118,6 @@ class RedisEngine(Engine):
 
     def run(self, redis_url):
         r = self.start(redis_url)
-        logging.info(time.time() - self.boot_start)
         p = r.pipeline()
         expire_limit = self.info_expire * 0.95
         retry_count = 0
@@ -133,7 +139,7 @@ class RedisEngine(Engine):
                     continue
                 else:
                     _, job_id = result
-            except redis.exceptions.ConnectionError:
+            except RedisConnectionError:
                 retry_count += 1
                 self.retry_connection(redis_url, retry_count)
                 continue
@@ -148,7 +154,9 @@ class RedisEngine(Engine):
                 )
                 job_info_class = self.available_job_info_classes[job_info_class_name]
                 job_info = JsonParser().from_string(job_info_json, job_info_class)
-                result = self.process(job_info)
+                result: JobResult = self.process(job_info)
+                result.worker_id = self.info.id
+                result.worker_host_name = socket.gethostname()
                 data = pickle.dumps(result)
 
                 # we inform, that the job was finished successful
@@ -160,6 +168,8 @@ class RedisEngine(Engine):
             except Exception as e:
                 # preparation of the result, containing error information
                 result = JobResult(id=job_id, data=str(e), content_type="text")
+                result.worker_id = self.info.id
+                result.worker_host_name = socket.gethostname()
                 data = pickle.dumps(result)
 
                 # we inform, that the job has failed with errors
@@ -199,7 +209,8 @@ def main() -> None:
     parser.add_argument(
         "--svg-path",
         type=str,
-        help=f"Absolute path to additional svg files. Multiple paths can be separated by `:`. Defaults to {DEFAULT_SVG_PATH}",
+        help=f"Absolute path to additional svg files. Multiple paths "
+        f"can be separated by `:`. Defaults to {DEFAULT_SVG_PATH}",
         default=DEFAULT_SVG_PATH,
     )
 
@@ -209,12 +220,10 @@ def main() -> None:
         level=args.log_level.upper(), format="%(asctime)s [%(levelname)s] %(message)s"
     )
 
-    # log = logging.getLogger(__name__)
-    # log.info(json.dumps(dict(os.environ), indent=2))
-
     if not args.redis_url:
         raise AssertionError(
-            "no redis host specified: start qgis-server-light with '--redis-url <QSL_REDIS_URL>'"
+            "no redis host specified: start qgis-server-light "
+            "with '--redis-url <QSL_REDIS_URL>'"
         )
 
     svg_paths = args.svg_path.split(":")
@@ -223,6 +232,7 @@ def main() -> None:
         [
             "qgis_server_light.worker.runner.render.RenderRunner",
             "qgis_server_light.worker.runner.feature.GetFeatureRunner",
+            # Not fully functional yet
             # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
         ],
         svg_paths=svg_paths,

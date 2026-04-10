@@ -4,12 +4,11 @@ from typing import Dict, Optional, Tuple
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from PyQt5.QtCore import QBuffer, QByteArray, QEventLoop, QIODevice
 from PyQt5.QtGui import QImage
-from qgis.core import Qgis, QgsApplication, QgsMapRendererParallelJob
+from qgis.core import QgsApplication, QgsMapRendererParallelJob
 from qgis.server import QgsFeatureFilter, QgsFeatureFilterProviderGroup
 
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.render.input import QslJobInfoRender
-from qgis_server_light.interface.worker.info import Render
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
@@ -93,7 +92,3 @@ class RenderRunner(MapRunner):
         buf.open(QIODevice.WriteOnly)
         image.save(buf, "JPG")
         return image_data
-
-    @classmethod
-    def info(cls, qgis: Qgis) -> Render:
-        return Render(formats=list(cls.image_formats().keys()))

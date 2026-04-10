@@ -13,7 +13,6 @@ from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
-    Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsExpressionContext,
@@ -42,7 +41,7 @@ class JobContext:
 
 
 class Runner(ABC):
-    job_info_class: Type[QslJobInfoParameter] | None = None
+    job_info_class: Type[QslJobInfoParameter]
 
     def __init__(
         self,
@@ -61,11 +60,6 @@ class Runner(ABC):
     @classmethod
     def deserialize_job_info(cls, job_info: bytes):
         return JsonParser().from_bytes(job_info, cls.job_info_class)
-
-    @classmethod
-    def info(cls, qgis: Qgis):
-        # This is an abstract base class which is not runnable itself
-        raise NotImplementedError()
 
 
 class MapRunner(Runner):

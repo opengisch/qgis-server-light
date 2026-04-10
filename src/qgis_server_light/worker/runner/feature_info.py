@@ -2,7 +2,6 @@ import json
 from typing import Dict, Optional, OrderedDict
 
 from qgis.core import (
-    Qgis,
     QgsApplication,
     QgsFeatureRequest,
     QgsMapLayerType,
@@ -14,7 +13,6 @@ from qgis.PyQt.QtCore import NULL
 
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.feature_info.input import QslJobInfoFeatureInfo
-from qgis_server_light.interface.worker.info import FeatureInfo
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
@@ -98,7 +96,3 @@ class GetFeatureInfoRunner(MapRunner):
             data=json.dumps(featurecollection).encode("utf-8"),
             content_type="application/json",
         )
-
-    @classmethod
-    def info(cls, qgis: Qgis) -> FeatureInfo:
-        return FeatureInfo()

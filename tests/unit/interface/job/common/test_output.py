@@ -10,6 +10,12 @@ class TestJobResult(DataclassTest):
         ("id", str),
         ("data", Any),
         ("content_type", str),
+        ("worker_id", str | None),
+        ("worker_host_name", str | None),
+    ]
+    field_defaults = [
+        ("worker_id", None),
+        ("worker_host_name", None),
     ]
     dataclass_to_test = JobResult
 

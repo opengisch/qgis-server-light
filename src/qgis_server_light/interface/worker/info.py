@@ -4,8 +4,6 @@ capabilities."""
 from dataclasses import dataclass, field
 from enum import Enum
 
-from qgis_server_light.interface.common import BaseInterface
-
 
 class Status(str, Enum):
     STARTING = "starting"
@@ -15,72 +13,21 @@ class Status(str, Enum):
 
 
 @dataclass
-class Render:
-    formats: list[str] = field(metadata={"type": "Element"})
-
-
-@dataclass
-class Features:
-    pass
-
-
-@dataclass
-class FeatureInfo:
-    pass
-
-
-@dataclass
-class Legend:
-    pass
-
-
-@dataclass
-class Parameter(BaseInterface):
-    name: str = field(metadata={"type": "Element"})
-    type: str = field(metadata={"type": "Element"})
-    description: str | None = field(default=None, metadata={"type": "Element"})
-
-    @property
-    def shortened_fields(self) -> set:
-        return {"description"}
-
-
-@dataclass
-class Output(BaseInterface):
-    name: str = field(metadata={"type": "Element"})
-    type: str = field(metadata={"type": "Element"})
-    description: str | None = field(default=None, metadata={"type": "Element"})
-
-    @property
-    def shortened_fields(self) -> set:
-        return {"description"}
-
-
-@dataclass
-class Algorithm:
-    id: str = field(metadata={"type": "Element"})
-    name: str = field(metadata={"type": "Element"})
-    display_name: str = field(metadata={"type": "Element"})
-    help_string: str | None = field(default=None, metadata={"type": "Element"})
-    parameters: list[Parameter] = field(
-        default_factory=list, metadata={"type": "Element"}
-    )
-    outputs: list[Output] = field(default_factory=list, metadata={"type": "Element"})
-
-
-@dataclass
-class Process:
-    # uniqueness is not assured here!
-    algorithms: list[Algorithm] = field(
-        default_factory=list, metadata={"type": "Element"}
-    )
-
-
-@dataclass
 class QgisInfo:
-    version: str = field(metadata={"type": "Element"})
+    """
+    Information container to ship minimal knowledge of the underlying
+    QGIS.
+
+    Attributes:
+        version: The integer representation of the QGIS version e.g. 34400
+        version_name: The string representation which also includes the codename e.g.
+            "QGIS Version 4.0.0-Norrköping"
+
+    """
+
+    version: int = field(metadata={"type": "Element"})
+    version_name: str = field(metadata={"type": "Element"})
     path: str = field(metadata={"type": "Element"})
-    providers: list[str] = field(metadata={"type": "Element"})
 
 
 @dataclass
@@ -89,8 +36,3 @@ class EngineInfo:
     qgis_info: QgisInfo = field(metadata={"type": "Element"})
     status: Status = field(metadata={"type": "Element"})
     started: float = field(metadata={"type": "Element"})
-    # TODO: Add version once we know how
-    # version: str = field(metadata={"type": "Element"})
-    runner_infos: list[Render | FeatureInfo | Features | Process | Legend] = field(
-        default_factory=list, metadata={"type": "Element"}
-    )
