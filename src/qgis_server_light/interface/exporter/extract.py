@@ -638,3 +638,51 @@ class Config(BaseInterface):
     meta_data: MetaData = field(metadata={"type": "Element"})
     tree: Tree = field(metadata={"type": "Element"})
     datasets: Datasets = field(metadata={"type": "Element"})
+
+
+@dataclass
+class Parameter(BaseInterface):
+    name: str = field(metadata={"type": "Element"})
+    type: str = field(metadata={"type": "Element"})
+    schema: dict = field(metadata={"type": "Attributes"})
+    optional: bool = field(metadata={"type": "Element"})
+    default: str | int | float | bool = field(
+        metadata={"type": "Element"}, default=None
+    )
+    description: str | None = field(default=None, metadata={"type": "Element"})
+
+    @property
+    def shortened_fields(self) -> set:
+        return {"description"}
+
+
+@dataclass
+class Output(BaseInterface):
+    name: str = field(metadata={"type": "Element"})
+    type: str = field(metadata={"type": "Element"})
+    schema: dict = field(metadata={"type": "Attributes"})
+    description: str | None = field(default=None, metadata={"type": "Element"})
+
+    @property
+    def shortened_fields(self) -> set:
+        return {"description"}
+
+
+@dataclass
+class Algorithm:
+    id: str = field(metadata={"type": "Element"})
+    name: str = field(metadata={"type": "Element"})
+    display_name: str = field(metadata={"type": "Element"})
+    help_string: str | None = field(default=None, metadata={"type": "Element"})
+    parameters: list[Parameter] = field(
+        default_factory=list, metadata={"type": "Element"}
+    )
+    outputs: list[Output] = field(default_factory=list, metadata={"type": "Element"})
+
+
+@dataclass
+class Process:
+    # uniqueness is not assured here!
+    algorithms: list[Algorithm] = field(
+        default_factory=list, metadata={"type": "Element"}
+    )

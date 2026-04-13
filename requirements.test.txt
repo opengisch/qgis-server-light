@@ -3,3 +3,4 @@ pillow
 pixelmatch
 mypy
 pytest-cov
+pillow
