@@ -2,12 +2,15 @@ import logging
 import os.path
 
 import click
+from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import QgsApplication
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.exceptions import ExportFailure
 from qgis_server_light.exporter.extract import Exporter
+from qgis_server_light.interface.exporter.extract import Process
+from qgis_server_light.worker.runner.process import algorithm_from_qgs_definition
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath("/usr", True)
@@ -97,6 +100,29 @@ def export(
         raise click.exceptions.Exit(code=err.EXIT_CODE) from err
     else:
         click.echo(serializer.render(config))
+
+
+@cli.command("export-processes")
+def export_processes():
+    serializer_config = SerializerConfig(indent="  ")
+    registry = qgs.processingRegistry()
+    registry.addProvider(QgsNativeAlgorithms())
+    process = Process(
+        algorithms=[
+            algorithm_from_qgs_definition(registry.algorithmById(alg))
+            for alg in [
+                "native:buffer",
+                "native:centroids",
+                "native:concavehull",
+                "native:rasterlayerproperties",
+                "native:rescaleraster",
+                "native:collect",
+                "native:rasterize",
+                "native:affinetransform",
+            ]
+        ]
+    )
+    click.echo(JsonSerializer(config=serializer_config).render(process))
 
 
 if __name__ == "__main__":
