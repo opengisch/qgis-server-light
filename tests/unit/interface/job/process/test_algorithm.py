@@ -1,5 +1,3 @@
-import logging
-
 from qgis.analysis import QgsNativeAlgorithms
 
 from qgis_server_light.interface.exporter.extract import Algorithm, Output, Parameter
@@ -9,7 +7,7 @@ from qgis_server_light.worker.runner.process import algorithm_from_qgs_definitio
 def test_some_algorithms(qgis_app):
     registry = qgis_app.processingRegistry()
     registry.addProvider(QgsNativeAlgorithms())
-    for alg in [
+    for alg_name in [
         "native:buffer",
         "native:centroids",
         "native:concavehull",
@@ -19,8 +17,9 @@ def test_some_algorithms(qgis_app):
         "native:rasterize",
         "native:affinetransform",
     ]:
-        logging.debug(alg)
-        algorithm_from_qgs_definition(registry.algorithmById(alg))
+        algorithm = registry.algorithmById(alg_name)
+        assert algorithm is not None, alg_name
+        algorithm_from_qgs_definition(algorithm)
 
 
 def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
@@ -41,6 +40,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Input layer",
                 type="source",
                 schema={"type": "string"},
+                classname="QgsProcessingParameterFeatureSource",
                 optional=False,
                 default=None,
             ),
@@ -49,6 +49,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Distance",
                 type="distance",
                 schema={"type": "number"},
+                classname="QgsProcessingParameterNumber",
                 optional=False,
                 default=10,
             ),
@@ -57,6 +58,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Segments",
                 type="number",
                 schema={"type": "integer", "minimum": 1.0},
+                classname="QgsProcessingParameterNumber",
                 optional=False,
                 default=5,
             ),
@@ -65,6 +67,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="End cap style",
                 type="enum",
                 schema={"type": "string", "enum": ["Round", "Flat", "Square"]},
+                classname="QgsProcessingParameterEnum",
                 optional=False,
                 default=0,
             ),
@@ -73,6 +76,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Join style",
                 type="enum",
                 schema={"type": "string", "enum": ["Round", "Miter", "Bevel"]},
+                classname="QgsProcessingParameterEnum",
                 optional=False,
                 default=0,
             ),
@@ -81,6 +85,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Miter limit",
                 type="number",
                 schema={"type": "number", "minimum": 1.0},
+                classname="QgsProcessingParameterNumber",
                 optional=False,
                 default=2,
             ),
@@ -89,6 +94,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Dissolve result",
                 type="boolean",
                 schema={"type": "boolean"},
+                classname="QgsProcessingParameterBoolean",
                 optional=False,
                 default=False,
             ),
@@ -97,6 +103,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Keep disjoint results separate",
                 type="boolean",
                 schema={"type": "boolean"},
+                classname="QgsProcessingParameterBoolean",
                 optional=False,
                 default=False,
             ),
@@ -104,8 +111,10 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 name="OUTPUT",
                 type="sink",
                 schema={"type": "string"},
+                classname="QgsProcessingDestinationParameter",
                 optional=False,
                 description="Buffered",
+                default=None,
             ),
         ],
         outputs=[
@@ -114,6 +123,7 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
                 description="Buffered",
                 type="outputVector",
                 schema={"type": "string"},
+                classname="QgsProcessingOutputVectorLayer",
             )
         ],
     )
