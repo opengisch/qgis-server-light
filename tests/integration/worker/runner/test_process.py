@@ -36,7 +36,7 @@ class TestProcessRunnerIntegration:
     )
     def test_execute_buffer(self, qgis_app, data_path, job_layer):
         job_id = str(uuid.uuid4())
-        output_layer_path = f"{data_path}/process_output/{job_id}/Buffered.gpkg"
+        output_layer_path = f"{data_path}/.process_output/{job_id}/Buffered.geojson"
         Path(output_layer_path).parent.mkdir(parents=True)
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
@@ -87,7 +87,7 @@ class TestProcessRunnerIntegration:
     )
     def test_execute_centroids(self, qgis_app, data_path, job_layer):
         job_id = str(uuid.uuid4())
-        output_layer_path = f"{data_path}/process_output/{job_id}/Centroids.gpkg"
+        output_layer_path = f"{data_path}/.process_output/{job_id}/Centroids.geojson"
         Path(output_layer_path).parent.mkdir(parents=True)
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
