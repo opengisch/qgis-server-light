@@ -8,9 +8,12 @@ from qgis.core import (
     QgsApplication,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
+    QgsProcessingDestinationParameter,
     QgsProcessingFeedback,
     QgsProcessingOutputBoolean,
     QgsProcessingOutputDefinition,
+    QgsProcessingOutputFile,
+    QgsProcessingOutputHtml,
     QgsProcessingOutputMapLayer,
     QgsProcessingOutputNumber,
     QgsProcessingOutputPointCloudLayer,
@@ -20,18 +23,22 @@ from qgis.core import (
     QgsProcessingOutputVectorTileLayer,
     QgsProcessingParameterBand,
     QgsProcessingParameterBoolean,
+    QgsProcessingParameterCrs,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterEnum,
+    QgsProcessingParameterExpression,
     QgsProcessingParameterExtent,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterField,
+    QgsProcessingParameterFile,
+    QgsProcessingParameterLayout,
     QgsProcessingParameterMapTheme,
     QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterNumber,
-    QgsProcessingParameterRasterDestination,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterString,
+    QgsProcessingParameterVectorLayer,
 )
 
 from qgis_server_light.interface.exporter.extract import (
@@ -51,22 +58,35 @@ from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Parameter:
     if isinstance(param, QgsProcessingParameterFeatureSource):
+        classname = "QgsProcessingParameterFeatureSource"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingParameterVectorLayer):
+        classname = "QgsProcessingParameterVectorLayer"
         schema = {"type": "string"}
     elif isinstance(param, QgsProcessingParameterRasterLayer):
+        classname = "QgsProcessingParameterRasterLayer"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingParameterFile):
+        classname = "QgsProcessingParameterFile"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingDestinationParameter):
+        classname = "QgsProcessingDestinationParameter"
         schema = {"type": "string"}
     elif isinstance(param, QgsProcessingParameterFeatureSink):
+        classname = "QgsProcessingParameterFeatureSink"
         schema = {"type": "string"}
     elif isinstance(param, QgsProcessingParameterMultipleLayers):
+        classname = "QgsProcessingParameterMultipleLayers"
         schema = {"type": "array", "items": {"type": "string"}}
         if (min_items := param.minimumNumberInputs()) >= 1:
             schema["minItems"] = min_items
-    elif isinstance(param, QgsProcessingParameterRasterDestination):
-        schema = {"type": "string"}
     elif isinstance(param, QgsProcessingParameterBand):
+        classname = "QgsProcessingParameterBand"
         schema = {"type": "integer", "minimum": 1}
         if param.allowMultiple():
             schema = {"type": "array", "minItems": 1, "items": schema}
     elif isinstance(param, QgsProcessingParameterNumber):
+        classname = "QgsProcessingParameterNumber"
         match param.dataType():
             case Qgis.ProcessingNumberParameterType.Double:
                 schema = {"type": "number"}
@@ -77,16 +97,30 @@ def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Pa
         if (minimum := param.minimum()) > sys.float_info.min:
             schema["minimum"] = minimum
     elif isinstance(param, QgsProcessingParameterString):
+        classname = "QgsProcessingParameterString"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingParameterExpression):
+        classname = "QgsProcessingParameterExpression"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingParameterCrs):
+        classname = "QgsProcessingParameterCrs"
+        schema = {"type": "string"}
+    elif isinstance(param, QgsProcessingParameterLayout):
+        classname = "QgsProcessingParameterLayout"
         schema = {"type": "string"}
     elif isinstance(param, QgsProcessingParameterField):
+        classname = "QgsProcessingParameterField"
         schema = {"type": "string"}
         if param.allowMultiple():
             schema = {"type": "array", "minItems": 1, "items": schema}
     elif isinstance(param, QgsProcessingParameterEnum):
+        classname = "QgsProcessingParameterEnum"
         schema = {"type": "string", "enum": param.options()}
     elif isinstance(param, QgsProcessingParameterBoolean):
+        classname = "QgsProcessingParameterBoolean"
         schema = {"type": "boolean"}
     elif isinstance(param, QgsProcessingParameterExtent):
+        classname = "QgsProcessingParameterExtent"
         schema = {
             "oneOf": [
                 {
@@ -104,15 +138,17 @@ def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Pa
             ]
         }
     elif isinstance(param, QgsProcessingParameterMapTheme):
+        classname = "QgsProcessingParameterMapTheme"
         schema = {"type": "string"}
     else:
-        print(f"parameter: {param}")
-        raise NotImplementedError(f"parameter: {param}")
+        logging.error(f"invalid parameter: {param.name()}, {param.type()}, {param}")
+        raise ValueError(f"parameter: {param}")
 
     return Parameter(
         name=param.name(),
         type=param.type(),
         description=param.description(),
+        classname=classname,
         schema=schema,
         optional=bool(param.flags() & Qgis.ProcessingParameterFlag.Optional),
         default=param.defaultValue(),
@@ -120,31 +156,45 @@ def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Pa
 
 
 def output_from_qgs_definition(output: QgsProcessingOutputDefinition) -> Output:
-    if isinstance(
-        output,
-        (
-            QgsProcessingOutputMapLayer,
-            QgsProcessingOutputPointCloudLayer,
-            QgsProcessingOutputRasterLayer,
-            QgsProcessingOutputVectorLayer,
-            QgsProcessingOutputVectorTileLayer,
-        ),
-    ):
+    if isinstance(output, QgsProcessingOutputMapLayer):
+        classname = "QgsProcessingOutputMapLayer"
         schema = {"type": "string"}
+    elif isinstance(output, QgsProcessingOutputPointCloudLayer):
+        classname = "QgsProcessingOutputPointCloudLayer"
+        schema = {"type": "string"}
+    elif isinstance(output, QgsProcessingOutputRasterLayer):
+        classname = "QgsProcessingOutputRasterLayer"
+        schema = {"type": "string"}
+    elif isinstance(output, QgsProcessingOutputVectorLayer):
+        classname = "QgsProcessingOutputVectorLayer"
+        schema = {"type": "string"}
+    elif isinstance(output, QgsProcessingOutputVectorTileLayer):
+        classname = "QgsProcessingOutputVectorTileLayer"
+        schema = {"type": "string"}
+    elif isinstance(output, QgsProcessingOutputFile):
+        classname = "QgsProcessingOutputFile"
+        schema = {"type": "number"}
+    elif isinstance(output, QgsProcessingOutputHtml):
+        classname = "QgsProcessingOutputHtml"
+        schema = {"type": "number"}
     elif isinstance(output, QgsProcessingOutputNumber):
+        classname = "QgsProcessingOutputNumber"
         schema = {"type": "number"}
     elif isinstance(output, QgsProcessingOutputString):
+        classname = "QgsProcessingOutputString"
         schema = {"type": "string"}
     elif isinstance(output, QgsProcessingOutputBoolean):
+        classname = "QgsProcessingOutputBoolean"
         schema = {"type": "boolean"}
     else:
-        print(f"output: {output}")
-        raise NotImplementedError(f"output: {output}")
+        logging.error(f"invalid output: {output.name()}, {output.type()}, {output}")
+        raise ValueError(f"output: {output}")
     return Output(
         name=output.name(),
         type=output.type(),
         description=output.description(),
         schema=schema,
+        classname=classname,
     )
 
 
@@ -208,30 +258,6 @@ class ProcessRunner(MapRunner):
         context = QgsProcessingContext()
         feedback = QgsProcessingFeedback()
         result, ok = algorithm.run(parameters, context, feedback)
-        for foo in result.items():
-            logging.info(foo)
-
-        # for output in algorithm.outputDefinitions():
-        #     if isinstance(
-        #         output,
-        #         (QgsProcessingOutputRasterLayer, QgsProcessingOutputVectorLayer),
-        #     ):
-        #         output_path = Path(self.context.base_path) / self.job_info.id
-        #         output_path.mkdir(parents=True, exist_ok=True)
-        #         layer_name = result[output.name()]
-
-        #         suffix = (
-        #             ".tif"
-        #             if isinstance(output, QgsProcessingOutputRasterLayer)
-        #             else ".gpkg"
-        #         )
-        #         output_filename = Path(layer_name).with_suffix(suffix)
-        #         target_path = output_path / output_filename
-
-        #         layer = context.getMapLayer(layer_name)
-        #         logging.info(layer)
-
-        #         result[output.name()] = str(target_path)
 
         return JobResult(
             id=self.job_info.id,

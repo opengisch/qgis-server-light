@@ -646,10 +646,9 @@ class Parameter(BaseInterface):
     type: str = field(metadata={"type": "Element"})
     schema: dict = field(metadata={"type": "Attributes"})
     optional: bool = field(metadata={"type": "Element"})
-    default: str | int | float | bool = field(
-        metadata={"type": "Element"}, default=None
-    )
-    description: str | None = field(default=None, metadata={"type": "Element"})
+    default: str | int | float | bool = field(metadata={"type": "Element"})
+    description: str = field(metadata={"type": "Element"})
+    classname: str = field(metadata={"type": "Element"})
 
     @property
     def shortened_fields(self) -> set:
@@ -661,7 +660,8 @@ class Output(BaseInterface):
     name: str = field(metadata={"type": "Element"})
     type: str = field(metadata={"type": "Element"})
     schema: dict = field(metadata={"type": "Attributes"})
-    description: str | None = field(default=None, metadata={"type": "Element"})
+    description: str = field(metadata={"type": "Element"})
+    classname: str = field(metadata={"type": "Element"})
 
     @property
     def shortened_fields(self) -> set:
