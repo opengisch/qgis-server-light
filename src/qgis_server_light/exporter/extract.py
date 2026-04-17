@@ -27,18 +27,15 @@ from qgis.core import (
     QgsMeshLayer,
     QgsPointCloudLayer,
     QgsProcessingAlgorithm,
-    QgsProcessingDestinationParameter,
     QgsProcessingOutputBoolean,
     QgsProcessingOutputDefinition,
     QgsProcessingOutputFile,
     QgsProcessingOutputHtml,
     QgsProcessingOutputMapLayer,
     QgsProcessingOutputNumber,
-    QgsProcessingOutputPointCloudLayer,
     QgsProcessingOutputRasterLayer,
     QgsProcessingOutputString,
     QgsProcessingOutputVectorLayer,
-    QgsProcessingOutputVectorTileLayer,
     QgsProcessingParameterBand,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterCrs,
@@ -54,8 +51,10 @@ from qgis.core import (
     QgsProcessingParameterMapTheme,
     QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterNumber,
+    QgsProcessingParameterRasterDestination,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterString,
+    QgsProcessingParameterVectorDestination,
     QgsProcessingParameterVectorLayer,
     QgsProject,
     QgsProviderRegistry,
@@ -83,6 +82,23 @@ from qgis_server_light.interface.exporter.extract import (
     Output,
     Parameter,
     PostgresSource,
+    ProcessingParameterTypeBand,
+    ProcessingParameterTypeBoolean,
+    ProcessingParameterTypeCrs,
+    ProcessingParameterTypeEnum,
+    ProcessingParameterTypeExpression,
+    ProcessingParameterTypeExtent,
+    ProcessingParameterTypeField,
+    ProcessingParameterTypeFile,
+    ProcessingParameterTypeFloat,
+    ProcessingParameterTypeInt,
+    ProcessingParameterTypeLayout,
+    ProcessingParameterTypeMapLayer,
+    ProcessingParameterTypeMapTheme,
+    ProcessingParameterTypeMultipleLayers,
+    ProcessingParameterTypeRasterLayer,
+    ProcessingParameterTypeString,
+    ProcessingParameterTypeVectorLayer,
     Project,
     Raster,
     Service,
@@ -997,145 +1013,121 @@ class Exporter:
         return style_list
 
 
-def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Parameter:
+def parameter_type_from_qgs_definition(
+    param: QgsProcessingParameterDefinition,
+) -> Parameter:
     if isinstance(param, QgsProcessingParameterFeatureSource):
-        classname = "QgsProcessingParameterFeatureSource"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterVectorLayer):
-        classname = "QgsProcessingParameterVectorLayer"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterRasterLayer):
-        classname = "QgsProcessingParameterRasterLayer"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterFile):
-        classname = "QgsProcessingParameterFile"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingDestinationParameter):
-        classname = "QgsProcessingDestinationParameter"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterFeatureSink):
-        classname = "QgsProcessingParameterFeatureSink"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterMultipleLayers):
-        classname = "QgsProcessingParameterMultipleLayers"
-        schema = {"type": "array", "items": {"type": "string"}}
-        if (min_items := param.minimumNumberInputs()) >= 1:
-            schema["minItems"] = min_items
-    elif isinstance(param, QgsProcessingParameterBand):
-        classname = "QgsProcessingParameterBand"
-        schema = {"type": "integer", "minimum": 1}
-        if param.allowMultiple():
-            schema = {"type": "array", "minItems": 1, "items": schema}
-    elif isinstance(param, QgsProcessingParameterNumber):
-        classname = "QgsProcessingParameterNumber"
+        return ProcessingParameterTypeVectorLayer()
+    if isinstance(param, QgsProcessingParameterVectorLayer):
+        return ProcessingParameterTypeVectorLayer()
+    if isinstance(param, QgsProcessingParameterRasterLayer):
+        return ProcessingParameterTypeRasterLayer()
+    if isinstance(param, QgsProcessingParameterFile):
+        return ProcessingParameterTypeFile()
+    if isinstance(param, QgsProcessingParameterFeatureSink):
+        return ProcessingParameterTypeVectorLayer()
+    if isinstance(param, QgsProcessingParameterVectorDestination):
+        return ProcessingParameterTypeVectorLayer()
+    if isinstance(param, QgsProcessingParameterRasterDestination):
+        return ProcessingParameterTypeRasterLayer()
+    if isinstance(param, QgsProcessingParameterMultipleLayers):
+        minimum = param.minimumNumberInputs()
+        match param.layerType():
+            case Qgis.ProcessingSourceType.MapLayer:
+                layer_type = ProcessingParameterTypeMapLayer()
+            case Qgis.ProcessingSourceType.Raster:
+                layer_type = ProcessingParameterTypeRasterLayer()
+            case (
+                Qgis.ProcessingSourceType.Vector
+                | Qgis.ProcessingSourceType.VectorAnyGeometry
+                | Qgis.ProcessingSourceType.VectorPoint
+                | Qgis.ProcessingSourceType.VectorLine
+                | Qgis.ProcessingSourceType.VectorPolygon
+            ):
+                layer_type = ProcessingParameterTypeVectorLayer()
+            case unsupported:
+                raise ValueError(f"unsupported ProcessingSourceType: {unsupported}")
+        return ProcessingParameterTypeMultipleLayers(
+            layer_type=layer_type,
+            minimum=minimum,
+        )
+    if isinstance(param, QgsProcessingParameterBand):
+        return ProcessingParameterTypeBand(allow_multiple=param.allowMultiple())
+    if isinstance(param, QgsProcessingParameterNumber):
+        if (maximum := param.maximum()) >= sys.float_info.max:
+            maximum = None
+        if (minimum := param.minimum()) <= sys.float_info.min:
+            minimum = None
         match param.dataType():
             case Qgis.ProcessingNumberParameterType.Double:
-                schema = {"type": "number"}
+                return ProcessingParameterTypeFloat(minimum=minimum, maximum=maximum)
             case Qgis.ProcessingNumberParameterType.Integer:
-                schema = {"type": "integer"}
-        if (maximum := param.maximum()) < sys.float_info.max:
-            schema["maximum"] = maximum
-        if (minimum := param.minimum()) > sys.float_info.min:
-            schema["minimum"] = minimum
-    elif isinstance(param, QgsProcessingParameterString):
-        classname = "QgsProcessingParameterString"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterExpression):
-        classname = "QgsProcessingParameterExpression"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterCrs):
-        classname = "QgsProcessingParameterCrs"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterLayout):
-        classname = "QgsProcessingParameterLayout"
-        schema = {"type": "string"}
-    elif isinstance(param, QgsProcessingParameterField):
-        classname = "QgsProcessingParameterField"
-        schema = {"type": "string"}
-        if param.allowMultiple():
-            schema = {"type": "array", "minItems": 1, "items": schema}
-    elif isinstance(param, QgsProcessingParameterEnum):
-        classname = "QgsProcessingParameterEnum"
-        schema = {"type": "string", "enum": param.options()}
-    elif isinstance(param, QgsProcessingParameterBoolean):
-        classname = "QgsProcessingParameterBoolean"
-        schema = {"type": "boolean"}
-    elif isinstance(param, QgsProcessingParameterExtent):
-        classname = "QgsProcessingParameterExtent"
-        schema = {
-            "oneOf": [
-                {
-                    "type": "array",
-                    "items": {"type": "number"},
-                    "minItems": 4,
-                    "maxItems": 4,
-                },
-                {
-                    "type": "array",
-                    "items": {"type": "number"},
-                    "minItems": 6,
-                    "maxItems": 6,
-                },
-            ]
-        }
-    elif isinstance(param, QgsProcessingParameterMapTheme):
-        classname = "QgsProcessingParameterMapTheme"
-        schema = {"type": "string"}
+                minimum = None if minimum is None else int(minimum)
+                maximum = None if maximum is None else int(maximum)
+                return ProcessingParameterTypeInt(minimum=minimum, maximum=maximum)
+    if isinstance(param, QgsProcessingParameterString):
+        return ProcessingParameterTypeString()
+    if isinstance(param, QgsProcessingParameterExpression):
+        return ProcessingParameterTypeExpression()
+    if isinstance(param, QgsProcessingParameterCrs):
+        return ProcessingParameterTypeCrs()
+    if isinstance(param, QgsProcessingParameterLayout):
+        return ProcessingParameterTypeLayout()
+    if isinstance(param, QgsProcessingParameterField):
+        return ProcessingParameterTypeField(allow_multiple=param.allowMultiple())
+    if isinstance(param, QgsProcessingParameterEnum):
+        return ProcessingParameterTypeEnum(
+            options=param.options(), allow_multiple=param.allowMultiple()
+        )
+    if isinstance(param, QgsProcessingParameterBoolean):
+        return ProcessingParameterTypeBoolean()
+    if isinstance(param, QgsProcessingParameterExtent):
+        return ProcessingParameterTypeExtent()
+    if isinstance(param, QgsProcessingParameterMapTheme):
+        return ProcessingParameterTypeMapTheme()
     else:
         logging.error(f"invalid parameter: {param.name()}, {param.type()}, {param}")
         raise ValueError(f"parameter: {param}")
 
+
+def parameter_from_qgs_definition(param: QgsProcessingParameterDefinition) -> Parameter:
     return Parameter(
         name=param.name(),
-        type=param.type(),
+        type=parameter_type_from_qgs_definition(param),
         description=param.description(),
-        classname=classname,
-        schema=schema,
         optional=bool(param.flags() & Qgis.ProcessingParameterFlag.Optional),
         default=param.defaultValue(),
+        is_destination=param.isDestination(),
     )
 
 
-def output_from_qgs_definition(output: QgsProcessingOutputDefinition) -> Output:
+def output_type_from_qgs_definition(output: QgsProcessingOutputDefinition) -> Output:
     if isinstance(output, QgsProcessingOutputMapLayer):
-        classname = "QgsProcessingOutputMapLayer"
-        schema = {"type": "string"}
-    elif isinstance(output, QgsProcessingOutputPointCloudLayer):
-        classname = "QgsProcessingOutputPointCloudLayer"
-        schema = {"type": "string"}
+        return ProcessingParameterTypeMapLayer()
     elif isinstance(output, QgsProcessingOutputRasterLayer):
-        classname = "QgsProcessingOutputRasterLayer"
-        schema = {"type": "string"}
+        return ProcessingParameterTypeRasterLayer()
     elif isinstance(output, QgsProcessingOutputVectorLayer):
-        classname = "QgsProcessingOutputVectorLayer"
-        schema = {"type": "string"}
-    elif isinstance(output, QgsProcessingOutputVectorTileLayer):
-        classname = "QgsProcessingOutputVectorTileLayer"
-        schema = {"type": "string"}
+        return ProcessingParameterTypeVectorLayer()
     elif isinstance(output, QgsProcessingOutputFile):
-        classname = "QgsProcessingOutputFile"
-        schema = {"type": "number"}
+        return ProcessingParameterTypeFile()
     elif isinstance(output, QgsProcessingOutputHtml):
-        classname = "QgsProcessingOutputHtml"
-        schema = {"type": "number"}
+        return ProcessingParameterTypeString()
     elif isinstance(output, QgsProcessingOutputNumber):
-        classname = "QgsProcessingOutputNumber"
-        schema = {"type": "number"}
+        return ProcessingParameterTypeFloat()
     elif isinstance(output, QgsProcessingOutputString):
-        classname = "QgsProcessingOutputString"
-        schema = {"type": "string"}
+        return ProcessingParameterTypeString()
     elif isinstance(output, QgsProcessingOutputBoolean):
-        classname = "QgsProcessingOutputBoolean"
-        schema = {"type": "boolean"}
+        return ProcessingParameterTypeBoolean()
     else:
         logging.error(f"invalid output: {output.name()}, {output.type()}, {output}")
         raise ValueError(f"output: {output}")
+
+
+def output_from_qgs_definition(output: QgsProcessingOutputDefinition) -> Output:
     return Output(
         name=output.name(),
-        type=output.type(),
         description=output.description(),
-        schema=schema,
-        classname=classname,
+        type=output_type_from_qgs_definition(output),
     )
 
 
