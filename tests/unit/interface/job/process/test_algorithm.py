@@ -1,6 +1,15 @@
 from qgis.analysis import QgsNativeAlgorithms
 
-from qgis_server_light.interface.exporter.extract import Algorithm, Output, Parameter
+from qgis_server_light.interface.exporter.extract import (
+    Algorithm,
+    Output,
+    Parameter,
+    ProcessingParameterTypeBoolean,
+    ProcessingParameterTypeEnum,
+    ProcessingParameterTypeFloat,
+    ProcessingParameterTypeInt,
+    ProcessingParameterTypeVectorLayer,
+)
 from qgis_server_light.worker.runner.process import algorithm_from_qgs_definition
 
 
@@ -38,92 +47,93 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
             Parameter(
                 name="INPUT",
                 description="Input layer",
-                type="source",
-                schema={"type": "string"},
-                classname="QgsProcessingParameterFeatureSource",
+                type=ProcessingParameterTypeVectorLayer(),
                 optional=False,
                 default=None,
+                is_destination=False,
             ),
             Parameter(
                 name="DISTANCE",
                 description="Distance",
-                type="distance",
-                schema={"type": "number"},
-                classname="QgsProcessingParameterNumber",
+                type=ProcessingParameterTypeFloat(),
                 optional=False,
                 default=10,
+                is_destination=False,
             ),
             Parameter(
                 name="SEGMENTS",
                 description="Segments",
-                type="number",
-                schema={"type": "integer", "minimum": 1.0},
-                classname="QgsProcessingParameterNumber",
+                type=ProcessingParameterTypeInt(minimum=1),
                 optional=False,
                 default=5,
+                is_destination=False,
             ),
             Parameter(
                 name="END_CAP_STYLE",
                 description="End cap style",
-                type="enum",
-                schema={"type": "string", "enum": ["Round", "Flat", "Square"]},
-                classname="QgsProcessingParameterEnum",
+                type=ProcessingParameterTypeEnum(
+                    options=[
+                        "Round",
+                        "Flat",
+                        "Square",
+                    ]
+                ),
                 optional=False,
                 default=0,
+                is_destination=False,
             ),
             Parameter(
                 name="JOIN_STYLE",
                 description="Join style",
-                type="enum",
-                schema={"type": "string", "enum": ["Round", "Miter", "Bevel"]},
-                classname="QgsProcessingParameterEnum",
+                type=ProcessingParameterTypeEnum(
+                    options=[
+                        "Round",
+                        "Miter",
+                        "Bevel",
+                    ]
+                ),
                 optional=False,
                 default=0,
+                is_destination=False,
             ),
             Parameter(
                 name="MITER_LIMIT",
                 description="Miter limit",
-                type="number",
-                schema={"type": "number", "minimum": 1.0},
-                classname="QgsProcessingParameterNumber",
+                type=ProcessingParameterTypeFloat(minimum=1.0),
                 optional=False,
                 default=2,
+                is_destination=False,
             ),
             Parameter(
                 name="DISSOLVE",
                 description="Dissolve result",
-                type="boolean",
-                schema={"type": "boolean"},
-                classname="QgsProcessingParameterBoolean",
+                type=ProcessingParameterTypeBoolean(),
                 optional=False,
                 default=False,
+                is_destination=False,
             ),
             Parameter(
                 name="SEPARATE_DISJOINT",
                 description="Keep disjoint results separate",
-                type="boolean",
-                schema={"type": "boolean"},
-                classname="QgsProcessingParameterBoolean",
+                type=ProcessingParameterTypeBoolean(),
                 optional=False,
                 default=False,
+                is_destination=False,
             ),
             Parameter(
                 name="OUTPUT",
-                type="sink",
-                schema={"type": "string"},
-                classname="QgsProcessingDestinationParameter",
+                type=ProcessingParameterTypeVectorLayer(),
                 optional=False,
                 description="Buffered",
                 default=None,
+                is_destination=True,
             ),
         ],
         outputs=[
             Output(
                 name="OUTPUT",
                 description="Buffered",
-                type="outputVector",
-                schema={"type": "string"},
-                classname="QgsProcessingOutputVectorLayer",
+                type=ProcessingParameterTypeVectorLayer(),
             )
         ],
     )
