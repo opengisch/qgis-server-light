@@ -232,6 +232,7 @@ def main() -> None:
         [
             "qgis_server_light.worker.runner.render.RenderRunner",
             "qgis_server_light.worker.runner.feature.GetFeatureRunner",
+            "qgis_server_light.worker.runner.process.ProcessRunner",
             # Not fully functional yet
             # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
         ],
