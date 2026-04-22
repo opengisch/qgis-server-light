@@ -33,5 +33,5 @@ docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:
 
 ## Documentation
 
-The complete documentation is available at the [documentation](https://opengisch.
-github.io/qgis-server-light).
+The complete documentation is available at the
+[documentation](https://opengisch.github.io/qgis-server-light).
