@@ -7,7 +7,7 @@ import logging
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
-from typing import List, Literal, Optional
+from typing import List, Optional, TypeAlias
 
 from qgis_server_light.interface.common import BaseInterface, BBox, Style
 
@@ -642,108 +642,96 @@ class Config(BaseInterface):
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeString:
-    name: Literal["str"] = field(metadata={"type": "Element"}, default="str")
+    name: str = field(metadata={"type": "Element"}, default="str")
     length: int | None = field(metadata={"type": "Element"}, default=None)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeBoolean:
-    name: Literal["bool"] = field(metadata={"type": "Element"}, default="bool")
+    name: str = field(metadata={"type": "Element"}, default="bool")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeFloat:
-    name: Literal["float"] = field(metadata={"type": "Element"}, default="float")
+    name: str = field(metadata={"type": "Element"}, default="float")
     minimum: float | None = field(metadata={"type": "Element"}, default=None)
     maximum: float | None = field(metadata={"type": "Element"}, default=None)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeInt:
-    name: Literal["int"] = field(metadata={"type": "Element"}, default="int")
+    name: str = field(metadata={"type": "Element"}, default="int")
     minimum: int | None = field(metadata={"type": "Element"}, default=None)
     maximum: int | None = field(metadata={"type": "Element"}, default=None)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeExtent:
-    name: Literal["extent"] = field(metadata={"type": "Element"}, default="extent")
+    name: str = field(metadata={"type": "Element"}, default="extent")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeCrs:
-    name: Literal["crs"] = field(metadata={"type": "Element"}, default="crs")
+    name: str = field(metadata={"type": "Element"}, default="crs")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeBand:
-    name: Literal["band"] = field(metadata={"type": "Element"}, default="band")
+    name: str = field(metadata={"type": "Element"}, default="band")
     allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeField:
-    name: Literal["field"] = field(metadata={"type": "Element"}, default="field")
+    name: str = field(metadata={"type": "Element"}, default="field")
     allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeLayout:
-    name: Literal["layout"] = field(metadata={"type": "Element"}, default="layout")
+    name: str = field(metadata={"type": "Element"}, default="layout")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeMapTheme:
-    name: Literal["map_theme"] = field(
-        metadata={"type": "Element"}, default="map_theme"
-    )
+    name: str = field(metadata={"type": "Element"}, default="map_theme")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeExpression:
-    name: Literal["expression"] = field(
-        metadata={"type": "Element"}, default="expression"
-    )
+    name: str = field(metadata={"type": "Element"}, default="expression")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeEnum:
-    name: Literal["enum"] = field(metadata={"type": "Element"}, default="enum")
-    options: set[str] = field(metadata={"type": "Element"})
+    name: str = field(metadata={"type": "Element"}, default="enum")
+    options: list[str] = field(metadata={"type": "Element"})
     allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeVectorLayer:
-    name: Literal["vector_layer"] = field(
-        metadata={"type": "Element"}, default="vector_layer"
-    )
+    name: str = field(metadata={"type": "Element"}, default="vector_layer")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeRasterLayer:
-    name: Literal["raster_layer"] = field(
-        metadata={"type": "Element"}, default="raster_layer"
-    )
+    name: str = field(metadata={"type": "Element"}, default="raster_layer")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeFile:
-    name: Literal["file"] = field(metadata={"type": "Element"}, default="file")
+    name: str = field(metadata={"type": "Element"}, default="file")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeMapLayer:
-    name: Literal["map_layer"] = field(
-        metadata={"type": "Element"}, default="map_layer"
-    )
+    name: str = field(metadata={"type": "Element"}, default="map_layer")
 
 
 @dataclass(kw_only=True)
 class ProcessingParameterTypeMultipleLayers:
-    name: Literal["multiple_layers"] = field(
-        metadata={"type": "Element"}, default="multiple_layers"
-    )
+    name: str = field(metadata={"type": "Element"}, default="multiple_layers")
     layer_type: (
         ProcessingParameterTypeVectorLayer
         | ProcessingParameterTypeRasterLayer
@@ -752,7 +740,7 @@ class ProcessingParameterTypeMultipleLayers:
     minimum: int = field(metadata={"type": "Element"})
 
 
-type ProcessingParameterType = (
+ProcessingParameterType: TypeAlias = (
     ProcessingParameterTypeString
     | ProcessingParameterTypeBoolean
     | ProcessingParameterTypeFloat
