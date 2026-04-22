@@ -1,5 +1,7 @@
 ![Image build](https://github.com/opengisch/qgis-server-light/actions/workflows/image.yml/badge.svg)
 ![Docs build](https://github.com/opengisch/qgis-server-light/actions/workflows/docs.yml/badge.svg)
+![3.40](https://github.com/opengisch/qgis-server-light/actions/workflows/test.yaml/badge.svg?branch=master&job=Test%20Python%3A%20ubuntu-24.04%20%2F%20ghcr.io%2Fopengisch%2Fqgis-slim%3A3.40)
+![3.44](https://github.com/opengisch/qgis-server-light/actions/workflows/test.yaml/badge.svg?branch=master&job=Test%20Python%3A%20ubuntu-24.04%20%2F%20ghcr.io%2Fopengisch%2Fqgis-slim%3A3.44)
 
 # QGIS-Server-Light
 
