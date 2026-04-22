@@ -29,6 +29,10 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
+from qgis_server_light.interface.job.process.input import (
+    QslJobInfoExecuteProcess,
+    QslJobParameterExecuteProcess,
+)
 from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
@@ -83,6 +87,7 @@ class RedisQueue:
             | QslJobParameterFeatureInfo
             | QslJobParameterLegend
             | QslJobParameterFeature
+            | QslJobParameterExecuteProcess
         ),
         to: float = 10.0,
     ) -> tuple[JobResult, str]:
@@ -112,6 +117,10 @@ class RedisQueue:
         elif isinstance(job_parameter, QslJobParameterFeature):
             job_info = QslJobInfoFeature(
                 id=job_id, type=QslJobInfoFeature.__name__, job=job_parameter
+            )
+        elif isinstance(job_parameter, QslJobParameterExecuteProcess):
+            job_info = QslJobInfoExecuteProcess(
+                id=job_id, type=QslJobInfoExecuteProcess.__name__, job=job_parameter
             )
         else:
             return (
