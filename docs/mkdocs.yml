@@ -1,7 +1,7 @@
 site_name: QGIS-Server-Light
 docs_dir: src
 nav:
-  - Overview: overview.md
+  - Overview: index.md
   - General Idea: general_idea.md
   - Prerequisites: prerequisites.md
   - Usage of Worker:
