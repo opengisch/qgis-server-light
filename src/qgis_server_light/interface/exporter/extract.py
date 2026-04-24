@@ -789,7 +789,8 @@ class Algorithm:
     id: str = field(metadata={"type": "Element"})
     name: str = field(metadata={"type": "Element"})
     display_name: str = field(metadata={"type": "Element"})
-    help_string: str | None = field(default=None, metadata={"type": "Element"})
+    short_help_string: str = field(metadata={"type": "Element"})
+    short_description: str = field(metadata={"type": "Element"})
     parameters: list[Parameter] = field(
         default_factory=list, metadata={"type": "Element"}
     )
@@ -802,3 +803,11 @@ class Process:
     algorithms: list[Algorithm] = field(
         default_factory=list, metadata={"type": "Element"}
     )
+
+    def algorithm_by_id(self, algorithm_id: str):
+        for algorithm in self.algorithms:
+            if algorithm.id == algorithm_id:
+                return algorithm
+        raise LookupError(
+            f"Algorithm with {algorithm_id} was not found in {self.algorithms}"
+        )

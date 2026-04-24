@@ -4,7 +4,11 @@ import os.path
 import click
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import QgsApplication
-from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
+from xsdata.formats.dataclass.serializers import (
+    DictEncoder,
+    JsonSerializer,
+    XmlSerializer,
+)
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.common import create_full_pg_service_conf
@@ -98,8 +102,8 @@ def export(
 
 @cli.command("export-processes")
 def export_processes():
-    serializer_config = SerializerConfig(indent="  ")
     registry = qgs.processingRegistry()
+    qgs.setTranslation("en")
     registry.addProvider(QgsNativeAlgorithms())
     process = Process(
         algorithms=[
@@ -116,7 +120,7 @@ def export_processes():
             ]
         ]
     )
-    click.echo(JsonSerializer(config=serializer_config).render(process))
+    click.echo(DictEncoder().encode(process))
 
 
 if __name__ == "__main__":

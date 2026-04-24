@@ -985,10 +985,12 @@ class Exporter:
                     )
                     acc.append((our_scope_name, list_as_text))
                 else:
-                    acc.append((
-                        our_scope_name,
-                        project.readEntry(qgis_scope_name, key)[0],
-                    ))
+                    acc.append(
+                        (
+                            our_scope_name,
+                            project.readEntry(qgis_scope_name, key)[0],
+                        )
+                    )
 
                 return acc
 
@@ -1136,7 +1138,8 @@ def algorithm_from_qgs_definition(alg: QgsProcessingAlgorithm) -> Algorithm:
         id=alg.id(),
         name=alg.name(),
         display_name=alg.displayName(),
-        help_string=alg.helpString(),
+        short_help_string=alg.shortHelpString(),
+        short_description=alg.shortDescription(),
     )
     for param in alg.parameterDefinitions():
         algorithm.parameters.append(parameter_from_qgs_definition(param))
