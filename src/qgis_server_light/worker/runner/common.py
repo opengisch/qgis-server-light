@@ -120,13 +120,19 @@ class MapRunner(Runner):
         )
         if self.job_info.job.dpi:
             settings.setOutputDpi(self.job_info.job.dpi)
+
+        crs = self.job_info.job.crs
+        destination_crs = QgsCoordinateReferenceSystem.fromOgcWmsCrs(crs)
         minx, miny, maxx, maxy = self.job_info.job.bbox.to_2d_list()
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
+        if (
+            destination_crs.hasAxisInverted()
+        ):  # lat-lon, instead of lon-lat e.g. epsg:4326
+            bbox.invert()
         settings.setExtent(bbox)
         settings.setLayers(layers)
         settings.setBackgroundColor(QColor(Qt.transparent))
-        crs = self.job_info.job.crs
-        destination_crs = QgsCoordinateReferenceSystem.fromOgcWmsCrs(crs)
+
         settings.setDestinationCrs(destination_crs)
         return settings
 
