@@ -90,7 +90,7 @@ def export(
             click.echo(XmlSerializer(config=serializer_config).render(config))
 
     else:
-        raise AttributeError("Project file does not exist")
+        raise AttributeError(f"Project file '{project}' does not exist")
 
 
 if __name__ == "__main__":

@@ -1,26 +1,17 @@
 import logging
 import os
-import os.path as path
+import subprocess
+import sys
+from pathlib import Path
 
 from flask import Flask, Response, request
-from qgis.core import QgsApplication
 from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers.config import ParserConfig
-from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
-from xsdata.formats.dataclass.serializers.config import SerializerConfig
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.exporter.common import create_full_pg_service_conf
-from qgis_server_light.exporter.extract import Exporter
 from qgis_server_light.interface.exporter.api import ExportParameters, ExportResult
 
-allowed_output_formats = ("json", "xml")
-allowed_extensions = ("qgz", "qgs")
-
-# init QGIS
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
-QgsApplication.setPrefixPath("/usr", True)
-qgs = QgsApplication([], False)
-qgs.initQgis()
+allowed_extensions = (".qgz", ".qgs")
 
 app = Flask(__name__)
 
@@ -31,65 +22,46 @@ def api_export():
     data_path = os.environ.get("QSL_DATA_ROOT")
     body = request.get_json()
     parser_config = ParserConfig(fail_on_unknown_properties=True)
-    parameters: ExportParameters = DictDecoder(config=parser_config).decode(
-        body, ExportParameters
-    )
-    serializer_config = SerializerConfig(indent="  ")
+    try:
+        parameters = DictDecoder(config=parser_config).decode(body, ExportParameters)
+    except Exception as e:
+        logging.error(e)
+        result = ExportResult(successful=False)
+        Response(JsonSerializer().render(result), mimetype="text/json")
 
-    # project file
-    project_file = ""
+    project_base_path = Path(data_path, parameters.mandant, parameters.project)
+    project_file = None
     for extension in allowed_extensions:
-        project_file = path.join(
-            data_path, parameters.mandant, ".".join([parameters.project, extension])
-        )
-        print(f"testing project_file: {project_file}")
-        if path.exists(project_file):
-            print(f"project_file: {project_file} EXISTS")
+        project_file = Path(str(project_base_path) + extension)
+        logging.info(f"testing project_file: {project_file}")
+        if project_file.exists():
+            logging.info(f"project_file: {project_file} EXISTS")
             break
-    if not path.exists(project_file):
-        raise NotImplementedError(
-            f"Project {parameters.project} from mandant {parameters.mandant} not found."
+
+    try:
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "qgis_server_light.exporter.cli",
+                "--project",
+                str(project_file),
+                "--unify_layer_names_by_group",
+                str(parameters.unify_layer_names_by_group),
+                "--output_format",
+                parameters.output_format,
+            ],
+            text=True,
+            check=True,
+            capture_output=True,
         )
-    print(f"project_file: {project_file}")
-
-    # output format
-    if parameters.output_format.lower() not in allowed_output_formats:
-        raise NotImplementedError(
-            f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {parameters.output_format}"
-        )
-    output_format = parameters.output_format.lower()
-
-    full_pg_service_config = Exporter.merge_dicts(
-        create_full_pg_service_conf(), parameters.pg_service_configs_dict
-    )
-
-    # extract
-    exporter = Exporter(
-        qgis_project_path=project_file,
-        unify_layer_names_by_group=bool(parameters.unify_layer_names_by_group),
-        pg_service_configs=full_pg_service_config,
-    )
-    config = exporter.run()
-    result = ExportResult(successful=False)
-
-    content = None
-    if output_format == "json":
-        content = JsonSerializer(config=serializer_config).render(config)
-    elif output_format == "xml":
-        content = XmlSerializer(config=serializer_config).render(config)
-    else:
-        return Response(JsonSerializer().render(result), mimetype="text/json")
-    if content:
-        with open(
-            path.join(
-                data_path,
-                parameters.mandant,
-                ".".join([parameters.project, output_format]),
-            ),
-            mode="w+",
-        ) as f:
-            f.write(content)
-    result.successful = True
+        output_format = f".{parameters.output_format}"
+        output_file = project_base_path.with_suffix(output_format)
+        output_file.write_text(process.stdout)
+        result = ExportResult(successful=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(e.stderr)
+        result = ExportResult(successful=False)
     return Response(JsonSerializer().render(result), mimetype="text/json")
 
 
