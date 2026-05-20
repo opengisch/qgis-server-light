@@ -1,10 +1,8 @@
 from contextlib import contextmanager
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
-from PyQt5.QtCore import QDate
-from xsdata.formats.converter import Converter
-from xsdata.formats.converter import converter
+from PyQt5.QtCore import QDate, QDateTime, Qt
+from xsdata.formats.converter import Converter, converter
 
 
 class QDateConverter(Converter):
@@ -20,6 +18,19 @@ class QDateConverter(Converter):
             return None
 
 
+class QDateTimeConverter(Converter):
+    format = Qt.DateFormat.ISODate
+
+    def deserialize(self, value: str, **kwargs: Any) -> QDateTime:
+        return QDateTime.fromString(value, self.format)
+
+    def serialize(self, value: QDateTime, **kwargs: Any) -> Optional[str]:
+        if value:
+            return value.toString(self.format)
+        else:
+            return None
+
+
 @contextmanager
 def register_converters_at_runtime():
     def register(custom_type, converter_instance, registered_types):
@@ -29,6 +40,7 @@ def register_converters_at_runtime():
     registered = []
     try:
         register(QDate, QDateConverter(), registered)
+        register(QDateTime, QDateTimeConverter(), registered)
         # register further types here
         yield
     finally:
