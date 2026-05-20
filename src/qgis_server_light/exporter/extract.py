@@ -84,6 +84,8 @@ from qgis_server_light.interface.exporter.extract import (
     Output,
     Parameter,
     PostgresSource,
+    ProcessingParameterType,
+    ProcessingParameterTypeAnyLayer,
     ProcessingParameterTypeBand,
     ProcessingParameterTypeBoolean,
     ProcessingParameterTypeCrs,
@@ -97,7 +99,6 @@ from qgis_server_light.interface.exporter.extract import (
     ProcessingParameterTypeLayout,
     ProcessingParameterTypeMapLayer,
     ProcessingParameterTypeMapTheme,
-    ProcessingParameterTypeMultipleLayers,
     ProcessingParameterTypeRasterLayer,
     ProcessingParameterTypeString,
     ProcessingParameterTypeVectorLayer,
@@ -1209,7 +1210,7 @@ class Exporter:
 
 def parameter_type_from_qgs_definition(
     param: QgsProcessingParameterDefinition,
-) -> Parameter:
+) -> ProcessingParameterType:
     if isinstance(param, QgsProcessingParameterFeatureSource):
         return ProcessingParameterTypeVectorLayer()
     if isinstance(param, QgsProcessingParameterVectorLayer):
@@ -1241,7 +1242,7 @@ def parameter_type_from_qgs_definition(
                 layer_type = ProcessingParameterTypeVectorLayer()
             case unsupported:
                 raise ValueError(f"unsupported ProcessingSourceType: {unsupported}")
-        return ProcessingParameterTypeMultipleLayers(
+        return ProcessingParameterTypeAnyLayer(
             layer_type=layer_type,
             minimum=minimum,
         )
