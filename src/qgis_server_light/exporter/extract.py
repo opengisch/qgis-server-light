@@ -10,6 +10,7 @@ from typing import List, Tuple, Union
 
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
+from qgis._core import QgsRectangle
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -27,7 +28,6 @@ from qgis.core import (
     QgsProject,
     QgsProviderRegistry,
     QgsRasterLayer,
-    QgsRectangle,
     QgsTiledSceneLayer,
     QgsVectorLayer,
     QgsVectorTileLayer,
@@ -174,6 +174,21 @@ class Exporter:
             )
         )
 
+    def extent_from_layer(self, layer: QgsMapLayer) -> QgsRectangle:
+        # we use the layers data extent as a entrypoint
+        extent = layer.extent()
+        if extent.isEmpty():
+            # we try to determine the bbox from the layers metadata
+            metadata_extents = layer.metadata().extent().spatialExtents()
+            if len(metadata_extents) > 0:
+                extent = (
+                    layer.metadata().extent().spatialExtents()[0].bounds.toRectangle()
+                )
+            else:
+                # finally we fallback to the bbox of the crs
+                extent = layer.crs().bounds()
+        return extent
+
     def extract_save_layer(
         self,
         child: QgsLayerTreeLayer,
@@ -187,9 +202,10 @@ class Exporter:
             return
         decoded = self.decode_datasource(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
+
         if layer.isSpatial():
             crs = self.create_qsl_crs_from_qgs_layer(layer)
-            layer_extent = layer.extent()
+            layer_extent = self.extent_from_layer(layer)
             bbox_wgs84 = self.create_qsl_bbox_from_qgis_rectangle_wgs84(
                 self.qgis_project, layer, layer_extent
             )
