@@ -730,7 +730,7 @@ class ProcessingParameterTypeMapLayer:
 
 
 @dataclass(kw_only=True)
-class ProcessingParameterTypeMultipleLayers:
+class ProcessingParameterTypeAnyLayer:
     name: str = field(metadata={"type": "Element"}, default="multiple_layers")
     layer_type: (
         ProcessingParameterTypeVectorLayer
@@ -755,7 +755,8 @@ ProcessingParameterType: TypeAlias = (
     | ProcessingParameterTypeEnum
     | ProcessingParameterTypeVectorLayer
     | ProcessingParameterTypeRasterLayer
-    | ProcessingParameterTypeMultipleLayers
+    | ProcessingParameterTypeFile
+    | ProcessingParameterTypeAnyLayer
 )
 
 
