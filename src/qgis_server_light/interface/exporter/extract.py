@@ -308,8 +308,8 @@ class WmtsSource(WmsSource):
 @dataclass(repr=False)
 class PostgresSource(Source):
     key: str = field(metadata={"type": "Element"})
-    schema: str = field(metadata={"type": "Element"})
     table: str = field(metadata={"type": "Element"})
+    schema: str | None = field(default=None, metadata={"type": "Element"})
     geometry_column: str | None = field(default=None, metadata={"type": "Element"})
     dbname: str | None = field(default=None, metadata={"type": "Element"})
     host: str | None = field(default=None, metadata={"type": "Element"})
@@ -363,7 +363,7 @@ class PostgresSource(Source):
     def from_qgis_decoded_uri(cls, decoded_uri: dict):
         return cls(
             key=decoded_uri["key"],
-            schema=decoded_uri["schema"],
+            schema=decoded_uri.get("schema", None),
             table=decoded_uri["table"],
             geometry_column=decoded_uri.get("geometrycolumn"),
             dbname=decoded_uri.get("dbname"),
