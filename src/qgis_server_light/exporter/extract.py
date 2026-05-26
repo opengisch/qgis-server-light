@@ -77,14 +77,13 @@ class Exporter:
         # prepare QGIS instances
         self.qgis_project = self.open_qgis_project(qgis_project_path)
         self.qgis_project_tree_root = self.qgis_project.layerTreeRoot()
-        self.version, self.assembled_name = self.prepare_qgis_project_name(
-            self.qgis_project
-        )
+        self.name = self.prepare_qgis_project_name(self.qgis_project)
+        self.version = self.qgis_project.lastSaveVersion().text()
 
         # prepare QSL interface instances
         self.qsl_tree = Tree()
         self.qsl_datasets = Datasets()
-        self.qsl_project = Project(name=self.assembled_name, version=self.version)
+        self.qsl_project = Project(name=self.name, version=self.version)
         self.qsl_project_metadata = self.extract_metadata(self.qgis_project)
         self.qsl_config = Config(
             project=self.qsl_project,
@@ -844,14 +843,7 @@ class Exporter:
         Returns:
             Tuple of str version, name
         """
-        # TODO: Find a good approach to recognize different "versions" of a project.
-        name = project.baseName()
-        parts = name.split(".")
-        version = parts.pop(0)
-        assembled_name = ".".join(parts)
-        if assembled_name == "":
-            assembled_name = project.title()
-        return version, assembled_name
+        return project.title() or project.baseName()
 
     @staticmethod
     def extract_metadata(project: QgsProject) -> MetaData:
@@ -933,9 +925,10 @@ class Exporter:
                     )
                     acc.append((our_scope_name, list_as_text))
                 else:
-                    acc.append(
-                        (our_scope_name, project.readEntry(qgis_scope_name, key)[0])
-                    )
+                    acc.append((
+                        our_scope_name,
+                        project.readEntry(qgis_scope_name, key)[0],
+                    ))
 
                 return acc
 
