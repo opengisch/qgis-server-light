@@ -46,7 +46,7 @@ jobs:
           tags: ${{ matrix.tag }}
 
       - name: Scan ${{ matrix.target }} with Trivy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ matrix.tag }}
           format: sarif
