@@ -4,51 +4,59 @@ on:
   push:
     branches:
       - master
+  pull_request:
+
 
 jobs:
-  docker-image-latest:
+  docker-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: release
+            tag: opengisch/qgis-server-light:latest
+          - target: dev
+            tag: opengisch/qgis-server-light-dev:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release
+      - name: Build ${{ matrix.target }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          target: release
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light:latest
-  docker-image-latest-dev:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+          tags: ${{ matrix.tag }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Scan ${{ matrix.target }} with Trivy
+        uses: aquasecurity/trivy-action@0.36.0
         with:
-          username: ${{ vars.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          image-ref: ${{ matrix.tag }}
+          format: sarif
+          output: trivy-${{ matrix.target }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
 
-      - name: Build release
-        uses: docker/build-push-action@v6
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          context: .
-          push: true
-          target: dev
-          cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light-dev:latest
+          sarif_file: trivy-${{ matrix.target }}.sarif
+          category: trivy-${{ matrix.target }}
