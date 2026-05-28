@@ -22,7 +22,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build release
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build release
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
