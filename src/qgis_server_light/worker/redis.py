@@ -179,8 +179,7 @@ class RedisEngine(Engine):
                         data = pickle.dumps(result)
 
                         # we inform, that the job has failed with errors
-                        # self.set_job_runtime_status(job_id, p, Status.FAILURE.value,
-                        # start_time)
+                        self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
 
                         # we publish the result to any subscribers
                         p.publish(RedisProtocol.channel(job_id), data)
