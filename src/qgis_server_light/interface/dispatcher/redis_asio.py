@@ -16,6 +16,10 @@ from redis.client import Pipeline
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
+from qgis_server_light.interface.job.common.input import (
+    ExecutionMode,
+    QslJobInfoParameter,
+)
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.feature.input import (
     QslJobInfoFeature,
@@ -43,7 +47,9 @@ class RedisQueue:
     job_queue_name: str = "jobs"
     job_info_key: str = "info"
     job_info_type_key: str = "info_type"
-    job_channel_name: str = "notifications"
+    job_info_which_channel: str = "channel"
+    job_channel_name_sync: str = "notifications_sync"
+    job_channel_name_async: str = "notifications_async"
     job_status_key: str = "status"
     job_duration_key: str = "duration"
     job_timestamp_key: str = "timestamp"
@@ -80,6 +86,98 @@ class RedisQueue:
         await pipeline.hset(f"job:{job_id}", self.job_duration_key, str(duration))
         await pipeline.execute()
 
+    def derive_job_info(
+        self,
+        job_id: str,
+        job_parameter: (
+            QslJobParameterRender
+            | QslJobParameterFeatureInfo
+            | QslJobParameterLegend
+            | QslJobParameterFeature
+            | QslJobParameterExecuteProcess
+        ),
+        execution_mode: ExecutionMode,
+    ) -> QslJobInfoParameter:
+        if isinstance(job_parameter, QslJobParameterRender):
+            job_info = QslJobInfoRender(
+                id=job_id,
+                type=QslJobInfoRender.__name__,
+                job=job_parameter,
+                execution_mode=execution_mode,
+            )
+        elif isinstance(job_parameter, QslJobParameterFeatureInfo):
+            job_info = QslJobInfoFeatureInfo(
+                id=job_id,
+                type=QslJobInfoFeatureInfo.__name__,
+                job=job_parameter,
+                execution_mode=execution_mode,
+            )
+        elif isinstance(job_parameter, QslJobParameterLegend):
+            job_info = QslJobInfoLegend(
+                id=job_id,
+                type=QslJobInfoLegend.__name__,
+                job=job_parameter,
+                execution_mode=execution_mode,
+            )
+        elif isinstance(job_parameter, QslJobParameterFeature):
+            job_info = QslJobInfoFeature(
+                id=job_id,
+                type=QslJobInfoFeature.__name__,
+                job=job_parameter,
+                execution_mode=execution_mode,
+            )
+        elif isinstance(job_parameter, QslJobParameterExecuteProcess):
+            job_info = QslJobInfoExecuteProcess(
+                id=job_id,
+                type=QslJobInfoExecuteProcess.__name__,
+                job=job_parameter,
+                execution_mode=execution_mode,
+            )
+        else:
+            # TODO: use proper exception class
+            raise Exception()
+        return job_info
+
+    async def starts_job(
+        self,
+        job_info: QslJobInfoParameter,
+        start_time: float,
+    ):
+        async with self.client.pipeline() as p:
+            # Putting job info into redis
+            await p.hset(f"job:{job_info.id}",
+                self.job_info_key,
+                JsonSerializer().render(job_info),
+            )
+            await p.hset(
+                f"job:{job_info.id}",
+                self.job_info_type_key,
+                job_info.__class__.__name__,
+            )
+            # Queuing the job onto the list/queue
+            await p.rpush(self.job_queue_name, job_info.id)
+            await p.execute()
+            logging.info(f"{job_info.id} queued")
+            # we inform, that the job was queued
+            await self.set_job_runtime_status(job_info.id, p, Status.QUEUED.value, start_time
+            )
+
+    async def post_async(
+        self,
+        job_parameter: (
+            QslJobParameterRender
+            | QslJobParameterFeatureInfo
+            | QslJobParameterLegend
+            | QslJobParameterFeature
+            | QslJobParameterExecuteProcess
+        ),
+    ):
+        job_id = str(uuid4())
+        start_time = time.time()
+
+        job_info = self.derive_job_info(job_id, job_parameter, ExecutionMode.ASYNC)
+        await self.starts_job(job_info, start_time)
+
     async def post(
         self,
         job_parameter: (
@@ -100,29 +198,12 @@ class RedisQueue:
             to: The timeout a job is expected to be waited for before canceling
                 job execution.
         """
-        job_id = str(uuid4())
         start_time = time.time()
-        if isinstance(job_parameter, QslJobParameterRender):
-            job_info = QslJobInfoRender(
-                id=job_id, type=QslJobInfoRender.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterFeatureInfo):
-            job_info = QslJobInfoFeatureInfo(
-                id=job_id, type=QslJobInfoFeatureInfo.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterLegend):
-            job_info = QslJobInfoLegend(
-                id=job_id, type=QslJobInfoLegend.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterFeature):
-            job_info = QslJobInfoFeature(
-                id=job_id, type=QslJobInfoFeature.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterExecuteProcess):
-            job_info = QslJobInfoExecuteProcess(
-                id=job_id, type=QslJobInfoExecuteProcess.__name__, job=job_parameter
-            )
-        else:
+        job_id = str(uuid4())
+
+        try:
+            job_info = self.derive_job_info(job_id, job_parameter, ExecutionMode.SYNC)
+        except Exception:
             return (
                 JobResult(
                     id=job_id,
@@ -131,23 +212,16 @@ class RedisQueue:
                 ),
                 Status.FAILURE.value,
             )
-        async with self.client.pipeline() as p:
-            # Putting job info into redis
-            await p.hset(f"job:{job_id}", self.job_info_key, JsonSerializer().render(job_info))
-            await p.hset(f"job:{job_id}", self.job_info_type_key, job_info.__class__.__name__)
-            # Queuing the job onto the list/queue
-            await p.rpush(self.job_queue_name, job_id)
-            await p.execute()
 
-            logging.info(f"{job_id} queued")
+        await self.starts_job(job_info, start_time)
 
-            # we inform, that the job was queued
-            await self.set_job_runtime_status(job_id, p, Status.QUEUED.value, start_time)
+        async with self.client.pipeline() as _:
             try:
                 async with self.client.pubsub() as ps:
                     # we tell redis to let us know if a message is published
                     # for this channel `notifications:{job_id}`.
-                    await ps.subscribe(f"{self.job_channel_name}:{job_id}")
+                    await ps.subscribe(f"{self.job_channel_name_sync}:{job_id}")
+
                     try:
                         # this puts a timeout trigger on the subscription, after timeout
                         # an asyncio.TimeoutError or asyncio.exceptions.CancelledError
@@ -191,6 +265,7 @@ class RedisQueue:
                     Status.FAILURE.value,
                 )
             finally:
+                self.cleanup()
                 try:
                     await self.client.delete(f"job:{job_id}")
                 except Exception:

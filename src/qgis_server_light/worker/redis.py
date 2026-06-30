@@ -18,6 +18,7 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.redis_asio import RedisQueue
+from qgis_server_light.interface.job.common.input import QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.worker.engine import Engine, EngineContext
 
@@ -155,7 +156,9 @@ class RedisEngine(Engine):
                         job_info_json = r.hget(f"job:{job_id}", RedisQueue.job_info_key)
                         job_info_class_name = r.hget(f"job:{job_id}", RedisQueue.job_info_type_key)
                         job_info_class = self.available_job_info_classes[job_info_class_name]
-                        job_info = JsonParser().from_string(job_info_json, job_info_class)
+                        job_info: QslJobInfoParameter = JsonParser().from_string(
+                    job_info_json, job_info_class
+                )
                         result: JobResult = self.process(job_info)
                         result.worker_id = self.info.id
                         result.worker_host_name = socket.gethostname()
@@ -165,7 +168,7 @@ class RedisEngine(Engine):
                         self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
 
                         # we publish the result to any subscribers
-                        p.publish(f"{RedisQueue.job_channel_name}:{job_id}", data)
+                        p.publish(f"{job_info.channel_name}:{job_id}", data)
 
                     except Exception as e:
                         # preparation of the result, containing error information
@@ -175,11 +178,10 @@ class RedisEngine(Engine):
                         data = pickle.dumps(result)
 
                         # we inform, that the job has failed with errors
-                        # self.set_job_runtime_status(job_id, p, Status.FAILURE.value,
-                        # start_time)
+                        self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
 
                         # we publish the result to any subscribers
-                        p.publish(f"{RedisQueue.job_channel_name}:{job_id}", data)
+                        p.publish(f"{job_info.channel_name}:{job_id}", data)
 
                         # we provide error information to the logs
                         logging.error(e, exc_info=True)
