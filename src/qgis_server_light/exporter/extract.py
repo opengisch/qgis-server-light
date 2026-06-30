@@ -667,8 +667,16 @@ class Exporter:
             raise LookupError(
                 f"Configuration does not contain any info about the db user name {config}"
             )
+        if config.get("sslmode") and isinstance(config["sslmode"], str):
+            # this case happens when the sslmode is defined in the pg_service.conf and
+            # not in the qgis project (happens when project files are generated not with
+            # qgis desktop but with some automation (CI/CD) via pyqgis).
+            # in those cases we first translate the string representation from pg_service.conf
+            # to the int representation used in QGIS world.
+            config["sslmode"] = self.sslmode_str_to_int(config["sslmode"])
+
         postgres_source = PostgresSource.from_qgis_decoded_uri(config)
-        postgres_source.ssl_mode_text = self.decide_sslmode(postgres_source.sslmode)
+        postgres_source.ssl_mode_text = self.sslmode_int_to_str(postgres_source.sslmode)
         return postgres_source
 
     @staticmethod
@@ -696,17 +704,32 @@ class Exporter:
         return result
 
     @staticmethod
-    def decide_sslmode(ssl_mode: int) -> str:
+    def sslmode_int_to_str(ssl_mode: int) -> str:
         """
-        Mapper to map ssl modes from QGIS to plain postgres.
+        Mapper to map ssl modes from QGIS int to plain postgres.
 
         Args:
-            ssl_mode: The ssl mode of the datasource.
+            ssl_mode: The ssl mode of the datasource as a int value matching one of
+                https://qgis.org/pyqgis/3.44/core/QgsDataSourceUri.html#qgis.core.QgsDataSourceUri.SslMode
 
         Returns:
             The string representation of the ssl mode as it is used by postgres connections.
         """
         return QgsDataSourceUri.encodeSslMode(int(ssl_mode))
+
+    @staticmethod
+    def sslmode_str_to_int(ssl_mode: str) -> int:
+        """
+        Mapper to map ssl modes from plain postgres to QGIS int.
+
+        Args:
+            ssl_mode: The ssl mode of the datasource as a string matching one of
+                https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION
+
+        Returns:
+            The integer representation of the ssl mode as it is used by qgis connections.
+        """
+        return QgsDataSourceUri.decodeSslMode(ssl_mode)
 
     @staticmethod
     def create_qsl_crs_from_qgs_layer(layer: QgsMapLayer) -> Crs:
@@ -925,10 +948,12 @@ class Exporter:
                     )
                     acc.append((our_scope_name, list_as_text))
                 else:
-                    acc.append((
-                        our_scope_name,
-                        project.readEntry(qgis_scope_name, key)[0],
-                    ))
+                    acc.append(
+                        (
+                            our_scope_name,
+                            project.readEntry(qgis_scope_name, key)[0],
+                        )
+                    )
 
                 return acc
 
