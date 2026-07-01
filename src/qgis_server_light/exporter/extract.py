@@ -659,11 +659,7 @@ class Exporter:
             # merging pg_service content with config of qgis project (qgis project config overwrites
             # pg_service configs
             config = Exporter.merge_dicts(service_config, datasource)
-        if config.get("username"):
-            config["username"]
-        elif config.get("user"):
-            config["user"]
-        else:
+        if not config.get("username") and not config.get("user"):
             raise LookupError(
                 f"Configuration does not contain any info about the db user name {config}"
             )
@@ -700,7 +696,12 @@ class Exporter:
             ):
                 result[key] = Exporter.merge_dicts(result[key], value)
             else:
-                result[key] = value
+                if key in ["user", "username"] and value is None:
+                    logging.debug(
+                        f"QGIS Datasource contained '{key}', but it's value was NONE, so we not copied that over! "
+                    )
+                else:
+                    result[key] = value
         return result
 
     @staticmethod
