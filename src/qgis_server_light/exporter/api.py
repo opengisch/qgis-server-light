@@ -55,8 +55,7 @@ def api_export():
             check=True,
             capture_output=True,
         )
-        output_format = f".{parameters.output_format}"
-        output_file = project_base_path.with_suffix(output_format)
+        output_file = f"{project_base_path}.{parameters.output_format}"
         output_file.write_text(process.stdout)
         result = ExportResult(successful=True)
     except subprocess.CalledProcessError as e:
