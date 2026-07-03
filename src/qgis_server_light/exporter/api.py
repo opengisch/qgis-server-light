@@ -23,7 +23,7 @@ def assemble_project_base_path(
 
 
 def assemble_output_file_path(project_base_path: Path, output_format: str) -> Path:
-    return Path(str(project_base_path) + output_format)
+    return Path(str(project_base_path) + f".{output_format}")
 
 
 @app.route("/export", methods=["POST"])
