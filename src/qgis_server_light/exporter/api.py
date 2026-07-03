@@ -16,10 +16,26 @@ allowed_extensions = (".qgz", ".qgs")
 app = Flask(__name__)
 
 
+def assemble_project_base_path(
+    data_path: str, mandant_name: str, project_name: str
+) -> Path:
+    return Path(data_path, mandant_name, project_name)
+
+
+def assemble_output_file_path(project_base_path: Path, output_format: str) -> Path:
+    return Path(str(project_base_path) + f".{output_format}")
+
+
 @app.route("/export", methods=["POST"])
 def api_export():
     logging.getLogger().setLevel(logging.DEBUG)
     data_path = os.environ.get("QSL_DATA_ROOT")
+    if data_path is None:
+        logging.error(
+            "QSL_DATA_ROOT was not defined in the services ENV, we cant run the export."
+        )
+        result = ExportResult(successful=False)
+        return Response(JsonSerializer().render(result), mimetype="text/json")
     body = request.get_json()
     parser_config = ParserConfig(fail_on_unknown_properties=True)
     try:
@@ -27,9 +43,11 @@ def api_export():
     except Exception as e:
         logging.error(e)
         result = ExportResult(successful=False)
-        Response(JsonSerializer().render(result), mimetype="text/json")
+        return Response(JsonSerializer().render(result), mimetype="text/json")
 
-    project_base_path = Path(data_path, parameters.mandant, parameters.project)
+    project_base_path = assemble_project_base_path(
+        data_path, parameters.mandant, parameters.project
+    )
     project_file = None
     for extension in allowed_extensions:
         project_file = Path(str(project_base_path) + extension)
@@ -55,8 +73,9 @@ def api_export():
             check=True,
             capture_output=True,
         )
-        output_format = f".{parameters.output_format}"
-        output_file = project_base_path.with_suffix(output_format)
+        output_file = assemble_output_file_path(
+            project_base_path, parameters.output_format
+        )
         output_file.write_text(process.stdout)
         result = ExportResult(successful=True)
     except subprocess.CalledProcessError as e:
