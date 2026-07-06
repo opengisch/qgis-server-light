@@ -1,13 +1,12 @@
-/.venv/
-/.idea/
-*.pyc
-*.egg-info/
+# Python-generated files
 __pycache__/
-src/*.egg-info
+*.py[oc]
+build/
+dist/
+wheels/
+.idea
+*.egg-info
+
+# Virtual environments
+.venv
 .env
-build
-dist
-docs/site
-/.coverage
-/.coverage.xml
-/.profile/
