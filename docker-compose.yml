@@ -1,19 +1,39 @@
 services:
   qgis-server-light:
-    image: local/opengisch/qgis-server-light-dev:latest
+    env_file:
+      - .env
+    user: "${UID:-1000}:${GID:-1000}"
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
       target: dev
-    restart: unless-stopped
-    environment:
-      - "QSL_REDIS_URL=redis://redis"
-      - "QSL_DATA_ROOT=/app/tests/resources"
-    volumes:
-      - "./:/app"
+      args:
+        PYTHON_VERSION: "${PY_VERSION:-3.12}"
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
     deploy:
-      replicas: ${QSL_REPLICAS}
+      replicas: ${REPLICAS}
+    develop:
+      watch:
+        - action: rebuild
+          path: uv.lock
+        - action: rebuild
+          path: Dockerfile
+    entrypoint: [ "/app/docker/dev.worker.entrypoint.sh" ]
+    volumes:
+      - ./:/app
+      - ./tests/resources/projects:/io/data
+      - ./tests/resources/svg:/io/svg
+      - qsl-venv:/home/appuser/.venv
+    depends_on:
+      redis:
+        condition: service_healthy
   redis:
-    image: redis:8.6.2
-    ports:
-      - "1234:6379"
+    image: redis:8.8.0
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 0.5s
+      retries: 50
+volumes:
+  qsl-venv:

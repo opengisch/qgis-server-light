@@ -1,0 +1,111 @@
+[project]
+name = "qgis-server-light"
+version = "0.1.0"
+description = "QGIS workers in pure python"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Clemens Rudert", email = "clemens@opengis.ch" }
+]
+maintainers = [
+    { name = "Clemens Rudert", email = "clemens@opengis.ch" }
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+keywords = ["web", "worker", "qgis", "qgis-server", "features", "processing"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: GIS Experts",
+    "Intended Audience :: QGIS Community",
+    "Intended Audience :: QGIS",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: GIS",
+    "Topic :: GIS :: Server",
+    "Topic :: GIS :: Worker",
+    "Topic :: QGIS",
+    "Topic :: QGIS :: Server",
+    "Topic :: QGIS :: Worker",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+
+requires-python = ">=3.12"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/opengisch/qgis-server-light"
+Documentation = "https://opengisch.github.io/qgis-server-light/"
+Repository = "https://github.com/opengisch/qgis-server-light.git"
+Issues = "https://github.com/opengisch/qgis-server-light/issues"
+Changelog = "https://github.com/opengisch/qgis-server-light/blob/master/CHANGES.md"
+
+[project.scripts]
+redis-worker = "qgis_server_light.worker.redis:main"
+exporter = "qgis_server_light.exporter.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.25,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    { include-group = "lint-format" },
+    { include-group = "test" },
+    { include-group = "worker" },
+    { include-group = "exporter" },
+    { include-group = "interface" },
+    "pyprof2calltree>=1.4.5",
+]
+lint-format = [
+    "ruff>=0.15.20",
+]
+test = [
+    "pillow>=12.3.0",
+    "pixelmatch>=0.4.0",
+    "pytest>=9.1.1",
+]
+
+# interface has no deps itself so far
+interface = []
+
+worker = [
+    { include-group = "interface" },
+    "redis==5.0.8",
+    "fpng-py>=0.0.3",
+    "xsdata>=26.2",
+    "hupper>=1.12.1",
+]
+
+exporter = [
+    { include-group = "interface" },
+    "click>=8.4.2",
+    "flask>=3.1.3",
+    "pgserviceparser>=3.0.3",
+    "xsdata>=26.2",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = []
+[tool.ruff.lint]
+extend-select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "Q", # Quotes
+    "UP", # pyupgrade replacement
+    "B", # bugbear
+    "SIM", # simplify
+    "I", # isort
+]
+fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+addopts = "-vra --dc=Test"
+testpaths = [
+    "tests",
+]
+python_files = ["test_*.py"]

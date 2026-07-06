@@ -1,64 +1,73 @@
-FROM ghcr.io/opengisch/qgis-slim:3.44.13 AS base
+ARG QGIS_VERSION=3.44.13
+FROM ghcr.io/opengisch/qgis-slim:$QGIS_VERSION AS base
 
-# switch to root user for install
+LABEL org.opencontainers.image.authors="OPENGIS.ch <info@opengis.ch>"
+LABEL org.opencontainers.image.vendor="opengis.ch"
+LABEL org.opencontainers.image.title="QGIS-Server-Light Base Image"
+
+# qgis-slim image has a non root user set up, we need to switch first to root
 USER 0
 
-RUN apt-get update && \
-    apt-get install -y \
-      python3-pip \
-      python3-setuptools
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get remove -y python3-sip \
+  && apt-get install -y \
+    perl \
+    build-essential \
+    python3-dev \
+    openssh-server \
+    gosu
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
 
 #########################
 #  DEV
 #########################
 FROM base AS dev
 
-LABEL org.opengisch.author="Clemens Rudert <clemens@opengis.ch>"
-LABEL org.opengisch.image.title="QGIS-Server-Light"
+ARG UID=1000
+ARG GID=1000
+ARG USERPWD=secret
+ARG USER=appuser
+ARG UV_CACHE_DIR_BUILD_TIME=/home/$USER/.cache/uv-build-time
+ARG UV_CACHE_DIR_RUN_TIME=/home/$USER/.cache/uv
+#https://docs.astral.sh/uv/reference/environment/#uv_override
+ARG UV_PROJECT_ENVIRONMENT=/home/$USER/.venv
+
+RUN deluser --remove-home $(id -nu 1000)
+
+# Setup a non-root user
+RUN groupadd --system --gid $GID nonroot \
+ && useradd --system --gid $GID --uid $UID --create-home appuser \
+ && echo "$USER:$USERPWD" | chpasswd
+
+WORKDIR /app
+
+RUN chown -R $UID:$GID /app
+RUN mkdir -p $UV_CACHE_DIR_RUN_TIME
+RUN chown -R $UID:$GID $UV_CACHE_DIR_RUN_TIME
+
+# https://docs.astral.sh/uv/reference/environment/#uv_python_cache_dir
+ENV UV_PYTHON_CACHE_DIR=$UV_CACHE_DIR_RUN_TIME
+# https://docs.astral.sh/uv/reference/environment/#uv_link_mode
+ENV UV_LINK_MODE=copy
+#https://docs.astral.sh/uv/reference/environment/#uv_override
+ENV UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT
+
+# We install only the deps at build time,
+#   not the project itself
+USER appuser
+
+RUN --mount=type=bind,source=qgis-server-light/pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=qgis-server-light/uv.lock,target=uv.lock \
+    --mount=type=cache,target=$UV_CACHE_DIR_BUILD_TIME,uid=$UID,gid=$GID \
+    python3 -c "import platform; print(platform.python_version())" > .python-version \
+ && mkdir -p $(python3 -m site --user-site) \
+ && echo $(python3 -c 'import os; import qgis; from pathlib import Path; print(Path(os.path.dirname(qgis.__file__)).parent)') > $(python3 -m site --user-site)/qgis.pth \
+ && uv venv --system-site-packages $UV_PROJECT_ENVIRONMENT \
+ && uv sync --frozen --no-install-project --group dev \
+ && cp -r $UV_CACHE_DIR_BUILD_TIME/. $UV_CACHE_DIR_RUN_TIME
+
+# we switch back to root user to start the ssh server
 USER 0
-
-RUN apt-get install -y \
-      python3-venv \
-      make
-
-WORKDIR /opt/qgis-server-light/
-WORKDIR /app
-COPY ./ .
-
-ENV VENV_PATH=/opt/qgis-server-light/venv
-RUN make install-dev
-
-ENTRYPOINT ["/tini", "--", "make"]
-CMD ["run-reload"]
-
-#########################
-#  BUILDER (FOR RELEASE)
-#########################
-FROM base AS builder
-
-WORKDIR /app
-COPY ./ .
-RUN WITH_WORKER=true python3 setup.py bdist_wheel
-
-#########################
-#  RELEASE
-#########################
-FROM base AS release
-COPY --from=builder /app/dist/*.whl /tmp
-COPY --chmod=+x docker/run /bin
-RUN pip3 install --break-system-packages /tmp/*.whl
-
-ENV QSL_REDIS_URL=redis://localhost:1234
-ENV QSL_SVG_PATH=/io/svg
-ENV QSL_DATA_ROOT=/io/data
-ENV QSL_LOG_LEVEL=info
-
-USER 1001
-ENTRYPOINT ["/tini", "--"]
-CMD [\
-    "sh", "-c", "redis_worker \
-    --redis-url \"$QSL_REDIS_URL\" \
-    --svg-path \"$QSL_SVG_PATH\" \
-    --data-root \"$QSL_DATA_ROOT\" \
-    --log-level \"$QSL_LOG_LEVEL\""\
-]
