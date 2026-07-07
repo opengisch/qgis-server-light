@@ -35,7 +35,8 @@ ARG UV_CACHE_DIR_RUN_TIME=/home/$USER/.cache/uv
 #https://docs.astral.sh/uv/reference/environment/#uv_override
 ARG UV_PROJECT_ENVIRONMENT=/home/$USER/.venv
 
-RUN deluser --remove-home $(id -nu 1000)
+RUN deluser --remove-home $(id -nu $UID) \
+  && delgroup $(id -ng $GID)
 
 # Setup a non-root user
 RUN groupadd --system --gid $GID nonroot \
