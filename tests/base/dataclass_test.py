@@ -86,24 +86,16 @@ class DataclassTest(ABC):
         )
 
     def test_fields_exist(self):
-        for field_name, field_type in self.field_defs:
-            assert isinstance(
-                self.dataclass_to_test.__dataclass_fields__[field_name], Field
-            )
+        for field_name, _ in self.field_defs:
+            assert isinstance(self.dataclass_to_test.__dataclass_fields__[field_name], Field)
 
     def test_field_types(self):
         for field_name, field_type in self.field_defs:
-            assert (
-                self.dataclass_to_test.__dataclass_fields__[field_name].type
-                == field_type
-            )
+            assert self.dataclass_to_test.__dataclass_fields__[field_name].type == field_type
 
     def test_field_default(self):
         for field_name, field_default in self.field_defaults:
-            assert (
-                self.dataclass_to_test.__dataclass_fields__[field_name].default
-                == field_default
-            )
+            assert self.dataclass_to_test.__dataclass_fields__[field_name].default == field_default
 
     def test_field_default_factory(self):
         for field_name, field_default_factory in self.field_default_factories:

@@ -124,12 +124,8 @@ class RedisQueue:
             )
         async with self.client.pipeline() as p:
             # Putting job info into redis
-            await p.hset(
-                f"job:{job_id}", self.job_info_key, JsonSerializer().render(job_info)
-            )
-            await p.hset(
-                f"job:{job_id}", self.job_info_type_key, job_info.__class__.__name__
-            )
+            await p.hset(f"job:{job_id}", self.job_info_key, JsonSerializer().render(job_info))
+            await p.hset(f"job:{job_id}", self.job_info_type_key, job_info.__class__.__name__)
             # Queuing the job onto the list/queue
             await p.rpush(self.job_queue_name, job_id)
             await p.execute()
@@ -137,9 +133,7 @@ class RedisQueue:
             logging.info(f"{job_id} queued")
 
             # we inform, that the job was queued
-            await self.set_job_runtime_status(
-                job_id, p, Status.QUEUED.value, start_time
-            )
+            await self.set_job_runtime_status(job_id, p, Status.QUEUED.value, start_time)
             try:
                 async with self.client.pubsub() as ps:
                     # we tell redis to let us know if a message is published
@@ -156,16 +150,13 @@ class RedisQueue:
                                 )
                                 if not message:
                                     continue  # https://github.com/redis/redis-py/issues/733
-                                status_binary = await self.client.hget(
-                                    f"job:{job_id}", "status"
-                                )
+                                status_binary = await self.client.hget(f"job:{job_id}", "status")
                                 status = status_binary.decode()
                                 result: JobResult = pickle.loads(message["data"])
                                 duration = time.time() - start_time
                                 if status == Status.SUCCESS.value:
                                     logging.info(
-                                        f"Job id: {job_id}, status: {status}, "
-                                        f"duration: {duration}"
+                                        f"Job id: {job_id}, status: {status}, duration: {duration}"
                                     )
                                 elif status == Status.FAILURE.value:
                                     logging.info(
@@ -173,14 +164,13 @@ class RedisQueue:
                                         f"duration: {duration}, error: {result.data}"
                                     )
                                 return result, status
-                    except (asyncio.TimeoutError, asyncio.exceptions.CancelledError):
+                    except (TimeoutError, asyncio.exceptions.CancelledError):
                         logging.info(f"{job_id} timeout")
                         raise
             except Exception as e:
                 duration = time.time() - start_time
                 logging.info(
-                    f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: "
-                    f"{duration}",
+                    f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: {duration}",
                     exc_info=True,
                 )
                 return (

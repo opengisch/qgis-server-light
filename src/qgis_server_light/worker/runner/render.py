@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, Optional, Tuple
 
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from PyQt5.QtCore import QBuffer, QByteArray, QEventLoop, QIODevice
@@ -22,7 +21,7 @@ class RenderRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoRender,
-        layer_cache: Optional[Dict] = None,
+        layer_cache: dict | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)
 
@@ -52,11 +51,9 @@ class RenderRunner(MapRunner):
         img.setDotsPerMeterX(int(map_settings.outputDpi() * 39.37))
         img.setDotsPerMeterY(int(map_settings.outputDpi() * 39.37))
         content_type, image_data = self._encode_image(img, self.job_info.job.format)
-        return JobResult(
-            id=self.job_info.id, data=image_data, content_type=content_type
-        )
+        return JobResult(id=self.job_info.id, data=image_data, content_type=content_type)
 
-    def _encode_image(self, image: QImage, fmt: str) -> Tuple[str, bytearray]:
+    def _encode_image(self, image: QImage, fmt: str) -> tuple[str, bytearray]:
         """Encodes an image in a specific mime type
         Args:
             image (QImage): The image to encode
@@ -68,10 +65,10 @@ class RenderRunner(MapRunner):
             fmt = fmt.lower()
             encoding_method = self.image_formats()[fmt]
             return fmt, encoding_method(image)
-        except KeyError:
+        except KeyError as e:
             raise RuntimeError(
                 f"Requested mimtype '{fmt}' was found in {list(self.image_formats.keys())}."
-            )
+            ) from e
 
     @staticmethod
     def _encode_png(image: QImage):

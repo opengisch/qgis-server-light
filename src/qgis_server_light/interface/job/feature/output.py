@@ -27,9 +27,7 @@ class Attribute(BaseInterface):
 @dataclass(repr=False)
 class Geometry(Attribute):
     name: str = field(default="geometry", metadata={"type": "Element"})
-    value: bytes | None = field(
-        default=None, metadata={"type": "Element", "format": "base64"}
-    )
+    value: bytes | None = field(default=None, metadata={"type": "Element", "format": "base64"})
 
     @property
     def shortened_fields(self) -> set:

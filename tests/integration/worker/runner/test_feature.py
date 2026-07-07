@@ -30,9 +30,7 @@ class TestFeatureRunnerIntegration:
                 name="test-local-gpkg",
                 title="Test local gpkg",
                 source=json.dumps(
-                    OgrSource(
-                        path="placenames.gpkg", layer_name="placenames"
-                    ).to_qgis_decoded_uri
+                    OgrSource(path="placenames.gpkg", layer_name="placenames").to_qgis_decoded_uri
                 ),
                 remote=False,
                 folder_name="data",

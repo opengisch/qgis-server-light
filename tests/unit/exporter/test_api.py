@@ -29,10 +29,7 @@ class TestExporter:
     def test_assemble_project_base_path_behaves(
         self, data_path, manadant_name, project_name, expected
     ):
-        assert (
-            str(assemble_project_base_path(data_path, manadant_name, project_name))
-            == expected
-        )
+        assert str(assemble_project_base_path(data_path, manadant_name, project_name)) == expected
 
     @pytest.mark.parametrize(
         "project_base_path,output_format,expected",
@@ -54,9 +51,5 @@ class TestExporter:
             ),
         ],
     )
-    def test_assemble_output_file_path_behaves(
-        self, project_base_path, output_format, expected
-    ):
-        assert (
-            str(assemble_output_file_path(project_base_path, output_format)) == expected
-        )
+    def test_assemble_output_file_path_behaves(self, project_base_path, output_format, expected):
+        assert str(assemble_output_file_path(project_base_path, output_format)) == expected

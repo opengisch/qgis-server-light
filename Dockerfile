@@ -17,7 +17,7 @@ RUN apt-get update \
     build-essential \
     python3-dev \
     openssh-server \
-    gosu
+    sudo
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
 
@@ -42,6 +42,10 @@ RUN groupadd --system --gid $GID nonroot \
  && useradd --system --gid $GID --uid $UID --create-home appuser \
  && echo "$USER:$USERPWD" | chpasswd
 
+# We allow the non root user sudo access on decent actions
+RUN echo "$USER ALL=(root) NOPASSWD: /usr/sbin/sshd, /etc/ssh/ssh_keygen, /bin/chown, /bin/chmod, /bin/mkdir" >> /etc/sudoers.d/$USER && \
+    chmod 0440 /etc/sudoers.d/$USER
+
 WORKDIR /app
 
 RUN chown -R $UID:$GID /app
@@ -59,8 +63,8 @@ ENV UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT
 #   not the project itself
 USER appuser
 
-RUN --mount=type=bind,source=qgis-server-light/pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=qgis-server-light/uv.lock,target=uv.lock \
+RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=cache,target=$UV_CACHE_DIR_BUILD_TIME,uid=$UID,gid=$GID \
     python3 -c "import platform; print(platform.python_version())" > .python-version \
  && mkdir -p $(python3 -m site --user-site) \
@@ -68,6 +72,3 @@ RUN --mount=type=bind,source=qgis-server-light/pyproject.toml,target=pyproject.t
  && uv venv --system-site-packages $UV_PROJECT_ENVIRONMENT \
  && uv sync --frozen --no-install-project --group dev \
  && cp -r $UV_CACHE_DIR_BUILD_TIME/. $UV_CACHE_DIR_RUN_TIME
-
-# we switch back to root user to start the ssh server
-USER 0
