@@ -7,6 +7,7 @@ services:
       - "QSL_SVG_PATH=/io/svg"
       - "QSL_DATA_ROOT=/io/data"
     platform: "linux/amd64"
+    image: local/qsl:dev
     build:
       context: .
       dockerfile: Dockerfile
@@ -52,6 +53,7 @@ services:
     environment:
       - "QSL_DATA_ROOT=/io/data"
     platform: "linux/amd64"
+    image: local/qsl-exporter:dev
     build:
       context: .
       dockerfile: Dockerfile
