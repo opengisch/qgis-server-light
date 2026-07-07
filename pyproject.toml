@@ -44,6 +44,7 @@ Changelog = "https://github.com/opengisch/qgis-server-light/blob/master/CHANGES.
 [project.scripts]
 redis-worker = "qgis_server_light.worker.redis:main"
 exporter = "qgis_server_light.exporter.cli:main"
+exporter-api = "qgis_server_light.exporter.api:main"
 
 [build-system]
 requires = ["uv_build>=0.11.25,<0.12.0"]
@@ -56,6 +57,7 @@ dev = [
     { include-group = "worker" },
     { include-group = "exporter" },
     { include-group = "interface" },
+    { include-group = "docs" },
     "pyprof2calltree>=1.4.5",
 ]
 lint-format = [
@@ -85,6 +87,16 @@ exporter = [
     "pgserviceparser>=3.0.3",
     "xsdata>=26.2",
 ]
+docs = [
+    "mkdocs>=1.6,<2.0",
+    "mkdocs-autorefs>=1.4.4",
+    "mkdocs-gen-files>=0.6.1",
+    "mkdocs-literate-nav>=0.6.3",
+    "mkdocs-material>=9,<10",
+    "mkdocs-section-index>=0.3.12",
+    "mkdocstrings>=1.0.4",
+    "mkdocstrings-python>=2.0.5",
+]
 
 [tool.ruff]
 target-version = "py312"
@@ -104,7 +116,7 @@ extend-select = [
 fixable = ["ALL"]
 
 [tool.pytest.ini_options]
-addopts = "-vra --dc=Test"
+addopts = "-vra"
 testpaths = [
     "tests",
 ]

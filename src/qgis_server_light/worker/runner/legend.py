@@ -1,5 +1,5 @@
 from qgis_server_light.interface.job.legend.input import QslJobInfoLegend
-from qgis_server_light.worker.runner.common import MapRunner, JobContext
+from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
 class GetLegendRunner(MapRunner):

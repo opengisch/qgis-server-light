@@ -10,3 +10,6 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# docs
+docs/site

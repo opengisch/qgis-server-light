@@ -1,9 +1,9 @@
 import logging
-import os
 import subprocess
 import sys
 from pathlib import Path
 
+import click
 from flask import Flask, Response, request
 from xsdata.formats.dataclass.parsers import DictDecoder
 from xsdata.formats.dataclass.parsers.config import ParserConfig
@@ -15,10 +15,11 @@ allowed_extensions = (".qgz", ".qgs")
 
 app = Flask(__name__)
 
+DATA_ROOT: Path | None = None
+LOGLEVEL: str = "INFO"
 
-def assemble_project_base_path(
-    data_path: str, mandant_name: str, project_name: str
-) -> Path:
+
+def assemble_project_base_path(data_path: Path, mandant_name: str, project_name: str) -> Path:
     return Path(data_path, mandant_name, project_name)
 
 
@@ -28,25 +29,27 @@ def assemble_output_file_path(project_base_path: Path, output_format: str) -> Pa
 
 @app.route("/export", methods=["POST"])
 def api_export():
-    logging.getLogger().setLevel(logging.DEBUG)
-    data_path = os.environ.get("QSL_DATA_ROOT")
-    if data_path is None:
+    global DATA_ROOT, LOGLEVEL
+    response_mime_type = "text/json"
+    logging.getLogger().setLevel(LOGLEVEL)
+    if DATA_ROOT is None:
         logging.error(
-            "QSL_DATA_ROOT was not defined in the services ENV, we cant run the export."
+            "Something is wrong with the DATA_ROOT, it has the value None."
+            "This means the api has started wrongly, we cant run the export."
         )
         result = ExportResult(successful=False)
-        return Response(JsonSerializer().render(result), mimetype="text/json")
+        return Response(JsonSerializer().render(result), mimetype=response_mime_type)
     body = request.get_json()
     parser_config = ParserConfig(fail_on_unknown_properties=True)
     try:
         parameters = DictDecoder(config=parser_config).decode(body, ExportParameters)
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
         result = ExportResult(successful=False)
-        return Response(JsonSerializer().render(result), mimetype="text/json")
+        return Response(JsonSerializer().render(result), mimetype=response_mime_type)
 
     project_base_path = assemble_project_base_path(
-        data_path, parameters.mandant, parameters.project
+        DATA_ROOT, parameters.mandant, parameters.project
     )
     project_file = None
     for extension in allowed_extensions:
@@ -73,23 +76,74 @@ def api_export():
             check=True,
             capture_output=True,
         )
-        output_file = assemble_output_file_path(
-            project_base_path, parameters.output_format
-        )
+        output_file = assemble_output_file_path(project_base_path, parameters.output_format)
         output_file.write_text(process.stdout)
         result = ExportResult(successful=True)
     except subprocess.CalledProcessError as e:
-        logging.error(e.stderr)
+        logging.exception(e.stderr)
         result = ExportResult(successful=False)
-    return Response(JsonSerializer().render(result), mimetype="text/json")
+    return Response(JsonSerializer().render(result), mimetype=response_mime_type)
+
+
+@click.group
+def main() -> None:
+    """
+    Just the central cli entry command. Currently, we don't use it, but its here
+    for future content.
+
+    """
+    pass
+
+
+@click.option(
+    "--data-root",
+    help="The host address the service will be started on.",
+)
+@click.option(
+    "--host",
+    type=str,
+    default="127.0.0.1",
+    help="The host address the service will be started on.",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=5000,
+    help="The port the service will be exposed to.",
+)
+@click.option(
+    "--log-level",
+    type=str,
+    default="info",
+    help="log level (debug, info, warning or error)",
+)
+@main.command(
+    "start",
+    context_settings={"max_content_width": 120},
+    help="""
+    Starts the exporter API. be sure to set the data_root to an accessible directory!
+    """,
+)
+def start(
+    data_root,
+    host: str = "127.0.0.1",
+    port: int = 5000,
+    log_level: str = "info",
+):
+    global DATA_ROOT, LOGLEVEL
+    root_path = Path(data_root)
+    if root_path.exists() and root_path.is_dir():
+        DATA_ROOT = root_path
+        LOGLEVEL = log_level.upper()
+        app.run(
+            host=host,
+            debug=log_level.upper() in ["DEBUG"],
+            threaded=False,
+            port=port,
+        )
+    else:
+        raise RuntimeError(f"Mandatory 'data_root' => {data_root} does not exist or is not a dir.")
 
 
 if __name__ == "__main__":
-    data_path = os.environ.get("QSL_DATA_ROOT", None)
-    exporter_host = os.environ.get("QSL_EXPORTER_API_HOST", "127.0.0.1")
-    exporter_port = int(os.environ.get("QSL_EXPORTER_API_PORT", 5000))
-    if data_path is None:
-        raise RuntimeError(
-            "Mandatory 'QSL_DATA_ROOT' does not exist in the environment."
-        )
-    app.run(host=exporter_host, debug=True, threaded=False, port=exporter_port)
+    main()

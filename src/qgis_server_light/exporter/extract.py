@@ -6,7 +6,6 @@ from base64 import urlsafe_b64encode
 from dataclasses import fields
 from functools import reduce
 from itertools import zip_longest
-from typing import List, Tuple, Union
 
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
@@ -102,14 +101,18 @@ class Exporter:
         path: list[str],
     ):
         """
-        This is a highly recursive function which walks to the qgis job_layer_definition tree to extract all knowledge out
-        of it. It is called from itself again for each level of group like elements which are found.
+        This is a highly recursive function which walks to the qgis job_layer_definition
+        tree to extract all knowledge out
+        of it. It is called from itself again for each level of group like elements
+        which are found.
 
         Args:
             entity: The QGIS projects tree node which can be a QgsLayerTree, QgsLayerTreeGroup or
                 QgsLayerTreeLayer.
-            path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying job_layer_definition names by their tree path.
+            path: The path is a list of string which stores the information of the current
+                tree path. This is
+                used to construct a string for unifying job_layer_definition names by their
+                tree path.
         """
         if isinstance(entity, QgsLayerTreeLayer):
             # this is a job_layer_definition, we can extract its information
@@ -117,7 +120,7 @@ class Exporter:
                 entity,
                 path,
             )
-        elif isinstance(entity, QgsLayerTreeGroup) or isinstance(entity, QgsLayerTree):
+        elif isinstance(entity, (QgsLayerTreeGroup, QgsLayerTree)):
             # these are "group like" elements, we need to step into them one level deeper.
             short_name = self.get_group_short_name(entity)
             if short_name != "":
@@ -144,13 +147,16 @@ class Exporter:
         path: list[str],
     ):
         """
-        Collects data pertaining to a QGIS job_layer_definition tree group. Basically this translates a QgsLayerTreeGroup
+        Collects data pertaining to a QGIS job_layer_definition tree group. Basically
+        this translates a QgsLayerTreeGroup
         into a QGIS-Server-Light TreeGroup.
 
         Args:
             group: The group which is handled.
-            path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying job_layer_definition names by their tree path.
+            path: The path is a list of string which stores the information of the current
+                tree path. This is
+                used to construct a string for unifying job_layer_definition names by
+                their tree path.
         """
         children = []
         for child in group.children():
@@ -215,7 +221,8 @@ class Exporter:
                 source = WfsSource()
             else:
                 logging.error(
-                    f"Unknown provider type {layer.providerType().lower()} for job_layer_definition {layer.title() or layer.name()}"
+                    f"Unknown provider type {layer.providerType().lower()} for "
+                    f"job_layer_definition {layer.title() or layer.name()}"
                 )
                 return
             qsl_vector_dataset_fields = self.create_qsl_fields_from_qgis_field(layer)
@@ -271,16 +278,16 @@ class Exporter:
                 )
             else:
                 logging.error(
-                    f"Source was None this is not expected. Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
+                    f"Source was None this is not expected. Layer was: {short_name}, "
+                    f"QGIS job_layer_definition ID:{layer.id()}"
                 )
         elif layer_type == "custom":
             if layer.providerType().lower() in ["xyzvectortiles", "mbtilesvectortiles"]:
-                source = DataSource(
-                    vector_tile=self.create_qsl_source_vector_tiles(decoded)
-                )
+                source = DataSource(vector_tile=self.create_qsl_source_vector_tiles(decoded))
             else:
                 logging.error(
-                    f"Unknown provider type: {layer.providerType().lower()} Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
+                    f"Unknown provider type: {layer.providerType().lower()} Layer "
+                    f"was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
                 )
                 # TODO: make this more configurable
                 return
@@ -302,7 +309,8 @@ class Exporter:
             )
         else:
             logging.error(
-                f'Unknown layer_type "{layer_type}" Layer was: {short_name}, QGIS job_layer_definition ID:{layer.id()}'
+                f'Unknown layer_type "{layer_type}" Layer was: {short_name}, QGIS '
+                f"job_layer_definition ID:{layer.id()}"
             )
             return
 
@@ -312,8 +320,10 @@ class Exporter:
 
         Args:
             short_name: The short name either of the group or the job_layer_definition.
-            path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying job_layer_definition names by their tree path.
+            path: The path is a list of string which stores the information of the current
+                tree path. This is
+                used to construct a string for unifying job_layer_definition names by
+                their tree path.
 
         Returns:
             The short name itself or its unified tree path.
@@ -329,8 +339,10 @@ class Exporter:
 
         Args:
             short_name: The short name either of the group or the job_layer_definition.
-            path: The path is a list of string which stores the information of the current tree path. This is
-                used to construct a string for unifying job_layer_definition names by their tree path.
+            path: The path is a list of string which stores the information of the current
+                tree path. This is
+                used to construct a string for unifying job_layer_definition names by
+                their tree path.
 
         Returns:
 
@@ -340,7 +352,8 @@ class Exporter:
 
     def decode_datasource(self, layer: QgsMapLayer) -> dict:
         """
-        Decodes a QGIS map job_layer_definition datasource into a dict and ensures that types are pythonic and pathes are
+        Decodes a QGIS map job_layer_definition datasource into a dict and ensures that
+        types are pythonic and pathes are
         clean for further usage.
 
         Args:
@@ -354,22 +367,16 @@ class Exporter:
         )
         logging.debug(f"Layer source: {decoded}")
         for key in decoded:
-            if str(decoded[key]) == "None":
-                decoded[key] = None
-            elif str(decoded[key]) == "NULL":
+            if str(decoded[key]) == "None" or str(decoded[key]) == "NULL":
                 decoded[key] = None
             else:
                 decoded[key] = str(decoded[key])
             if key == "path":
-                decoded[key] = decoded[key].replace(
-                    f"{self.qgis_project.readPath('./')}/", ""
-                )
+                decoded[key] = decoded[key].replace(f"{self.qgis_project.readPath('./')}/", "")
         return decoded
 
     @staticmethod
-    def create_qsl_field_from_qgis_field(
-        field: QgsField, is_primary_key: bool
-    ) -> Field:
+    def create_qsl_field_from_qgis_field(field: QgsField, is_primary_key: bool) -> Field:
         attribute_type_xml = Exporter.obtain_simple_types_from_qgis_field_xml(field)
         (
             editor_widget_type,
@@ -401,12 +408,7 @@ class Exporter:
 
     @staticmethod
     def obtain_nullable(field: QgsField):
-        if not (
-            field.constraints().constraints()
-            == QgsFieldConstraints.Constraint.ConstraintNotNull
-        ):
-            return True
-        return False
+        return field.constraints().constraints() != QgsFieldConstraints.Constraint.ConstraintNotNull
 
     @staticmethod
     def provide_field_length(field: QgsField) -> int | None:
@@ -425,14 +427,12 @@ class Exporter:
             return None
 
     @staticmethod
-    def create_qsl_fields_from_qgis_field(layer: QgsVectorLayer) -> List[Field]:
+    def create_qsl_fields_from_qgis_field(layer: QgsVectorLayer) -> list[Field]:
         fields = []
         pk_indexes = layer.dataProvider().pkAttributeIndexes()
         for field_index, field in enumerate(layer.fields().toList()):
             fields.append(
-                Exporter.create_qsl_field_from_qgis_field(
-                    field, (field_index in pk_indexes)
-                )
+                Exporter.create_qsl_field_from_qgis_field(field, (field_index in pk_indexes))
             )
         return fields
 
@@ -477,24 +477,28 @@ class Exporter:
     def get_group_title(group: QgsLayerTreeGroup) -> str:
         if group.customProperty("wmsTitle"):
             return group.customProperty("wmsTitle")
-        elif hasattr(group, "groupLayer"):
+        elif hasattr(group, "groupLayer"):  # noqa: SIM102
             # since QGIS 3.38
-            if group.groupLayer():
-                if group.groupLayer().serverProperties():
-                    if group.groupLayer().serverProperties().title():
-                        return group.groupLayer().serverProperties().title()
+            if (
+                group.groupLayer()
+                and group.groupLayer().serverProperties()
+                and group.groupLayer().serverProperties().title()
+            ):
+                return group.groupLayer().serverProperties().title()
         return group.name()
 
     @staticmethod
     def get_group_short_name(group: QgsLayerTreeGroup) -> str:
         if group.customProperty("wmsShortName"):
             return group.customProperty("wmsShortName")
-        elif hasattr(group, "groupLayer"):
+        elif hasattr(group, "groupLayer"):  # noqa: SIM102
             # since QGIS 3.38
-            if group.groupLayer():
-                if group.groupLayer().serverProperties():
-                    if group.groupLayer().serverProperties().shortName():
-                        return group.groupLayer().serverProperties().shortName()
+            if (
+                group.groupLayer()
+                and group.groupLayer().serverProperties()
+                and group.groupLayer().serverProperties().shortName()
+            ):
+                return group.groupLayer().serverProperties().shortName()
         short_name = Exporter.sanitize_name(group.name(), lower=True)
         if short_name == "_":
             # this is the tree root, we return empty string here
@@ -504,7 +508,8 @@ class Exporter:
     @staticmethod
     def sanitize_name(raw: str, lower: bool = False) -> str:
         """
-        Transforms an arbitrary string into a WMS/WFS and URL compatible short name for a job_layer_definition or group.
+        Transforms an arbitrary string into a WMS/WFS and URL compatible short name for a
+        job_layer_definition or group.
 
         Steps:
         1. Unicode‑NFD → ASCII‑transliteration (removes umlauts/diacritics).
@@ -516,9 +521,7 @@ class Exporter:
         6. Optional all will be converted to lowercase (lower=True).
         """
         # 1. cleaning to ASCII
-        ascii_str = (
-            unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode()
-        )
+        ascii_str = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode()
         # 2. not allowed → '_'
         ascii_str = re.sub(r"[^A-Za-z0-9_.-]+", "_", ascii_str)
         # 3. remove multiple '_'
@@ -536,7 +539,7 @@ class Exporter:
     @staticmethod
     def obtain_editor_widget_type_from_qgis_field(
         field: QgsField,
-    ) -> Tuple[str, str, str, str] | Tuple[str, None, None, None]:
+    ) -> tuple[str, str, str, str] | tuple[str, None, None, None]:
         """
         We simply mimikri [QGIS Server here](https://github.com/qgis/QGIS/blob/de98779ebb117547364ec4cff433f062374e84a3/src/server/services/wfs/qgswfsdescribefeaturetype.cpp#L153-L192)
 
@@ -561,9 +564,10 @@ class Exporter:
                 return editor_widget_type, "time", "string", "time"
             elif field_format == QgsDateTimeFieldFormatter.DATE_FORMAT:
                 return editor_widget_type, "date", "string", "date"
-            elif field_format == QgsDateTimeFieldFormatter.DATETIME_FORMAT:
-                return editor_widget_type, "dateTime", "string", "date-time"
-            elif field_format == QgsDateTimeFieldFormatter.QT_ISO_FORMAT:
+            elif (
+                field_format == QgsDateTimeFieldFormatter.DATETIME_FORMAT
+                or field_format == QgsDateTimeFieldFormatter.QT_ISO_FORMAT
+            ):
                 return editor_widget_type, "dateTime", "string", "date-time"
         elif editor_widget_type == "Range":
             if config.get("Precision"):
@@ -574,15 +578,13 @@ class Exporter:
                     else:
                         return editor_widget_type, "decimal", "number", "double"
 
-        logging.error(
-            f"Editor widget type was not handled as expected: {editor_widget_type}"
-        )
+        logging.error(f"Editor widget type was not handled as expected: {editor_widget_type}")
         return editor_widget_type, None, None, None
 
     @staticmethod
     def obtain_simple_types_from_qgis_field_json(
         field: QgsField,
-    ) -> Tuple[str, str] | Tuple[str, None]:
+    ) -> tuple[str, str] | tuple[str, None]:
         """
         Delivers the type match for json based on the field QgsField type.
 
@@ -689,16 +691,13 @@ class Exporter:
         """
         result = a.copy()
         for key, value in b.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = Exporter.merge_dicts(result[key], value)
             else:
                 if key in ["user", "username"] and value is None:
                     logging.debug(
-                        f"QGIS Datasource contained '{key}', but it's value was NONE, so we not copied that over! "
+                        f"QGIS Datasource contained '{key}', but it's value was NONE, so we"
+                        f"not copied that over! "
                     )
                 else:
                     result[key] = value
@@ -735,7 +734,8 @@ class Exporter:
     @staticmethod
     def create_qsl_crs_from_qgs_layer(layer: QgsMapLayer) -> Crs:
         """
-        Translates the QGIS job_layer_definition crs information into an instance of the QGIS-Server-Light interface Crs
+        Translates the QGIS job_layer_definition crs information into an instance of the
+        QGIS-Server-Light interface Crs
         instance.
 
         Args:
@@ -765,15 +765,18 @@ class Exporter:
         """
         if layer.layer().shortName():
             return layer.layer().shortName()
-        elif hasattr(layer.layer(), "serverProperties"):
-            if layer.layer().serverProperties().shortName():
-                return layer.layer().serverProperties().shortName()
+        elif (
+            hasattr(layer.layer(), "serverProperties")
+            and layer.layer().serverProperties().shortName()
+        ):
+            return layer.layer().serverProperties().shortName()
         return layer.layer().id()
 
     @staticmethod
     def make_wgs84_geom_transform(project, layer) -> QgsCoordinateTransform:
         """
-        Creates a QgisCoordinateTransform context to transform a job_layer_definition to EPSG:4326 aka wgs84.
+        Creates a QgisCoordinateTransform context to transform a job_layer_definition
+        to EPSG:4326 aka wgs84.
 
         Args:
             project: The QGIS project instance.
@@ -817,7 +820,8 @@ class Exporter:
     @staticmethod
     def get_layer_type(layer: QgsMapLayer) -> str | None:
         """
-        Gets the type of the given Qgis job_layer_definition as a string if the type is supported. This is to flatten the
+        Gets the type of the given Qgis job_layer_definition as a string if the type is supported.
+        This is to flatten the
         understanding of layers from qgis into something we can handle.
 
         Args:
@@ -830,11 +834,8 @@ class Exporter:
             return "raster"
         elif isinstance(layer, QgsVectorLayer):
             return "vector"
-        elif (
-            isinstance(layer, QgsVectorTileLayer)
-            or isinstance(layer, QgsTiledSceneLayer)
-            or isinstance(layer, QgsPointCloudLayer)
-            or isinstance(layer, QgsMeshLayer)
+        elif isinstance(
+            layer, (QgsVectorTileLayer, QgsTiledSceneLayer, QgsPointCloudLayer, QgsMeshLayer)
         ):
             return "custom"
         else:
@@ -847,7 +848,8 @@ class Exporter:
 
 
         Args:
-            path_to_project: The absolute path on the file system where the project can be read from.
+            path_to_project: The absolute path on the file system where the project
+            can be read from.
 
         Returns:
             The opened project (read).
@@ -893,7 +895,7 @@ class Exporter:
         )
 
     @staticmethod
-    def get_project_server_entries(project, scope_or_scopes: Union[str, list]) -> dict:
+    def get_project_server_entries(project, scope_or_scopes: str | list) -> dict:
         """
         Gets values from the fields displayed in QGIS under Project > Properties > Server.
         Returns a Dictionary holding all pairs of <key, value> found at the corresponding scopes.
@@ -922,31 +924,28 @@ class Exporter:
             }
         }
 
-        scopes = (
-            [scope_or_scopes] if isinstance(scope_or_scopes, str) else scope_or_scopes
-        )
+        scopes = [scope_or_scopes] if isinstance(scope_or_scopes, str) else scope_or_scopes
 
         for scope in scopes:
             if scope not in supported_scopes:
                 supported = ", ".join(supported_scopes.keys())
-                error_detail = f"This scope is not supported: {scope}. Supported scopes: {supported}"
+                error_detail = (
+                    f"This scope is not supported: {scope}. Supported scopes: {supported}"
+                )
                 raise ValueError(error_detail)
 
             scope_entries = supported_scopes[scope]["scopes"]
             key_entries = supported_scopes[scope]["keys"]
-            to_collect = zip_longest(
-                scope_entries, key_entries, fillvalue=key_entries[0]
-            )
+            to_collect = zip_longest(scope_entries, key_entries, fillvalue=key_entries[0])
 
             def collect(acc, pair):
                 scope, key = pair
                 qgis_scope_name, our_scope_name = scope
 
                 if "list" in qgis_scope_name.lower():
-                    # PyQGIS sometimes violates Liskov's substitution principle so naming tricks needed
-                    list_as_text = ", ".join(
-                        project.readListEntry(qgis_scope_name, key)[0]
-                    )
+                    # PyQGIS sometimes violates Liskov's substitution principle so naming
+                    # tricks needed
+                    list_as_text = ", ".join(project.readListEntry(qgis_scope_name, key)[0])
                     acc.append((our_scope_name, list_as_text))
                 else:
                     acc.append(
@@ -961,7 +960,7 @@ class Exporter:
             return dict(reduce(collect, to_collect, []))
 
     @staticmethod
-    def create_style_list(qgs_layer: QgsMapLayer) -> List[Style]:
+    def create_style_list(qgs_layer: QgsMapLayer) -> list[Style]:
         style_names = qgs_layer.styleManager().styles()
         style_list = []
         for style_name in style_names:
@@ -971,9 +970,7 @@ class Exporter:
             style_list.append(
                 Style(
                     name=style_name,
-                    definition=urlsafe_b64encode(
-                        zlib.compress(style_doc.toByteArray())
-                    ).decode(),
+                    definition=urlsafe_b64encode(zlib.compress(style_doc.toByteArray())).decode(),
                 )
             )
         return style_list

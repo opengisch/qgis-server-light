@@ -111,7 +111,7 @@ class TestRenderRunnerIntegration:
         mismatch = pixelmatch(img_a, img_b, img_diff, includeAA=True, threshold=0.2)
 
         # uncomment the following lines to let the test result images be stored
-        # img_diff.save(os.path.join(data_path, job_layer.folder_name, f"{job_layer.name}.diff.png"))
+        # img_diff.save(os.path.join(data_path, job_layer.folder_name, f"{job_layer.name}.diff.png")) # noqa: E501
         # img_b.save(
         #     os.path.join(data_path, job_layer.folder_name, f"{job_layer.name}.png")
         # )

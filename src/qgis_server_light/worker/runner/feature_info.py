@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Optional, OrderedDict
+from collections import OrderedDict
 
 from qgis.core import (
     QgsApplication,
@@ -24,7 +24,7 @@ class GetFeatureInfoRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoFeatureInfo,
-        layer_cache: Optional[Dict] = None,
+        layer_cache: dict | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)
 
@@ -32,18 +32,11 @@ class GetFeatureInfoRunner(MapRunner):
         if attribute == NULL:
             return None
         setup = layer.editorWidgetSetup(idx)
-        fieldFormatter = QgsApplication.fieldFormatterRegistry().fieldFormatter(
-            setup.type()
-        )
-        return fieldFormatter.representValue(
-            layer, idx, setup.config(), None, attribute
-        )
+        fieldFormatter = QgsApplication.fieldFormatterRegistry().fieldFormatter(setup.type())
+        return fieldFormatter.representValue(layer, idx, setup.config(), None, attribute)
 
     def _clean_attributes(self, attributes, layer):
-        return [
-            self._clean_attribute(attr, idx, layer)
-            for idx, attr in enumerate(attributes)
-        ]
+        return [self._clean_attribute(attr, idx, layer) for idx, attr in enumerate(attributes)]
 
     def run(self):
         for job_layer_definition in self.job_info.job.layers:
@@ -51,9 +44,7 @@ class GetFeatureInfoRunner(MapRunner):
         map_settings = self._get_map_settings(self.map_layers)
         # Estimate queryable bbox (2mm)
         map_to_pixel = map_settings.mapToPixel()
-        map_point = map_to_pixel.toMapCoordinates(
-            self.job_info.job.x, self.job_info.job.y
-        )
+        map_point = map_to_pixel.toMapCoordinates(self.job_info.job.x, self.job_info.job.y)
         # Create identifiable bbox in map coordinates, ±2mm
         tolerance = 0.002 * 39.37 * map_settings.outputDpi()
         tl = QgsPointXY(map_point.x() - tolerance, map_point.y() - tolerance)
@@ -80,12 +71,14 @@ class GetFeatureInfoRunner(MapRunner):
                             zip(
                                 feature.fields().names(),
                                 self._clean_attributes(feature.attributes(), layer),
+                                strict=True,
                             )
                         )
                         features.append({"type": "Feature", "properties": properties})
             else:
                 raise RuntimeError(
-                    f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
+                    f"Layer type `{layer.type().name}` of layer `{layer.shortName()}` "
+                    f"not supported by GetFeatureInfo"
                 )
             if renderer:
                 renderer.stopRender(render_context)

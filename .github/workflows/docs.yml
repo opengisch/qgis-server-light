@@ -10,26 +10,21 @@ jobs:
     env:
       TX_TOKEN: ${{ secrets.TX_TOKEN }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Checkout Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Python requirements
+      - name: Prepare Build Environment
         run: |
-          make install-docs
-
-      - name: Build Docs
-        run: make doc-html
-
+          cp .env.compose.example .env
+          echo "UID=$(id -u)" >> .env
+          echo "GID=$(id -g)" >> .env
+          cat .env
+      - name: Build QGIS-Server-Light Image
+        run: |
+          docker compose build qsl
+      - name: Build docs
+        run: docker compose run --rm --entrypoint bash qsl -c "uv run mkdocs build -f docs/mkdocs.yml -d site"
       - uses: actions/upload-artifact@v7
         with:
           name: docs
           path: docs/site
           if-no-files-found: error
-
       - name: Deploy to GitHub Pages
-        run: make doc-gh-deploy
+        run: docker compose run --rm --entrypoint bash qsl -c "uv run mkdocs gh-deploy -f docs/mkdocs.yml -d site --force"

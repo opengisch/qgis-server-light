@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: TestSuite
 on:
   push:
     branches:
@@ -7,37 +7,26 @@ on:
       - v*
 
 jobs:
-
-  gitattributes:
-    name: Check style (git-attributes)
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - run: sudo rm /etc/apt/sources.list.d/*.list
-      - name: Run make git-attributes
-        run: make git-attributes
-
-  # TODO: Add linting here when we decided what approach we go for.
-
   test-py:
     name: Test Python
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       matrix:
-        os:
-          - 'ubuntu-24.04'
-        qgis-slim-image:
-          - 'ghcr.io/opengisch/qgis-slim:3.40'
-          - 'ghcr.io/opengisch/qgis-slim:3.44'
-    runs-on: ${{ matrix.os }}
-    container:
-      image: ${{ matrix.qgis-slim-image }}
-      options: --user 0:0
+        qgis-slim-version:
+          - '3.40'
+          - '3.44'
     steps:
       - uses: actions/checkout@v6
-      - run: apt-get update
-      - run: apt-get install -y python3-pip python3-setuptools python3-venv make
-      - name: Set up test environment
-        run: make install-test
-      - name: Run tests for Python ${{ matrix.python-version }}
-        run: make tests
+      - name: Prepare Build Environment
+        run: |
+          cp .env.compose.example .env
+          echo "QGIS_VERSION=${{ matrix.qgis-slim-version }}" >> .env
+          echo "UID=$(id -u)" >> .env
+          echo "GID=$(id -g)" >> .env
+          cat .env
+      - name: Build QGIS-Server-Light Image
+        run: |
+          docker compose build qsl
+      - name: Run tests
+        run: docker compose run --rm --entrypoint bash qsl -c "uv run pytest"
