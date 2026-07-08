@@ -3,11 +3,11 @@ repos:
     hooks:
       - id: ruff
         name: ruff
-        entry: docker compose run --rm --entrypoint bash qsl -c "uv run ruff check --fix"
+        entry: docker compose run --rm --remove-orphans --entrypoint bash qsl -c "uv run ruff check --fix"
         language: system
         types: [ python ]
       - id: ruff-format
         name: ruff-format
-        entry: docker compose run --rm --entrypoint bash qsl -c "uv run ruff format"
+        entry: docker compose run --rm --remove-orphans --entrypoint bash qsl -c "uv run ruff format"
         language: system
         types: [ python ]
