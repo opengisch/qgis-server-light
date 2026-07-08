@@ -59,6 +59,7 @@ dev = [
     { include-group = "interface" },
     { include-group = "docs" },
     "pyprof2calltree>=1.4.5",
+    "ty>=0.0.56",
 ]
 lint-format = [
     "ruff>=0.15.20",

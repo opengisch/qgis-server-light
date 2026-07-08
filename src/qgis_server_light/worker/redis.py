@@ -123,7 +123,6 @@ class RedisEngine(Engine):
             while not self.shutdown:
                 try:
                     self.heartbeat(client)
-                    logging.debug("Heartbeat published")
                 except Exception as e:
                     logging.warning(f"Heartbeat failed: {e}")
                 time.sleep(self.heartbeat_interval)
