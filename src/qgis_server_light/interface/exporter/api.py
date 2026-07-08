@@ -9,8 +9,7 @@ class ExportParameters(BaseInterface):
     The serializable request parameters which are accepted by the exporter service.
     """
 
-    mandant: str = field(metadata={"type": "Element"})
-    project: str = field(metadata={"type": "Element"})
+    project_path: str = field(metadata={"type": "Element"})
     unify_layer_names_by_group: bool = field(metadata={"type": "Element"}, default=False)
     output_format: str = field(metadata={"type": "Element"}, default="json")
     pg_service_configs: list[PgServiceConf] = field(
@@ -42,3 +41,4 @@ class ExportResult(BaseInterface):
     """
 
     successful: bool = field(metadata={"type": "Element"})
+    content: str = field(metadata={"type": "Element"})

@@ -483,7 +483,7 @@ class Vector(DataSet):
     which is not a real `QgsVectorLayer`.
     """
 
-    fields: list[Field] | None = field(
+    fields: list[Field] = field(
         default_factory=list,
         metadata={"type": "Element"},
     )
@@ -613,6 +613,21 @@ class Datasets(BaseInterface):
         default_factory=list,
         metadata={"type": "Element"},
     )
+
+    def find_dataset_by_id(self, id: str) -> Vector | Raster | Custom | None:
+        """
+        Finds a dataset by id in the list of passed datasets.
+
+        Args:
+            id: The id value which should be looked up
+
+        Returns:
+            The found dataset or None
+        """
+        for dataset in self.vector + self.raster + self.custom:
+            if dataset.id == id:
+                return dataset
+        return None
 
 
 @dataclass(repr=False)
