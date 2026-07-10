@@ -1,6 +1,7 @@
 services:
   qgis-server-light:
     image: local/opengisch/qgis-server-light-dev:latest
+    platform: linux/amd64
     build:
       context: .
       dockerfile: ./Dockerfile

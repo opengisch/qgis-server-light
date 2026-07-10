@@ -11,3 +11,4 @@ docs/site
 /.coverage
 /.coverage.xml
 /.profile/
+/tests/resources/.process_output

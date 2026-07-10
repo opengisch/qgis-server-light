@@ -7,7 +7,7 @@ import logging
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
-from typing import List, Optional
+from typing import List, Optional, TypeAlias
 
 from qgis_server_light.interface.common import BaseInterface, BBox, Style
 
@@ -638,3 +638,177 @@ class Config(BaseInterface):
     meta_data: MetaData = field(metadata={"type": "Element"})
     tree: Tree = field(metadata={"type": "Element"})
     datasets: Datasets = field(metadata={"type": "Element"})
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeString:
+    name: str = field(metadata={"type": "Element"}, default="str")
+    length: int | None = field(metadata={"type": "Element"}, default=None)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeBoolean:
+    name: str = field(metadata={"type": "Element"}, default="bool")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeFloat:
+    name: str = field(metadata={"type": "Element"}, default="float")
+    minimum: float | None = field(metadata={"type": "Element"}, default=None)
+    maximum: float | None = field(metadata={"type": "Element"}, default=None)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeInt:
+    name: str = field(metadata={"type": "Element"}, default="int")
+    minimum: int | None = field(metadata={"type": "Element"}, default=None)
+    maximum: int | None = field(metadata={"type": "Element"}, default=None)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeExtent:
+    name: str = field(metadata={"type": "Element"}, default="extent")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeCrs:
+    name: str = field(metadata={"type": "Element"}, default="crs")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeBand:
+    name: str = field(metadata={"type": "Element"}, default="band")
+    allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeField:
+    name: str = field(metadata={"type": "Element"}, default="field")
+    allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeLayout:
+    name: str = field(metadata={"type": "Element"}, default="layout")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeMapTheme:
+    name: str = field(metadata={"type": "Element"}, default="map_theme")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeExpression:
+    name: str = field(metadata={"type": "Element"}, default="expression")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeEnum:
+    name: str = field(metadata={"type": "Element"}, default="enum")
+    options: list[str] = field(metadata={"type": "Element"})
+    allow_multiple: bool = field(metadata={"type": "Element"}, default=False)
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeVectorLayer:
+    name: str = field(metadata={"type": "Element"}, default="vector_layer")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeRasterLayer:
+    name: str = field(metadata={"type": "Element"}, default="raster_layer")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeFile:
+    name: str = field(metadata={"type": "Element"}, default="file")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeMapLayer:
+    name: str = field(metadata={"type": "Element"}, default="map_layer")
+
+
+@dataclass(kw_only=True)
+class ProcessingParameterTypeAnyLayer:
+    name: str = field(metadata={"type": "Element"}, default="multiple_layers")
+    layer_type: (
+        ProcessingParameterTypeVectorLayer
+        | ProcessingParameterTypeRasterLayer
+        | ProcessingParameterTypeMapLayer
+    ) = field(metadata={"type": "Element"})
+    minimum: int = field(metadata={"type": "Element"})
+
+
+ProcessingParameterType: TypeAlias = (
+    ProcessingParameterTypeString
+    | ProcessingParameterTypeBoolean
+    | ProcessingParameterTypeFloat
+    | ProcessingParameterTypeInt
+    | ProcessingParameterTypeExtent
+    | ProcessingParameterTypeCrs
+    | ProcessingParameterTypeBand
+    | ProcessingParameterTypeField
+    | ProcessingParameterTypeLayout
+    | ProcessingParameterTypeMapTheme
+    | ProcessingParameterTypeExpression
+    | ProcessingParameterTypeEnum
+    | ProcessingParameterTypeVectorLayer
+    | ProcessingParameterTypeRasterLayer
+    | ProcessingParameterTypeFile
+    | ProcessingParameterTypeAnyLayer
+)
+
+
+@dataclass
+class Parameter(BaseInterface):
+    name: str = field(metadata={"type": "Element"})
+    type: ProcessingParameterType = field(metadata={"type": "Element"})
+    optional: bool = field(metadata={"type": "Element"})
+    default: str | int | float | bool = field(metadata={"type": "Element"})
+    description: str = field(metadata={"type": "Element"})
+    is_destination: bool = field(metadata={"type": "Element"})
+
+    @property
+    def shortened_fields(self) -> set:
+        return {"description"}
+
+
+@dataclass
+class Output(BaseInterface):
+    name: str = field(metadata={"type": "Element"})
+    type: ProcessingParameterType = field(metadata={"type": "Element"})
+    description: str = field(metadata={"type": "Element"})
+
+    @property
+    def shortened_fields(self) -> set:
+        return {"description"}
+
+
+@dataclass
+class Algorithm:
+    id: str = field(metadata={"type": "Element"})
+    name: str = field(metadata={"type": "Element"})
+    display_name: str = field(metadata={"type": "Element"})
+    short_help_string: str = field(metadata={"type": "Element"})
+    short_description: str = field(metadata={"type": "Element"})
+    parameters: list[Parameter] = field(
+        default_factory=list, metadata={"type": "Element"}
+    )
+    outputs: list[Output] = field(default_factory=list, metadata={"type": "Element"})
+
+
+@dataclass
+class Process:
+    # uniqueness is not assured here!
+    algorithms: list[Algorithm] = field(
+        default_factory=list, metadata={"type": "Element"}
+    )
+
+    def algorithm_by_id(self, algorithm_id: str):
+        for algorithm in self.algorithms:
+            if algorithm.id == algorithm_id:
+                return algorithm
+        raise LookupError(
+            f"Algorithm with {algorithm_id} was not found in {self.algorithms}"
+        )
