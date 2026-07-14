@@ -162,13 +162,16 @@ class Exporter:
         children = []
         for child in group.children():
             if isinstance(child, QgsLayerTreeGroup):
-                children.append(self.get_group_short_name(child))
+                children.append(
+                    self.create_unified_short_name(self.get_group_short_name(child), path)
+                )
             else:
                 children.append(child.layer().id())
+        short_name = self.create_unified_short_name(self.get_group_short_name(group), path)
         self.qsl_tree.members.append(
             TreeGroup(
-                id=self.get_group_short_name(group),
-                name=self.get_group_short_name(group),
+                id=short_name,
+                name=short_name,
                 children=children,
                 is_checked=group.itemVisibilityChecked(),
                 is_expanded=group.isExpanded(),
@@ -176,8 +179,8 @@ class Exporter:
         )
         self.qsl_datasets.group.append(
             Group(
-                id=self.get_group_short_name(group),
-                name=self.get_group_short_name(group),
+                id=short_name,
+                name=short_name,
                 title=self.get_group_title(group),
                 is_checked=group.itemVisibilityChecked(),
                 is_expanded=group.isExpanded(),
