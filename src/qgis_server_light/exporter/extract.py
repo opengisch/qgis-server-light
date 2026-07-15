@@ -166,7 +166,7 @@ class Exporter:
                 )
             else:
                 children.append(child.layer().id())
-        short_name = self.create_unified_short_name(self.get_group_short_name(group), path)
+        short_name = self.create_unified_short_name(self.get_group_short_name(group), path[:-1])
         self.qsl_tree.members.append(
             TreeGroup(
                 id=short_name,

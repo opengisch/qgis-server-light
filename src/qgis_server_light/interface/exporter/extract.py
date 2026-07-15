@@ -510,6 +510,9 @@ class Custom(DataSet):
 
 @dataclass(repr=False)
 class Group(AbstractDataset):
+    """Holds meta information of a group. It's position in the tree and its children can
+    be derived by id matching."""
+
     pass
 
 
@@ -588,9 +591,19 @@ class Tree(BaseInterface):
         metadata={"type": "Element"},
     )
 
+    @property
+    def root(self):
+        return self.find_by_name("")
+
     def find_by_name(self, name: str) -> TreeGroup | None:
         for member in self.members:
             if member.name == name:
+                return member
+        return None
+
+    def find_by_id(self, identifier: str) -> TreeGroup | None:
+        for member in self.members:
+            if member.id == identifier:
                 return member
         return None
 
@@ -627,6 +640,12 @@ class Datasets(BaseInterface):
         for dataset in self.vector + self.raster + self.custom:
             if dataset.id == id:
                 return dataset
+        return None
+
+    def find_group_by_id(self, identifier: str) -> Group | None:
+        for g in self.group:
+            if g.id == identifier:
+                return g
         return None
 
 
