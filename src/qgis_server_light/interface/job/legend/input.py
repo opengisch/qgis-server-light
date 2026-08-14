@@ -15,7 +15,7 @@ class QslJobParameterLegend(QslJobParameter):
     format: str = field(default="image/png", metadata={"type": "Element"})
     width: int | None = field(default=None, metadata={"type": "Element"})
     height: int | None = field(default=None, metadata={"type": "Element"})
-    dpi: int = field(default=96, metadata={"type": "Element"})
+    dpi: int = field(default=91, metadata={"type": "Element"})
     scale: float | None = field(default=None, metadata={"type": "Element"})
     layer_title: bool = field(default=False, metadata={"type": "Element"})
 

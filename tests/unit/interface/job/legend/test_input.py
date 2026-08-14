@@ -25,7 +25,7 @@ class TestQslJobParameterLegend(DataclassTest):
         ("format", "image/png"),
         ("width", None),
         ("height", None),
-        ("dpi", 96),
+        ("dpi", 91),
         ("scale", None),
         ("layer_title", False),
     ]
