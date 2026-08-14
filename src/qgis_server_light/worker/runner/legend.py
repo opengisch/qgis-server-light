@@ -56,6 +56,9 @@ class GetLegendRunner(MapRunner):
             settings.setMapScale(scale)
 
         if not self.job_info.job.layer_title:
+            style = QgsLegendStyle()
+            style.setMargin(QgsLegendStyle.Bottom, 0)
+            settings.setStyle(QgsLegendStyle.Title, style)
             for layer_node in root.children():
                 QgsLegendRenderer.setNodeLegendStyle(layer_node, QgsLegendStyle.Hidden)
 
@@ -99,6 +102,11 @@ class GetLegendRunner(MapRunner):
         content_type, image_data = self._encode_image(
             image, self.job_info.job.format.lower()
         )
+        del painter
+        del image
+        del model
+        del root
+
         return JobResult(
             id=self.job_info.id,
             data=image_data,
