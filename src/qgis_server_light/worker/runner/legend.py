@@ -102,10 +102,6 @@ class GetLegendRunner(MapRunner):
         content_type, image_data = self._encode_image(
             image, self.job_info.job.format.lower()
         )
-        del painter
-        del image
-        del model
-        del root
 
         return JobResult(
             id=self.job_info.id,
