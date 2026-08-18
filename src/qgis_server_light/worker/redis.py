@@ -231,6 +231,7 @@ def main() -> None:
         EngineContext(args.data_root),
         [
             "qgis_server_light.worker.runner.render.RenderRunner",
+            "qgis_server_light.worker.runner.legend.GetLegendRunner",
             "qgis_server_light.worker.runner.feature.GetFeatureRunner",
             # Not fully functional yet
             # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
