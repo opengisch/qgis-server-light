@@ -164,6 +164,7 @@ class Exporter:
                 name=self.get_group_short_name(group),
                 children=children,
                 is_checked=group.itemVisibilityChecked(),
+                is_expanded=group.isExpanded(),
             )
         )
         self.qsl_datasets.group.append(
@@ -172,6 +173,7 @@ class Exporter:
                 name=self.get_group_short_name(group),
                 title=self.get_group_title(group),
                 is_checked=group.itemVisibilityChecked(),
+                is_expanded=group.isExpanded(),
             )
         )
 

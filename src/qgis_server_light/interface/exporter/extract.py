@@ -26,10 +26,8 @@ class TreeLayer(LayerLike):
 
 @dataclass(repr=False)
 class TreeGroup(TreeLayer):
-    children: List[str] = field(
-        default_factory=list,
-        metadata={"type": "Element"},
-    )
+    children: List[str] = field(metadata={"type": "Element"})
+    is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -528,7 +526,7 @@ class Custom(DataSet):
 
 @dataclass(repr=False)
 class Group(AbstractDataset):
-    pass
+    is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
