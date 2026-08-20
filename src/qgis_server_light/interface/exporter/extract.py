@@ -16,6 +16,7 @@ from qgis_server_light.interface.common import BaseInterface, BBox, Style
 class LayerLike(BaseInterface):
     id: str = field(metadata={"type": "Element"})
     name: str = field(metadata={"type": "Element"})
+    is_checked: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
