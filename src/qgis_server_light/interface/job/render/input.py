@@ -24,7 +24,7 @@ class QslJobParameterRender(QslJobParameter):
         for layer in self.layers:
             if layer.name == name:
                 return layer
-        raise LookupError(f'No layer with name "{name} was found."')
+        raise LookupError(f'No layer with name "{name}" was found."')
 
 
 @dataclass

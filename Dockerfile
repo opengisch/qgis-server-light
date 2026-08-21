@@ -1,4 +1,4 @@
-ARG QGIS_VERSION=3.44.9
+ARG QGIS_VERSION=3.44.13
 FROM ghcr.io/opengisch/qgis-slim:$QGIS_VERSION AS base
 
 LABEL org.opencontainers.image.authors="Clemens Rudert <clemens@opengis.ch>"

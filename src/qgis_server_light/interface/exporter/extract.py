@@ -16,6 +16,7 @@ from qgis_server_light.interface.common import BaseInterface, BBox, Style
 class LayerLike(BaseInterface):
     id: str = field(metadata={"type": "Element"})
     name: str = field(metadata={"type": "Element"})
+    is_checked: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -25,10 +26,8 @@ class TreeLayer(LayerLike):
 
 @dataclass(repr=False)
 class TreeGroup(TreeLayer):
-    children: list[str] = field(
-        default_factory=list,
-        metadata={"type": "Element"},
-    )
+    children: list[str] = field(metadata={"type": "Element"})
+    is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -513,7 +512,7 @@ class Group(AbstractDataset):
     """Holds meta information of a group. It's position in the tree and its children can
     be derived by id matching."""
 
-    pass
+    is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)

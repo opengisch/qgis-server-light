@@ -103,7 +103,7 @@ class RedisQueue:
             )
         elif isinstance(job_parameter, QslJobParameterFeatureInfo):
             job_info = QslJobInfoFeatureInfo(
-                id=job_id, type=QslJobParameterFeatureInfo.__name__, job=job_parameter
+                id=job_id, type=QslJobInfoFeatureInfo.__name__, job=job_parameter
             )
         elif isinstance(job_parameter, QslJobParameterLegend):
             job_info = QslJobInfoLegend(

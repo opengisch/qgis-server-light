@@ -172,6 +172,8 @@ class Exporter:
                 id=short_name,
                 name=short_name,
                 children=children,
+                is_checked=group.itemVisibilityChecked(),
+                is_expanded=group.isExpanded(),
             )
         )
         self.qsl_datasets.group.append(
@@ -179,6 +181,8 @@ class Exporter:
                 id=short_name,
                 name=short_name,
                 title=self.get_group_title(group),
+                is_checked=group.itemVisibilityChecked(),
+                is_expanded=group.isExpanded(),
             )
         )
 
@@ -190,6 +194,7 @@ class Exporter:
     ):
         """Save the given job_layer_definition to the output path."""
         layer = child.layer()
+        is_checked = child.itemVisibilityChecked()
         layer_type = self.get_layer_type(layer)
         if layer_type is None:
             return
@@ -246,6 +251,7 @@ class Exporter:
                     geometry_type_simple=layer.geometryType().name,
                     geometry_type_wkb=layer.wkbType().name,
                     is_spatial=is_spatial,
+                    is_checked=is_checked,
                 )
             )
         elif layer_type == "raster":
@@ -277,6 +283,7 @@ class Exporter:
                         minimum_scale=layer.minimumScale(),
                         maximum_scale=layer.maximumScale(),
                         is_spatial=is_spatial,
+                        is_checked=is_checked,
                     )
                 )
             else:
@@ -308,6 +315,7 @@ class Exporter:
                     minimum_scale=layer.minimumScale(),
                     maximum_scale=layer.maximumScale(),
                     is_spatial=is_spatial,
+                    is_checked=is_checked,
                 )
             )
         else:
@@ -951,12 +959,10 @@ class Exporter:
                     list_as_text = ", ".join(project.readListEntry(qgis_scope_name, key)[0])
                     acc.append((our_scope_name, list_as_text))
                 else:
-                    acc.append(
-                        (
-                            our_scope_name,
-                            project.readEntry(qgis_scope_name, key)[0],
-                        )
-                    )
+                    acc.append((
+                        our_scope_name,
+                        project.readEntry(qgis_scope_name, key)[0],
+                    ))
 
                 return acc
 
