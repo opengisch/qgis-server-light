@@ -73,7 +73,7 @@ interface = []
 worker = [
     { include-group = "interface" },
     "redis==5.0.8",
-    "fpng-py>=0.0.3",
+    "fpng-py @ git+https://github.com/m-kuhn/fpng_py.git@arm-support", # https://github.com/K0lb3/fpng_py/issues/2
     "xsdata>=26.2",
     "hupper>=1.12.1",
 ]

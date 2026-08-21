@@ -56,8 +56,7 @@ wheels = [
 [[package]]
 name = "fpng-py"
 version = "0.0.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a3/82/8b9f91a46315acdcf19c4c60aacb37104944ff17e0f11454290fafebebc8/fpng_py-0.0.3.tar.gz", hash = "sha256:d96735dcda0f421af9fd4d633bffa9373731a7e2933c21460a8bf8530dc2921a", size = 226313, upload-time = "2022-07-21T16:08:11.941Z" }
+source = { git = "https://github.com/m-kuhn/fpng_py.git?rev=arm-support#142934abcd738b33def8a7f56a4b090379e320d2" }
 
 [[package]]
 name = "hupper"
@@ -346,7 +345,7 @@ worker = [
 dev = [
     { name = "click", specifier = ">=8.4.2" },
     { name = "flask", specifier = ">=3.1.3" },
-    { name = "fpng-py", specifier = ">=0.0.3" },
+    { name = "fpng-py", git = "https://github.com/m-kuhn/fpng_py.git?rev=arm-support" },
     { name = "hupper", specifier = ">=1.12.1" },
     { name = "pgserviceparser", specifier = ">=3.0.3" },
     { name = "pillow", specifier = ">=12.3.0" },
@@ -371,7 +370,7 @@ test = [
     { name = "pytest", specifier = ">=9.1.1" },
 ]
 worker = [
-    { name = "fpng-py", specifier = ">=0.0.3" },
+    { name = "fpng-py", git = "https://github.com/m-kuhn/fpng_py.git?rev=arm-support" },
     { name = "hupper", specifier = ">=1.12.1" },
     { name = "redis", specifier = "==5.0.8" },
     { name = "xsdata", specifier = ">=26.2" },
