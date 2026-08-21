@@ -1,0 +1,4512 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../feature/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>common - QGIS-Server-Light</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#qgis_server_light.worker.runner.common" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../../.." title="QGIS-Server-Light" class="md-header__button md-logo" aria-label="QGIS-Server-Light" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QGIS-Server-Light
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              common
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../../.." title="QGIS-Server-Light" class="md-nav__button md-logo" aria-label="QGIS-Server-Light" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QGIS-Server-Light
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../general_idea/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    General Idea
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../prerequisites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prerequisites
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage of Worker
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Usage of Worker
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../usage.worker.cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../usage.worker.local/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local-DEV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../usage.worker.docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Docker-DEV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../usage.exporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage of Exporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../usage.interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage of Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dev the project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ApiDoc
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ApiDoc
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    qgis_server_light
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1" id="__nav_8_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    qgis_server_light
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../debug/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    debug
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_1" id="__nav_8_1_1_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    debug
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../debug/profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../exporter/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    exporter
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_2" id="__nav_8_1_1_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    exporter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../exporter/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    api
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../exporter/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cli
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../exporter/common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../exporter/extract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    extract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    interface
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3" id="__nav_8_1_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/dispatcher/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dispatcher
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_2" id="__nav_8_1_1_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_1_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    dispatcher
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/dispatcher/common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/dispatcher/redis_asio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    redis_asio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/exporter/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    exporter
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_3" id="__nav_8_1_1_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_1_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    exporter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/exporter/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    api
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/exporter/extract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    extract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    job
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4" id="__nav_8_1_1_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_1_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    job
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/common/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_1" id="__nav_8_1_1_3_4_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    common
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/common/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/common/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/feature/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    feature
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_2" id="__nav_8_1_1_3_4_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    feature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/feature/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/feature/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/feature_info/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    feature_info
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_3" id="__nav_8_1_1_3_4_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    feature_info
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/feature_info/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/feature_info/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/legend/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    legend
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_4" id="__nav_8_1_1_3_4_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    legend
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/legend/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/legend/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/process/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    process
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_5" id="__nav_8_1_1_3_4_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    process
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/process/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/process/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_4_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/job/render/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_4_6" id="__nav_8_1_1_3_4_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="6" aria-labelledby="__nav_8_1_1_3_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    render
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/render/input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/job/render/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_3_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../interface/worker/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    worker
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_3_5" id="__nav_8_1_1_3_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_1_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    worker
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../interface/worker/info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    info
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../mappers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mappers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_4" id="__nav_8_1_1_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    mappers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../mappers/factory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    factory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_5" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    worker
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_5" id="__nav_8_1_1_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_1_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_1_1_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    worker
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../image_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    image_utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qgis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    qgis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qgis_type_serializer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    qgis_type_serializer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../redis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    redis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_1_5_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    runner
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_1_5_6" id="__nav_8_1_1_5_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_1_5_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_1_1_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    runner
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        common
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="common">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JobContext
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JobContext">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext.base_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        base_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapRunner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapRunner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.custom_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.default_style_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        default_style_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.job_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.layer_cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layer_cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.map_layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        map_layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.qgis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qgis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.raster_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        raster_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.vector_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vector_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.get_cache_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_cache_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.job_info_class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job_info_class
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.deserialize_job_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deserialize_job_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    feature_info
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../legend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    legend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../worker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Worker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../exporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        common
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="common">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JobContext
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JobContext">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext.base_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        base_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.JobContext.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapRunner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapRunner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.custom_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.default_style_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        default_style_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.job_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.layer_cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layer_cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.map_layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        map_layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.qgis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qgis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.raster_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        raster_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.vector_layer_drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vector_layer_drivers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.MapRunner.get_cache_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_cache_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.job_info_class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        job_info_class
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __init__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.deserialize_job_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deserialize_job_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qgis_server_light.worker.runner.common.Runner.run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>common</h1>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="qgis_server_light.worker.runner.common" class="doc doc-heading">
+            <code>common</code>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="qgis_server_light.worker.runner.common.JobContext" class="doc doc-heading">
+            <code>JobContext</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobContext</span><span class="p">:</span>
+    <span class="n">base_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.JobContext.base_path" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">base_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.JobContext.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">base_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="qgis_server_light.worker.runner.common.MapRunner" class="doc doc-heading">
+            <code>MapRunner</code>
+
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="Runner (qgis_server_light.worker.runner.common.Runner)" href="../../../../../worker/#qgis_server_light.worker.runner.common.Runner">Runner</a></code></p>
+
+
+
+        <p>Base class for any runner that interacts with a map.
+Not runnable by itself.</p>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MapRunner</span><span class="p">(</span><span class="n">Runner</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Base class for any runner that interacts with a map.</span>
+<span class="sd">    Not runnable by itself.</span>
+<span class="sd">    """</span>
+
+    <span class="n">map_layers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QgsMapLayer</span><span class="p">]</span>
+    <span class="n">vector_layer_drivers</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">"ogr"</span><span class="p">,</span>
+        <span class="s2">"postgres"</span><span class="p">,</span>
+        <span class="s2">"spatialite"</span><span class="p">,</span>
+        <span class="s2">"mssql"</span><span class="p">,</span>
+        <span class="s2">"oracle"</span><span class="p">,</span>
+        <span class="s2">"wfs"</span><span class="p">,</span>
+        <span class="s2">"delimitedtext"</span><span class="p">,</span>
+        <span class="s2">"gpx"</span><span class="p">,</span>
+        <span class="s2">"arcgisfeatureserver"</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">raster_layer_drivers</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">"gdal"</span><span class="p">,</span>
+        <span class="s2">"wms"</span><span class="p">,</span>
+        <span class="s2">"xyz"</span><span class="p">,</span>
+        <span class="s2">"arcgismapserver"</span><span class="p">,</span>
+        <span class="s2">"wcs"</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">custom_layer_drivers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"xyzvectortiles"</span><span class="p">,</span> <span class="s2">"mbtilesvectortiles"</span><span class="p">]</span>
+    <span class="n">default_style_name</span> <span class="o">=</span> <span class="s2">"default"</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span>
+        <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span>
+        <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qgis</span> <span class="o">=</span> <span class="n">qgis</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_info</span> <span class="o">=</span> <span class="n">job_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map_layers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span> <span class="o">=</span> <span class="n">layer_cache</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_map_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QgsMapLayer</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">QgsMapSettings</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Produces a QgsMapSettings object from a set of layers"""</span>
+        <span class="n">expression_context_scope</span> <span class="o">=</span> <span class="n">QgsExpressionContextScope</span><span class="p">()</span>
+        <span class="n">expression_context_scope</span><span class="o">.</span><span class="n">setVariable</span><span class="p">(</span><span class="s2">"map_id"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+        <span class="n">expression_context</span> <span class="o">=</span> <span class="n">QgsExpressionContext</span><span class="p">()</span>
+        <span class="n">expression_context</span><span class="o">.</span><span class="n">appendScope</span><span class="p">(</span><span class="n">expression_context_scope</span><span class="p">)</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">QgsMapSettings</span><span class="p">()</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">setExpressionContext</span><span class="p">(</span><span class="n">expression_context</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">preprocessor</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">path</span>
+
+        <span class="n">settings</span><span class="o">.</span><span class="n">pathResolver</span><span class="p">()</span><span class="o">.</span><span class="n">setPathPreprocessor</span><span class="p">(</span><span class="n">preprocessor</span><span class="p">)</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">setOutputSize</span><span class="p">(</span>
+            <span class="n">QSize</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">width</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">height</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">dpi</span><span class="p">:</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">setOutputDpi</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">dpi</span><span class="p">)</span>
+
+        <span class="n">crs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">crs</span>
+        <span class="n">destination_crs</span> <span class="o">=</span> <span class="n">QgsCoordinateReferenceSystem</span><span class="o">.</span><span class="n">fromOgcWmsCrs</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span>
+        <span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_info</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">bbox</span><span class="o">.</span><span class="n">to_2d_list</span><span class="p">()</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="n">QgsRectangle</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">minx</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">miny</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">maxx</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">maxy</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">destination_crs</span><span class="o">.</span><span class="n">hasAxisInverted</span><span class="p">()</span>
+        <span class="p">):</span>  <span class="c1"># lat-lon, instead of lon-lat e.g. epsg:4326</span>
+            <span class="n">bbox</span><span class="o">.</span><span class="n">invert</span><span class="p">()</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">setExtent</span><span class="p">(</span><span class="n">bbox</span><span class="p">)</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">setLayers</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">setBackgroundColor</span><span class="p">(</span><span class="n">QColor</span><span class="p">(</span><span class="n">Qt</span><span class="o">.</span><span class="n">transparent</span><span class="p">))</span>
+
+        <span class="n">settings</span><span class="o">.</span><span class="n">setDestinationCrs</span><span class="p">(</span><span class="n">destination_crs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">settings</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_style</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qgs_layer</span><span class="p">:</span> <span class="n">QgsMapLayer</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Preparing job_layer_definition Style: </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+        <span class="n">style_doc</span> <span class="o">=</span> <span class="n">QDomDocument</span><span class="p">()</span>
+        <span class="n">style_xml</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span>
+            <span class="n">urlsafe_b64decode</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">definition</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">style_doc</span><span class="o">.</span><span class="n">setContent</span><span class="p">(</span><span class="n">style_xml</span><span class="p">)</span>
+        <span class="n">success</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">qgs_layer</span><span class="o">.</span><span class="n">importNamedStyle</span><span class="p">(</span><span class="n">style_doc</span><span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">" ✓ Style loaded: </span><span class="si">{</span><span class="n">success</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_cache_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Central method to decide which name is used in the cache to</span>
+<span class="sd">        identify a layer.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_decide_drivers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QgsMapLayer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Decides which type of layer we are dealing with and delegates initialization</span>
+<span class="sd">        to the right method.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_layer_definition: The job_layer_definition containing all</span>
+<span class="sd">                information to initialize a QgsMapLayer.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            The newly created layer.</span>
+<span class="sd">        Raises:</span>
+<span class="sd">            LookupError: When the driver is not in the expected ranges.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vector_layer_drivers</span><span class="p">:</span>
+            <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_vector_layer</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raster_layer_drivers</span><span class="p">:</span>
+            <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_raster_layer</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">custom_layer_drivers</span><span class="p">:</span>
+            <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_custom_layer</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Type not implemented: </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">qgs_layer</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_layer_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QgsMapLayer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Checks if layer can be fetched directly from the cache or initiates the</span>
+<span class="sd">        creation of a new layer otherwise.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_layer_definition: The job_layer_definition containing all</span>
+<span class="sd">                information to initialize a QgsMapLayer.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            The layer (from cache or newly created).</span>
+<span class="sd">        """</span>
+        <span class="n">cache_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cache_name</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cache_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Using cached job_layer_definition </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (identifier: </span><span class="si">{</span><span class="n">cache_name</span><span class="si">}</span><span class="s2">)"</span>
+            <span class="p">)</span>
+            <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span><span class="p">[</span><span class="n">cache_name</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decide_drivers</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">qgs_layer</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Newly initialized layer </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is valid: </span><span class="si">{</span><span class="n">qgs_layer</span><span class="o">.</span><span class="n">isValid</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span><span class="p">[</span><span class="n">cache_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">qgs_layer</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">qgs_layer</span><span class="o">.</span><span class="n">error</span><span class="p">()</span><span class="o">.</span><span class="n">message</span><span class="p">())</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">qgs_layer</span><span class="o">.</span><span class="n">dataProvider</span><span class="p">()</span><span class="o">.</span><span class="n">error</span><span class="p">()</span><span class="o">.</span><span class="n">message</span><span class="p">())</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Newly initialized layer </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is not valid. JobLayerDefinition: </span><span class="si">{</span><span class="n">job_layer_definition</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">qgs_layer</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_provide_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Fetches the QGIS layer relevant for the requested job layer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_layer_definition: The job_layer_definition containing all</span>
+<span class="sd">                information to initialize a QgsMapLayer.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        """</span>
+        <span class="n">qgs_layer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_layer_cache</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="c1"># applying the style to the job_layer_definition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_style</span><span class="p">(</span><span class="n">qgs_layer</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">qgs_layer</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_datasource_definition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">layer_source</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">remote</span><span class="p">:</span>
+            <span class="c1"># we make the relative path an absolute one with the configured base path</span>
+            <span class="n">layer_source</span><span class="p">[</span><span class="s2">"path"</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">base_path</span><span class="p">,</span>
+                <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">folder_name</span><span class="p">,</span>
+                <span class="n">layer_source</span><span class="p">[</span><span class="s2">"path"</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">layer_source</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_decoded_layer_source_to_connection_string</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">driver</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">layer_source</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">QgsProviderRegistry</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">encodeUri</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="n">layer_source</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_vector_layer</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QgsVectorLayer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Initializes a QgsVectorLayer from a job_layer_definition.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            job_layer_definition: The job_layer_definition definition as</span>
+<span class="sd">                received from the runner.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The QgsVectorLayer instance in case initialization went correctly.</span>
+<span class="sd">        Raises:</span>
+<span class="sd">            RuntimeError: In case the initialized job_layer_definition was not</span>
+<span class="sd">                valid from QGIS point of view (mostly related to not available</span>
+<span class="sd">                data sources).</span>
+<span class="sd">        """</span>
+
+        <span class="n">layer_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_datasource_definition</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="n">layer_source_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_layer_source_to_connection_string</span><span class="p">(</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span> <span class="n">layer_source</span>
+        <span class="p">)</span>
+
+        <span class="c1"># removed loadDefaultStyle=False because it seems to have no effect anymore</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="n">QgsVectorLayer</span><span class="o">.</span><span class="n">LayerOptions</span><span class="p">(</span><span class="n">readExtentFromXml</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">skipCrValidation</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">options</span><span class="o">.</span><span class="n">forceReadOnly</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">qgs_layer</span> <span class="o">=</span> <span class="n">QgsVectorLayer</span><span class="p">(</span>
+            <span class="n">layer_source_path</span><span class="p">,</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span>
+            <span class="n">options</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">filter</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">filter</span><span class="p">,</span> <span class="n">OgcFilter110</span><span class="p">):</span>
+                <span class="c1"># TODO: This is potentially bad: We always get all features from datasource. However, QGIS</span>
+                <span class="c1">#   does not seem to support sliding window feature filter out of the box...</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">" QslJobLayer is filtered by:"</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">definition</span><span class="p">)</span>
+                <span class="n">filter_doc</span> <span class="o">=</span> <span class="n">QDomDocument</span><span class="p">()</span>
+                <span class="n">filter_doc</span><span class="o">.</span><span class="n">setContent</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">definition</span><span class="p">)</span>
+                <span class="n">filter_expression</span> <span class="o">=</span> <span class="n">QgsOgcUtils</span><span class="o">.</span><span class="n">expressionFromOgcFilter</span><span class="p">(</span>
+                    <span class="n">filter_doc</span><span class="o">.</span><span class="n">documentElement</span><span class="p">(),</span>
+                    <span class="n">QgsOgcUtils</span><span class="o">.</span><span class="n">FilterVersion</span><span class="o">.</span><span class="n">FILTER_OGC_1_1</span><span class="p">,</span>
+                    <span class="n">qgs_layer</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">existing_expression</span> <span class="o">=</span> <span class="n">qgs_layer</span><span class="o">.</span><span class="n">subsetString</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">existing_expression</span><span class="p">:</span>
+                    <span class="c1"># Combining with AND the originally defined expression always takes precedence</span>
+                    <span class="n">expression</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">existing_expression</span><span class="si">}</span><span class="s2">) AND (</span><span class="si">{</span><span class="n">filter_expression</span><span class="o">.</span><span class="n">expression</span><span class="p">()</span><span class="si">}</span><span class="s2">)"</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">expression</span> <span class="o">=</span> <span class="n">filter_expression</span><span class="o">.</span><span class="n">expression</span><span class="p">()</span>
+                <span class="n">qgs_layer</span><span class="o">.</span><span class="n">setSubsetString</span><span class="p">(</span><span class="n">expression</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">qgs_layer</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_custom_layer</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QgsVectorTileLayer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initializes a custom job_layer_definition"""</span>
+        <span class="n">layer_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_datasource_definition</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="n">layer_source_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_layer_source_to_connection_string</span><span class="p">(</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span> <span class="n">layer_source</span>
+        <span class="p">)</span>
+        <span class="n">qgs_layer</span> <span class="o">=</span> <span class="n">QgsVectorTileLayer</span><span class="p">(</span><span class="n">layer_source_path</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">qgs_layer</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_raster_layer</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QgsRasterLayer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Initializes a raster job_layer_definition"""</span>
+        <span class="n">layer_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_datasource_definition</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">)</span>
+        <span class="n">layer_source_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoded_layer_source_to_connection_string</span><span class="p">(</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span> <span class="n">layer_source</span>
+        <span class="p">)</span>
+        <span class="n">qgs_layer</span> <span class="o">=</span> <span class="n">QgsRasterLayer</span><span class="p">(</span>
+            <span class="n">layer_source_path</span><span class="p">,</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">qgs_layer</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.context" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">context</span> <span class="o">=</span> <span class="n">context</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.custom_layer_drivers" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">custom_layer_drivers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'xyzvectortiles'</span><span class="p">,</span> <span class="s1">'mbtilesvectortiles'</span><span class="p">]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.default_style_name" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">default_style_name</span> <span class="o">=</span> <span class="s1">'default'</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.job_info" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">job_info</span> <span class="o">=</span> <span class="n">job_info</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.layer_cache" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">layer_cache</span> <span class="o">=</span> <span class="n">layer_cache</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.map_layers" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">map_layers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QgsMapLayer</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.qgis" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">qgis</span> <span class="o">=</span> <span class="n">qgis</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.raster_layer_drivers" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">raster_layer_drivers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'gdal'</span><span class="p">,</span> <span class="s1">'wms'</span><span class="p">,</span> <span class="s1">'xyz'</span><span class="p">,</span> <span class="s1">'arcgismapserver'</span><span class="p">,</span> <span class="s1">'wcs'</span><span class="p">]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.vector_layer_drivers" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">vector_layer_drivers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'ogr'</span><span class="p">,</span> <span class="s1">'postgres'</span><span class="p">,</span> <span class="s1">'spatialite'</span><span class="p">,</span> <span class="s1">'mssql'</span><span class="p">,</span> <span class="s1">'oracle'</span><span class="p">,</span> <span class="s1">'wfs'</span><span class="p">,</span> <span class="s1">'delimitedtext'</span><span class="p">,</span> <span class="s1">'gpx'</span><span class="p">,</span> <span class="s1">'arcgisfeatureserver'</span><span class="p">]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span> <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span> <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span>
+    <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span>
+    <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span>
+    <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">qgis</span> <span class="o">=</span> <span class="n">qgis</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">job_info</span> <span class="o">=</span> <span class="n">job_info</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">map_layers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">layer_cache</span> <span class="o">=</span> <span class="n">layer_cache</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.MapRunner.get_cache_name" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_cache_name</span><span class="p">(</span><span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Central method to decide which name is used in the cache to
+identify a layer.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cache_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_layer_definition</span><span class="p">:</span> <span class="n">QslJobLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Central method to decide which name is used in the cache to</span>
+<span class="sd">    identify a layer.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">job_layer_definition</span><span class="o">.</span><span class="n">id</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="qgis_server_light.worker.runner.common.Runner" class="doc doc-heading">
+            <code>Runner</code>
+
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="abc.ABC">ABC</span></code></p>
+
+
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Runner</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="n">job_info_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">QslJobInfoParameter</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span>
+        <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span>
+        <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">],</span>
+    <span class="p">):</span>
+        <span class="c1"># This is an abstract base class which is not runnable itself</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># This is an abstract base class which is not runnable itself</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">deserialize_job_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">job_info</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">JsonParser</span><span class="p">()</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">job_info</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">job_info_class</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="qgis_server_light.worker.runner.common.Runner.job_info_class" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">job_info_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">QslJobInfoParameter</span><span class="p">]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.Runner.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span> <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span> <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">qgis</span><span class="p">:</span> <span class="n">QgsApplication</span><span class="p">,</span>
+    <span class="n">context</span><span class="p">:</span> <span class="n">JobContext</span><span class="p">,</span>
+    <span class="n">job_info</span><span class="p">:</span> <span class="n">QslJobInfoParameter</span><span class="p">,</span>
+    <span class="n">layer_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">],</span>
+<span class="p">):</span>
+    <span class="c1"># This is an abstract base class which is not runnable itself</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.Runner.deserialize_job_info" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">deserialize_job_info</span><span class="p">(</span><span class="n">job_info</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">deserialize_job_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">job_info</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">JsonParser</span><span class="p">()</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">job_info</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">job_info_class</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="qgis_server_light.worker.runner.common.Runner.run" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">run</span><span class="p">()</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/qgis_server_light/worker/runner/common.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># This is an abstract base class which is not runnable itself</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../..", "features": [], "search": "../../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
