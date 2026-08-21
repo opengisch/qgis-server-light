@@ -1,4 +1,5 @@
-"""This module contains all interface definition to translate from QGIS project to QGIS-Server-Light logic
+"""This module contains all interface definition to translate from QGIS project to
+QGIS-Server-Light logic
 and to write the JSON export of the QGIS project
 
 """
@@ -7,7 +8,6 @@ import logging
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
-from typing import List, Optional
 
 from qgis_server_light.interface.common import BaseInterface, BBox, Style
 
@@ -26,14 +26,15 @@ class TreeLayer(LayerLike):
 
 @dataclass(repr=False)
 class TreeGroup(TreeLayer):
-    children: List[str] = field(metadata={"type": "Element"})
+    children: list[str] = field(metadata={"type": "Element"})
     is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
 class Field(BaseInterface):
     """
-    Transportable (serializable) form of a QGIS vector job_layer_definition fiel (attribute). It contains the information of
+    Transportable (serializable) form of a QGIS vector job_layer_definition fiel (attribute).
+    It contains the information of
     the original data datatype and its translated versions and the editor widget one as well.
 
     Attributes:
@@ -66,26 +67,18 @@ class Field(BaseInterface):
         default=False,
         metadata={"type": "Element"},
     )
-    type_wfs: Optional[str] = field(default=None, metadata={"type": "Element"})
-    type_oapif: Optional[str] = field(default=None, metadata={"type": "Element"})
-    type_oapif_format: Optional[str] = field(default=None, metadata={"type": "Element"})
-    alias: Optional[str] = field(default=None, metadata={"type": "Element"})
-    comment: Optional[str] = field(default=None, metadata={"type": "Element"})
+    type_wfs: str | None = field(default=None, metadata={"type": "Element"})
+    type_oapif: str | None = field(default=None, metadata={"type": "Element"})
+    type_oapif_format: str | None = field(default=None, metadata={"type": "Element"})
+    alias: str | None = field(default=None, metadata={"type": "Element"})
+    comment: str | None = field(default=None, metadata={"type": "Element"})
     nullable: bool = field(default=True, metadata={"type": "Element"})
-    length: Optional[int] = field(default=None, metadata={"type": "Element"})
-    precision: Optional[int] = field(default=None, metadata={"type": "Element"})
-    editor_widget_type: Optional[str] = field(
-        default=None, metadata={"type": "Element"}
-    )
-    editor_widget_type_wfs: Optional[str] = field(
-        default=None, metadata={"type": "Element"}
-    )
-    editor_widget_type_oapif: Optional[str] = field(
-        default=None, metadata={"type": "Element"}
-    )
-    editor_widget_type_oapif_format: Optional[str] = field(
-        default=None, metadata={"type": "Element"}
-    )
+    length: int | None = field(default=None, metadata={"type": "Element"})
+    precision: int | None = field(default=None, metadata={"type": "Element"})
+    editor_widget_type: str | None = field(default=None, metadata={"type": "Element"})
+    editor_widget_type_wfs: str | None = field(default=None, metadata={"type": "Element"})
+    editor_widget_type_oapif: str | None = field(default=None, metadata={"type": "Element"})
+    editor_widget_type_oapif_format: str | None = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -227,9 +220,7 @@ class WmsSource(Source):
     url: str = field(metadata={"type": "Element"})
     dpi_mode: str | None = field(default=None, metadata={"type": "Element"})
     feature_count: int | None = field(default=None, metadata={"type": "Element"})
-    contextual_wms_legend: str | None = field(
-        default=None, metadata={"type": "Element"}
-    )
+    contextual_wms_legend: str | None = field(default=None, metadata={"type": "Element"})
     styles: str | None = field(default=None, metadata={"type": "Element"})
 
     @property
@@ -320,9 +311,7 @@ class PostgresSource(Source):
     sslmode: int | None = field(default=None, metadata={"type": "Element"})
     ssl_mode_text: str | None = field(default=None, metadata={"type": "Element"})
     service: str | None = field(default=None, metadata={"type": "Element"})
-    check_primary_key_unicity: str | None = field(
-        default=None, metadata={"type": "Element"}
-    )
+    check_primary_key_unicity: str | None = field(default=None, metadata={"type": "Element"})
     sql: str | None = field(default=None, metadata={"type": "Element"})
 
     @property
@@ -362,18 +351,14 @@ class PostgresSource(Source):
     def from_qgis_decoded_uri(cls, decoded_uri: dict):
         return cls(
             key=decoded_uri["key"],
-            schema=decoded_uri.get("schema", None),
+            schema=decoded_uri.get("schema"),
             table=decoded_uri["table"],
             geometry_column=decoded_uri.get("geometrycolumn"),
             dbname=decoded_uri.get("dbname"),
             host=decoded_uri.get("host"),
             password=decoded_uri.get("password"),
-            port=int(decoded_uri.get("port"))
-            if decoded_uri.get("port") is not None
-            else None,
-            type=int(decoded_uri.get("type"))
-            if decoded_uri.get("type") is not None
-            else None,
+            port=int(decoded_uri.get("port")) if decoded_uri.get("port") is not None else None,
+            type=int(decoded_uri.get("type")) if decoded_uri.get("type") is not None else None,
             username=decoded_uri.get("username") or decoded_uri.get("user"),
             srid=decoded_uri.get("srid"),
             sslmode=int(decoded_uri.get("sslmode", 2)),
@@ -431,9 +416,7 @@ class DataSource(BaseInterface):
     ogr: OgrSource | None = field(default=None, metadata={"type": "Element"})
     gdal: GdalSource | None = field(default=None, metadata={"type": "Element"})
     wfs: WfsSource | None = field(default=None, metadata={"type": "Element"})
-    vector_tile: VectorTileSource | None = field(
-        default=None, metadata={"type": "Element"}
-    )
+    vector_tile: VectorTileSource | None = field(default=None, metadata={"type": "Element"})
     xyz: XYZSource | None = field(default=None, metadata={"type": "Element"})
 
     @property
@@ -455,9 +438,7 @@ class DataSource(BaseInterface):
             value = getattr(self, name)
             if value:
                 return value
-        logging.error(
-            f"No source was definied at {self.__class__.__name__}, this is not expected"
-        )
+        logging.error(f"No source was definied at {self.__class__.__name__}, this is not expected")
         return None
 
 
@@ -468,7 +449,7 @@ class DataSet(AbstractDataset):
     bbox: BBox | None = field(default=None, metadata={"type": "Element"})
     bbox_wgs84: BBox | None = field(default=None, metadata={"type": "Element"})
     crs: Crs | None = field(default=None, metadata={"type": "Element"})
-    styles: List[Style] = field(default_factory=list, metadata={"type": "Element"})
+    styles: list[Style] = field(default_factory=list, metadata={"type": "Element"})
     minimum_scale: float | None = field(default=None, metadata={"type": "Element"})
     maximum_scale: float | None = field(default=None, metadata={"type": "Element"})
     style_name: str = field(default="default", metadata={"type": "Element"})
@@ -487,7 +468,8 @@ class DataSet(AbstractDataset):
 @dataclass(repr=False)
 class Raster(DataSet):
     """
-    A real QGIS Raster job_layer_definition. That are usually all `QgsRasterLayer` in opposition to `QgsVectorTileLayer`
+    A real QGIS Raster job_layer_definition. That are usually all `QgsRasterLayer`
+    in opposition to `QgsVectorTileLayer`
     which is not a real `QgsRasterLayer`.
     """
 
@@ -495,19 +477,20 @@ class Raster(DataSet):
 @dataclass(repr=False)
 class Vector(DataSet):
     """
-    A real QGIS Vector job_layer_definition. That are usually all `QgsVectorLayer` in opposition to `QgsVectorTileLayer`
+    A real QGIS Vector job_layer_definition. That are usually all `QgsVectorLayer`
+    in opposition to `QgsVectorTileLayer`
     which is not a real `QgsVectorLayer`.
     """
 
-    fields: Optional[List[Field]] = field(
+    fields: list[Field] = field(
         default_factory=list,
         metadata={"type": "Element"},
     )
-    geometry_type_simple: Optional[str] = field(
+    geometry_type_simple: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    geometry_type_wkb: Optional[str] = field(
+    geometry_type_wkb: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
@@ -526,57 +509,60 @@ class Custom(DataSet):
 
 @dataclass(repr=False)
 class Group(AbstractDataset):
+    """Holds meta information of a group. It's position in the tree and its children can
+    be derived by id matching."""
+
     is_expanded: bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
 class Service(BaseInterface):
-    contact_organization: Optional[str] = field(metadata={"type": "Element"})
-    contact_mail: Optional[str] = field(metadata={"type": "Element"})
-    contact_person: Optional[str] = field(
+    contact_organization: str | None = field(metadata={"type": "Element"})
+    contact_mail: str | None = field(metadata={"type": "Element"})
+    contact_person: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    contact_phone: Optional[str] = field(
+    contact_phone: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    contact_position: Optional[str] = field(
+    contact_position: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    fees: Optional[str] = field(default=None, metadata={"type": "Element"})
-    keyword_list: Optional[str] = field(
+    fees: str | None = field(default=None, metadata={"type": "Element"})
+    keyword_list: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    online_resource: Optional[str] = field(
+    online_resource: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    service_abstract: Optional[str] = field(
+    service_abstract: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    service_title: Optional[str] = field(
+    service_title: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    resource_url: Optional[str] = field(default=None, metadata={"type": "Element"})
+    resource_url: str | None = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
 class MetaData(BaseInterface):
     service: Service = field(metadata={"type": "Element"})
-    links: Optional[List[str]] = field(
+    links: list[str] | None = field(
         default_factory=list,
         metadata={"type": "Element"},
     )
-    language: Optional[str] = field(
+    language: str | None = field(
         default=None,
         metadata={"type": "Element"},
     )
-    categories: Optional[List[str]] = field(
+    categories: list[str] | None = field(
         default_factory=list,
         metadata={"type": "Element"},
     )
@@ -584,7 +570,7 @@ class MetaData(BaseInterface):
         default=None,
         metadata={"type": "Element"},
     )
-    author: Optional[str] = field(default=None, metadata={"type": "Element"})
+    author: str | None = field(default=None, metadata={"type": "Element"})
 
     def __post_init__(self):
         if self.creationDateTime is None:
@@ -604,9 +590,19 @@ class Tree(BaseInterface):
         metadata={"type": "Element"},
     )
 
+    @property
+    def root(self):
+        return self.find_by_name("")
+
     def find_by_name(self, name: str) -> TreeGroup | None:
         for member in self.members:
             if member.name == name:
+                return member
+        return None
+
+    def find_by_id(self, identifier: str) -> TreeGroup | None:
+        for member in self.members:
+            if member.id == identifier:
                 return member
         return None
 
@@ -629,6 +625,27 @@ class Datasets(BaseInterface):
         default_factory=list,
         metadata={"type": "Element"},
     )
+
+    def find_dataset_by_id(self, id: str) -> Vector | Raster | Custom | None:
+        """
+        Finds a dataset by id in the list of passed datasets.
+
+        Args:
+            id: The id value which should be looked up
+
+        Returns:
+            The found dataset or None
+        """
+        for dataset in self.vector + self.raster + self.custom:
+            if dataset.id == id:
+                return dataset
+        return None
+
+    def find_group_by_id(self, identifier: str) -> Group | None:
+        for g in self.group:
+            if g.id == identifier:
+                return g
+        return None
 
 
 @dataclass(repr=False)

@@ -7,7 +7,6 @@ from abc import ABC
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Type
 
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QColor
@@ -41,14 +40,14 @@ class JobContext:
 
 
 class Runner(ABC):
-    job_info_class: Type[QslJobInfoParameter]
+    job_info_class: type[QslJobInfoParameter]
 
     def __init__(
         self,
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: Optional[Dict],
+        layer_cache: dict | None,
     ):
         # This is an abstract base class which is not runnable itself
         raise NotImplementedError()
@@ -67,7 +66,7 @@ class MapRunner(Runner):
     Not runnable by itself.
     """
 
-    map_layers: List[QgsMapLayer]
+    map_layers: list[QgsMapLayer]
     vector_layer_drivers = [
         "ogr",
         "postgres",
@@ -94,7 +93,7 @@ class MapRunner(Runner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: Optional[Dict] = None,
+        layer_cache: dict | None = None,
     ) -> None:
         self.qgis = qgis
         self.context = context
@@ -102,7 +101,7 @@ class MapRunner(Runner):
         self.map_layers = list()
         self.layer_cache = layer_cache
 
-    def _get_map_settings(self, layers: List[QgsMapLayer]) -> QgsMapSettings:
+    def _get_map_settings(self, layers: list[QgsMapLayer]) -> QgsMapSettings:
         """Produces a QgsMapSettings object from a set of layers"""
         expression_context_scope = QgsExpressionContextScope()
         expression_context_scope.setVariable("map_id", str(uuid.uuid4()))
@@ -115,9 +114,7 @@ class MapRunner(Runner):
             return path
 
         settings.pathResolver().setPathPreprocessor(preprocessor)
-        settings.setOutputSize(
-            QSize(int(self.job_info.job.width), int(self.job_info.job.height))
-        )
+        settings.setOutputSize(QSize(int(self.job_info.job.width), int(self.job_info.job.height)))
         if self.job_info.job.dpi:
             settings.setOutputDpi(self.job_info.job.dpi)
 
@@ -125,9 +122,7 @@ class MapRunner(Runner):
         destination_crs = QgsCoordinateReferenceSystem.fromOgcWmsCrs(crs)
         minx, miny, maxx, maxy = self.job_info.job.bbox.to_2d_list()
         bbox = QgsRectangle(float(minx), float(miny), float(maxx), float(maxy))
-        if (
-            destination_crs.hasAxisInverted()
-        ):  # lat-lon, instead of lon-lat e.g. epsg:4326
+        if destination_crs.hasAxisInverted():  # lat-lon, instead of lon-lat e.g. epsg:4326
             bbox.invert()
         settings.setExtent(bbox)
         settings.setLayers(layers)
@@ -137,13 +132,9 @@ class MapRunner(Runner):
         return settings
 
     def _load_style(self, qgs_layer: QgsMapLayer, job_layer_definition: QslJobLayer):
-        logging.info(
-            f"Preparing job_layer_definition Style: {job_layer_definition.style.name}"
-        )
+        logging.info(f"Preparing job_layer_definition Style: {job_layer_definition.style.name}")
         style_doc = QDomDocument()
-        style_xml = zlib.decompress(
-            urlsafe_b64decode(job_layer_definition.style.definition)
-        )
+        style_xml = zlib.decompress(urlsafe_b64decode(job_layer_definition.style.definition))
         style_doc.setContent(style_xml)
         success, _ = qgs_layer.importNamedStyle(style_doc)
 
@@ -190,14 +181,16 @@ class MapRunner(Runner):
         cache_name = self.get_cache_name(job_layer_definition)
         if self.layer_cache is not None and cache_name in self.layer_cache:
             logging.debug(
-                f"Using cached job_layer_definition {job_layer_definition.name} (identifier: {cache_name})"
+                f"Using cached job_layer_definition {job_layer_definition.name} "
+                f"(identifier: {cache_name})"
             )
             qgs_layer = self.layer_cache[cache_name]
         else:
             qgs_layer = self._decide_drivers(job_layer_definition)
             if qgs_layer.isValid():
                 logging.debug(
-                    f"Newly initialized layer {job_layer_definition.name} is valid: {qgs_layer.isValid()}"
+                    f"Newly initialized layer {job_layer_definition.name} "
+                    f"is valid: {qgs_layer.isValid()}"
                 )
                 if self.layer_cache is not None:
                     self.layer_cache[cache_name] = qgs_layer
@@ -205,7 +198,8 @@ class MapRunner(Runner):
                 logging.error(qgs_layer.error().message())
                 logging.error(qgs_layer.dataProvider().error().message())
                 raise RuntimeError(
-                    f"Newly initialized layer {job_layer_definition.name} is not valid. JobLayerDefinition: {job_layer_definition}"
+                    f"Newly initialized layer {job_layer_definition.name} "
+                    f"is not valid. JobLayerDefinition: {job_layer_definition}"
                 )
         return qgs_layer
 
@@ -234,14 +228,10 @@ class MapRunner(Runner):
             )
         return layer_source
 
-    def _decoded_layer_source_to_connection_string(
-        self, driver: str, layer_source: dict
-    ) -> str:
+    def _decoded_layer_source_to_connection_string(self, driver: str, layer_source: dict) -> str:
         return QgsProviderRegistry.instance().encodeUri(driver, layer_source)
 
-    def _prepare_vector_layer(
-        self, job_layer_definition: QslJobLayer
-    ) -> QgsVectorLayer:
+    def _prepare_vector_layer(self, job_layer_definition: QslJobLayer) -> QgsVectorLayer:
         """
         Initializes a QgsVectorLayer from a job_layer_definition.
         Args:
@@ -272,31 +262,29 @@ class MapRunner(Runner):
             job_layer_definition.driver,
             options,
         )
-        if job_layer_definition.filter:
-            if isinstance(job_layer_definition.filter, OgcFilter110):
-                # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
-                #   does not seem to support sliding window feature filter out of the box...
-                logging.info(" QslJobLayer is filtered by:")
-                logging.info(job_layer_definition.filter.definition)
-                filter_doc = QDomDocument()
-                filter_doc.setContent(job_layer_definition.filter.definition)
-                filter_expression = QgsOgcUtils.expressionFromOgcFilter(
-                    filter_doc.documentElement(),
-                    QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
-                    qgs_layer,
-                )
-                existing_expression = qgs_layer.subsetString()
-                if existing_expression:
-                    # Combining with AND the originally defined expression always takes precedence
-                    expression = f"({existing_expression}) AND ({filter_expression.expression()})"
-                else:
-                    expression = filter_expression.expression()
-                qgs_layer.setSubsetString(expression)
+        if job_layer_definition.filter and isinstance(job_layer_definition.filter, OgcFilter110):
+            # TODO: This is potentially bad: We always get all features from datasource.
+            #  However, QGIS
+            #   does not seem to support sliding window feature filter out of the box...
+            logging.info(" QslJobLayer is filtered by:")
+            logging.info(job_layer_definition.filter.definition)
+            filter_doc = QDomDocument()
+            filter_doc.setContent(job_layer_definition.filter.definition)
+            filter_expression = QgsOgcUtils.expressionFromOgcFilter(
+                filter_doc.documentElement(),
+                QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
+                qgs_layer,
+            )
+            existing_expression = qgs_layer.subsetString()
+            if existing_expression:
+                # Combining with AND the originally defined expression always takes precedence
+                expression = f"({existing_expression}) AND ({filter_expression.expression()})"
+            else:
+                expression = filter_expression.expression()
+            qgs_layer.setSubsetString(expression)
         return qgs_layer
 
-    def _prepare_custom_layer(
-        self, job_layer_definition: QslJobLayer
-    ) -> QgsVectorTileLayer:
+    def _prepare_custom_layer(self, job_layer_definition: QslJobLayer) -> QgsVectorTileLayer:
         """Initializes a custom job_layer_definition"""
         layer_source = self._handle_datasource_definition(job_layer_definition)
         layer_source_path = self._decoded_layer_source_to_connection_string(
@@ -305,9 +293,7 @@ class MapRunner(Runner):
         qgs_layer = QgsVectorTileLayer(layer_source_path, job_layer_definition.name)
         return qgs_layer
 
-    def _prepare_raster_layer(
-        self, job_layer_definition: QslJobLayer
-    ) -> QgsRasterLayer:
+    def _prepare_raster_layer(self, job_layer_definition: QslJobLayer) -> QgsRasterLayer:
         """Initializes a raster job_layer_definition"""
         layer_source = self._handle_datasource_definition(job_layer_definition)
         layer_source_path = self._decoded_layer_source_to_connection_string(

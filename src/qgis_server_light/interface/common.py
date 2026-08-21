@@ -1,17 +1,19 @@
-"""This module contains common logic, shared beyond all specialized parts of the QGIS-Server-Light interface."""
+"""This module contains common logic, shared beyond all specialised parts of the
+QGIS-Server-Light interface."""
 
 from dataclasses import dataclass, field, fields
-from enum import Enum
-from typing import List
+from enum import StrEnum
 
 
 @dataclass
 class BaseInterface:
     """
-    This class should be used as base class for all dataclasses in the interface. It offers useful methods to
+    This class should be used as base class for all dataclasses in the interface. It offers
+    useful methods to
     handle exposed content in a centralized way. Mainly for logging redaction.
 
-    Since dataclasses gets a __repr__ method installed automatically when they are created, a dataclass
+    Since dataclasses gets a __repr__ method installed automatically when they are
+    created, a dataclass
     inheriting from this base class has to be defined as follows:
 
         @dataclass(repr=False)
@@ -28,7 +30,8 @@ class BaseInterface:
             def redacted_fields(self) -> set:
                 return {"secure"}
 
-    This way, when an instance of this example class gets logged somewhere it the output will be redacted,
+    This way, when an instance of this example class gets logged somewhere it the output
+    will be redacted,
     meaning the logging output might look like this:
 
         Config(id=1, secure=**REDACTED**, long_content=abc12...io345)
@@ -48,7 +51,8 @@ class BaseInterface:
     @property
     def redacted_fields(self) -> set:
         """
-        Field which contents should get redacted before printing them on the log. This is mainly used to
+        Field which contents should get redacted before printing them on the log. This is
+        mainly used to
         prevent passwords in logs.
 
         Returns:
@@ -59,7 +63,8 @@ class BaseInterface:
     @property
     def shortened_fields(self) -> set:
         """
-        Fields which should be shortened to a length, this is manly useful for large content fields with
+        Fields which should be shortened to a length, this is manly useful for large content
+        fields with
         BLOB etc.
 
         Returns:
@@ -68,7 +73,9 @@ class BaseInterface:
         return set()
 
     def _value_string(self, repr_value: str | bytes):
-        return f"{repr_value[: self.shorten_limit]}...{repr_value[((1 + self.shorten_limit) * -1) :]}"
+        return (
+            f"{repr_value[: self.shorten_limit]}...{repr_value[((1 + self.shorten_limit) * -1) :]}"
+        )
 
     def _type_aware_value_string(self, value, repr_value):
         value_string = self._value_string(repr_value)
@@ -102,7 +109,8 @@ class BaseInterface:
 
 class RedactedString:
     """
-    This special string class can be used to handle secret strings in the application. It works like a normal
+    This special string class can be used to handle secret strings in the application.
+    It works like a normal
     string but in case it's used to print or log its value is not reveled to the output.
     """
 
@@ -133,7 +141,7 @@ class RedactedString:
         return self._value
 
 
-class SslMode(str, Enum):
+class SslMode(StrEnum):
     DISABLE = "disable"
     ALLOW = "allow"
     PREFER = "prefer"
@@ -217,7 +225,7 @@ class BBox(BaseInterface):
             raise ValueError(f"Invalid bbox string: {bbox_string}")
 
     @staticmethod
-    def from_list(bbox_list: List[float]) -> "BBox":
+    def from_list(bbox_list: list[float]) -> "BBox":
         """
         Takes a list representation of a BBox in the form:
             [<x_min>,<y_min>,<x_max>,<y_max>] or
