@@ -71,9 +71,10 @@ class GetLegendRunner(MapRunner):
         default_legend_height_px = int(legend_size_mm.height() * px_per_mm)
 
         if width is None and height is None:
-            width = default_legend_width_px
-            height = default_legend_height_px
-            painter_scale = 1.0
+            # Default legend looks a bit too big, we scale it down by a bit
+            width = int(0.75 * default_legend_width_px)
+            height = int(0.75 * default_legend_height_px)
+            painter_scale = 0.75
         elif width is None:
             painter_scale = height / default_legend_height_px
             width = int(default_legend_width_px * painter_scale)
