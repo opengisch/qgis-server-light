@@ -46,7 +46,7 @@ redis-worker = "qgis_server_light.worker.redis:main"
 exporter = "qgis_server_light.exporter.cli:main"
 
 [build-system]
-requires = ["uv_build>=0.11.25,<0.12.0"]
+requires = ["uv_build>=0.11.25,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -73,7 +73,7 @@ interface = []
 worker = [
     { include-group = "interface" },
     "redis==5.0.8",
-    "fpng-py @ git+https://github.com/m-kuhn/fpng_py.git@arm-support", # https://github.com/K0lb3/fpng_py/issues/2
+    "fpng-py @ git+https://github.com/m-kuhn/fpng_py.git@arm-support", # arm support, see: https://github.com/K0lb3/fpng_py/issues/2
     "xsdata>=26.2",
     "hupper>=1.12.1",
 ]
