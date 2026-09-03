@@ -27,6 +27,7 @@ from qgis.core import (
     QgsVectorTileLayer,
 )
 from xsdata.formats.dataclass.parsers import JsonParser
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job.common.input import (
     OgcFilter110,
@@ -153,7 +154,14 @@ class MapRunner(Runner):
         """Central method to decide which name is used in the cache to
         identify a layer.
         """
-        return job_layer_definition.id
+        return (
+            f"{job_layer_definition.id}"
+            f"{job_layer_definition.name}"
+            f"{job_layer_definition.source}"
+            f"{job_layer_definition.remote}"
+            f"{job_layer_definition.folder_name}"
+            f"{job_layer_definition.driver}"
+        )
 
     def _decide_drivers(self, job_layer_definition: QslJobLayer) -> QgsMapLayer:
         """Decides which type of layer we are dealing with and delegates initialization
