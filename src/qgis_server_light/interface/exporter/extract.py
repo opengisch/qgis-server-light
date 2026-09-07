@@ -383,7 +383,7 @@ class VectorTileSource(Source):
 
     @property
     def remote(self):
-        return self.decide_remote(self.url)
+        return self.decide_remote(self.path or self.url)
 
     @property
     def to_qgis_decoded_uri(self) -> dict:

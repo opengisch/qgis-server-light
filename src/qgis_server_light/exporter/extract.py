@@ -6,6 +6,8 @@ from base64 import urlsafe_b64encode
 from dataclasses import fields
 from functools import reduce
 from itertools import zip_longest
+from typing import List, Tuple, Union
+from urllib.parse import unquote
 
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
@@ -383,7 +385,11 @@ class Exporter:
             else:
                 decoded[key] = str(decoded[key])
             if key == "path":
-                decoded[key] = decoded[key].replace(f"{self.qgis_project.readPath('./')}/", "")
+                # QGIS returns url encoded paths, which leads to incorrect operations,
+                # eg: ".%2Fdata%2Fhiroshima.mbtiles" instead of "./data/hiroshima.mbtiles"
+                decoded[key] = unquote(decoded[key]).replace(
+                    f"{self.qgis_project.readPath('./')}/", ""
+                )
         return decoded
 
     @staticmethod
