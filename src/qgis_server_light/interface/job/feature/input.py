@@ -17,7 +17,8 @@ class FeatureQuery(BaseInterface):
 
     Attributes:
         layers: A list layers which should only reference vector sources and be queried.
-        aliases: An optional list of alias names. This has to be the same length as the list of datasets.
+        aliases: An optional list of alias names. This has to be the same length as the
+        list of datasets.
         filter: An optional filter which might reference all passed layers thats why layers
             has to be added
     """

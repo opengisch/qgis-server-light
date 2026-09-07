@@ -30,19 +30,13 @@ def profile_async(func):
         stats = pstats.Stats(pr)
         path = Path(".profile")
         path.mkdir(parents=True, exist_ok=True)
-        stats_file = os.path.join(
-            str(path), f"{func.__module__}.{func.__name__}.profile_data.prof"
-        )
-        callgrind_file = os.path.join(
-            str(path), f"{func.__module__}.{func.__name__}.callgrind.out"
-        )
+        stats_file = os.path.join(str(path), f"{func.__module__}.{func.__name__}.profile_data.prof")
+        callgrind_file = os.path.join(str(path), f"{func.__module__}.{func.__name__}.callgrind.out")
         stats.dump_stats(stats_file)
         call_tree = pyprof2calltree.CalltreeConverter(stats)
         with open(callgrind_file, "w+") as f:
             call_tree.output(f)
-        print(
-            f"Profiling data saved to: {stats_file}, CallTree saved t: {callgrind_file}"
-        )
+        print(f"Profiling data saved to: {stats_file}, CallTree saved t: {callgrind_file}")
 
         return result
 
@@ -77,19 +71,13 @@ def profile_sync(func):
         stats = pstats.Stats(pr)
         path = Path(".profile")
         path.mkdir(parents=True, exist_ok=True)
-        stats_file = os.path.join(
-            str(path), f"{func.__module__}.{func.__name__}.profile_data.prof"
-        )
-        callgrind_file = os.path.join(
-            str(path), f"{func.__module__}.{func.__name__}.callgrind.out"
-        )
+        stats_file = os.path.join(str(path), f"{func.__module__}.{func.__name__}.profile_data.prof")
+        callgrind_file = os.path.join(str(path), f"{func.__module__}.{func.__name__}.callgrind.out")
         stats.dump_stats(stats_file)
         call_tree = pyprof2calltree.CalltreeConverter(stats)
         with open(callgrind_file, "w+") as f:
             call_tree.output(f)
-        print(
-            f"Profiling data saved to: {stats_file}, CallTree saved t: {callgrind_file}"
-        )
+        print(f"Profiling data saved to: {stats_file}, CallTree saved t: {callgrind_file}")
 
         return result
 

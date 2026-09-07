@@ -22,9 +22,7 @@ class QslJobParameterFeatureInfo(QslJobParameter):
         x = int(self.I or self.X)
         y = int(self.J or self.Y)
         if x is None or y is None:
-            raise KeyError(
-                "Parameter `I` or `X` and `J` or `Y`  are mandatory for GetFeatureInfo"
-            )
+            raise KeyError("Parameter `I` or `X` and `J` or `Y`  are mandatory for GetFeatureInfo")
         if self.QUERY_LAYERS is None:
             raise KeyError("QUERY_LAYERS is mandatory in this request")
 
@@ -43,6 +41,4 @@ class QslJobParameterFeatureInfo(QslJobParameter):
 
 @dataclass
 class QslJobInfoFeatureInfo(QslJobInfoParameter):
-    job: QslJobParameterFeatureInfo = field(
-        metadata={"type": "Element", "required": True}
-    )
+    job: QslJobParameterFeatureInfo = field(metadata={"type": "Element", "required": True})
