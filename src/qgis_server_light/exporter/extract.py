@@ -243,6 +243,7 @@ class Exporter:
                     geometry_type_wkb=layer.wkbType().name,
                     is_spatial=is_spatial,
                     is_checked=is_checked,
+                    is_wms_background=self.is_wms_background_layer(layer),
                 )
             )
         elif layer_type == "raster":
@@ -275,6 +276,7 @@ class Exporter:
                         maximum_scale=layer.maximumScale(),
                         is_spatial=is_spatial,
                         is_checked=is_checked,
+                        is_wms_background=self.is_wms_background_layer(layer),
                     )
                 )
             else:
@@ -307,6 +309,7 @@ class Exporter:
                     maximum_scale=layer.maximumScale(),
                     is_spatial=is_spatial,
                     is_checked=is_checked,
+                    is_wms_background=self.is_wms_background_layer(layer),
                 )
             )
         else:
@@ -483,6 +486,13 @@ class Exporter:
             return "dateTime"
         else:
             return "string"
+
+    @staticmethod
+    def is_wms_background_layer(layer: QgsMapLayer) -> bool:
+        value = layer.customProperty("WMSBackgroundLayer", False)
+        if isinstance(value, str):
+            return value.strip().lower() == "true"
+        return bool(value)
 
     @staticmethod
     def get_group_title(group: QgsLayerTreeGroup) -> str:

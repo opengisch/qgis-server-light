@@ -473,6 +473,7 @@ class DataSet(AbstractDataset):
     maximum_scale: float | None = field(default=None, metadata={"type": "Element"})
     style_name: str = field(default="default", metadata={"type": "Element"})
     is_spatial: bool = field(default=True, metadata={"type": "Element"})
+    is_wms_background: bool = field(default=False, metadata={"type": "Element"})
 
     def get_style_by_name(self, name: str) -> Style | None:
         for style in self.styles:
