@@ -243,7 +243,8 @@ class Exporter:
                     geometry_type_wkb=layer.wkbType().name,
                     is_spatial=is_spatial,
                     is_checked=is_checked,
-                    is_wms_background=self.is_wms_background_layer(layer),
+                    # Qgis server property WMSBackgroundLayer can only be set for raster layers
+                    is_background=False,
                 )
             )
         elif layer_type == "raster":
@@ -276,7 +277,7 @@ class Exporter:
                         maximum_scale=layer.maximumScale(),
                         is_spatial=is_spatial,
                         is_checked=is_checked,
-                        is_wms_background=self.is_wms_background_layer(layer),
+                        is_background=self.is_wms_background_layer(layer),
                     )
                 )
             else:
@@ -309,7 +310,8 @@ class Exporter:
                     maximum_scale=layer.maximumScale(),
                     is_spatial=is_spatial,
                     is_checked=is_checked,
-                    is_wms_background=self.is_wms_background_layer(layer),
+                    # Qgis server property WMSBackgroundLayer can only be set for raster layers
+                    is_background=False,
                 )
             )
         else:
