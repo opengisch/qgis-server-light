@@ -75,6 +75,7 @@ class TestQslJobLayer(DataclassTest):
     field_defs = [
         ("id", str),
         ("name", str),
+        ("title", str),
         ("source", str),
         ("remote", bool),
         ("folder_name", str),
@@ -89,6 +90,7 @@ class TestQslJobLayer(DataclassTest):
         job_layer = QslJobLayer(
             id="abcd",
             name="test",
+            title="Test title",
             source="sourcestring",
             remote=False,
             folder_name="data",
@@ -98,6 +100,7 @@ class TestQslJobLayer(DataclassTest):
         )
         assert job_layer.id == "abcd"
         assert job_layer.name == "test"
+        assert job_layer.title == "Test title"
         assert job_layer.source == "sourcestring"
         assert not job_layer.remote
         assert job_layer.folder_name == "data"
@@ -112,6 +115,7 @@ class TestQslJobLayer(DataclassTest):
         job_layer = QslJobLayer(
             id="abcd",
             name="test",
+            title="Test title",
             source="sourcestring",
             remote=False,
             folder_name="data",

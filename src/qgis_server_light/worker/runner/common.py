@@ -280,6 +280,7 @@ class MapRunner(Runner):
             job_layer_definition.driver,
             options,
         )
+        qgs_layer.setTitle(job_layer_definition.title)
         if job_layer_definition.filter:
             if isinstance(job_layer_definition.filter, OgcFilter110):
                 # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
@@ -311,6 +312,7 @@ class MapRunner(Runner):
             job_layer_definition.driver, layer_source
         )
         qgs_layer = QgsVectorTileLayer(layer_source_path, job_layer_definition.name)
+        qgs_layer.setTitle(job_layer_definition.title)
         return qgs_layer
 
     def _prepare_raster_layer(
@@ -326,4 +328,5 @@ class MapRunner(Runner):
             job_layer_definition.name,
             job_layer_definition.driver,
         )
+        qgs_layer.setTitle(job_layer_definition.title)
         return qgs_layer
