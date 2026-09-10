@@ -489,10 +489,7 @@ class Exporter:
 
     @staticmethod
     def is_wms_background_layer(layer: QgsMapLayer) -> bool:
-        value = layer.customProperty("WMSBackgroundLayer", False)
-        if isinstance(value, str):
-            return value.strip().lower() == "true"
-        return bool(value)
+        return bool(layer.customProperty("WMSBackgroundLayer", False))
 
     @staticmethod
     def get_group_title(group: QgsLayerTreeGroup) -> str:
