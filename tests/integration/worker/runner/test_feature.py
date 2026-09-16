@@ -28,6 +28,7 @@ class TestFeatureRunnerIntegration:
             QslJobLayer(
                 id=str(uuid.uuid4()),
                 name="test-local-gpkg",
+                title="Test local gpkg",
                 source=json.dumps(
                     OgrSource(
                         path="placenames.gpkg", layer_name="placenames"

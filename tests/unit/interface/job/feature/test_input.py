@@ -33,6 +33,7 @@ class TestFeatureQuery(DataclassTest):
                 QslJobLayer(
                     id="adkjfoiewjd",
                     name="test",
+                    title="Test",
                     source="x.y.z",
                     remote=False,
                     folder_name="data",
@@ -69,6 +70,7 @@ class TestQslJobParameterFeature(DataclassTest):
                         QslJobLayer(
                             id="adkjfoiewjd",
                             name="test",
+                            title="Test",
                             source="x.y.z",
                             remote=False,
                             folder_name="data",
@@ -106,6 +108,7 @@ class TestQslJobInfoRender(DataclassTest):
                             QslJobLayer(
                                 id="adkjfoiewjd",
                                 name="test",
+                                title="Test",
                                 source="x.y.z",
                                 remote=False,
                                 folder_name="data",

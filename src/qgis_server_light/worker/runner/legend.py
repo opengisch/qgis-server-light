@@ -44,7 +44,9 @@ class GetLegendRunner(MapRunner):
 
         root = QgsLayerTree()
         for layer in self.map_layers:
-            root.addLayer(layer)
+            layer_node = root.addLayer(layer)
+            layer_node.setUseLayerName(False)
+            layer_node.setName(layer.title())
 
         dpi = self.job_info.job.dpi
         px_per_mm = dpi / 25.4
