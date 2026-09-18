@@ -33,7 +33,6 @@ class TestRenderRunnerIntegration:
                 QslJobLayer(
                     id=str(uuid.uuid4()),
                     name="test-local-geotiff",
-                    title="Test local geotiff",
                     source=json.dumps(
                         GdalSource(
                             path="bui20220630.tif",
@@ -60,7 +59,6 @@ class TestRenderRunnerIntegration:
                 QslJobLayer(
                     id=str(uuid.uuid4()),
                     name="test-local-gpkg",
-                    title="Test local gpkg",
                     source=json.dumps(
                         OgrSource(
                             path="placenames.gpkg", layer_name="placenames"

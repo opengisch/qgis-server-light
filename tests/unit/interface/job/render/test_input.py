@@ -35,7 +35,6 @@ class TestQslJobParameterRender(DataclassTest):
                 QslJobLayer(
                     id="ididid",
                     name="testlayer",
-                    title="Testlayer",
                     source="1.1.1.1",
                     remote=True,
                     folder_name="data",
@@ -61,7 +60,6 @@ class TestQslJobParameterRender(DataclassTest):
                 QslJobLayer(
                     id="ididid",
                     name="testlayer",
-                    title="Testlayer",
                     source="1.1.1.1",
                     remote=True,
                     folder_name="data",
@@ -102,7 +100,6 @@ class TestQslJobInfoRender(DataclassTest):
                     QslJobLayer(
                         id="ididid",
                         name="testlayer",
-                        title="Testlayer",
                         source="1.1.1.1",
                         remote=True,
                         folder_name="data",
