@@ -75,6 +75,7 @@ class OgcFilterFES20(AbstractFilter):
 class QslJobLayer(BaseInterface):
     id: str = field(metadata={"type": "Element"})
     name: str = field(metadata={"type": "Element"})
+    title: str = field(metadata={"type": "Element"})
     source: str = field(metadata={"type": "Element"})
     remote: bool = field(metadata={"type": "Element"})
     folder_name: str = field(metadata={"type": "Element"})
