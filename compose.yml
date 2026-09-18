@@ -36,7 +36,7 @@ services:
     entrypoint: [ "/bin/dev.entrypoint.sh" ]
     ports:
       # we expose the ssh which is running in the container for DEV access
-      - "4223:2222"
+      - "127.0.0.1:4223:2222"
     depends_on:
       redis:
         condition: service_healthy
@@ -79,6 +79,6 @@ services:
     entrypoint: [ "/bin/dev.start.sh" ]
     ports:
       # we expose the ssh which is running in the container for DEV access
-      - "5555:5000"
+      - "127.0.0.1:5555:5000"
 volumes:
   qsl-venv:
