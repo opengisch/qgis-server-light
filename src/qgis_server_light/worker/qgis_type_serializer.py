@@ -1,5 +1,6 @@
+import contextlib
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 from PyQt5.QtCore import QDate, QDateTime, Qt
 from xsdata.formats.converter import Converter, converter
@@ -11,7 +12,7 @@ class QDateConverter(Converter):
     def deserialize(self, value: str, **kwargs: Any) -> QDate:
         return QDate.fromString(value, self.format)
 
-    def serialize(self, value: QDate, **kwargs: Any) -> Optional[str]:
+    def serialize(self, value: QDate, **kwargs: Any) -> str | None:
         if value:
             return value.toString(self.format)
         else:
@@ -24,7 +25,7 @@ class QDateTimeConverter(Converter):
     def deserialize(self, value: str, **kwargs: Any) -> QDateTime:
         return QDateTime.fromString(value, self.format)
 
-    def serialize(self, value: QDateTime, **kwargs: Any) -> Optional[str]:
+    def serialize(self, value: QDateTime, **kwargs: Any) -> str | None:
         if value:
             return value.toString(self.format)
         else:
@@ -45,7 +46,5 @@ def register_converters_at_runtime():
         yield
     finally:
         for tp in registered:
-            try:
+            with contextlib.suppress(KeyError):
                 converter.unregister_converter(tp)
-            except KeyError:
-                pass

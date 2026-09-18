@@ -53,9 +53,7 @@ class TestBaseInterface:
                 "Test(long_field=10.11...111111)",
             ),
             (
-                bytes(
-                    b"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod"
-                ),
+                b"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod",
                 "Test(long_field=b'Lor...irmod')",
             ),
             (
