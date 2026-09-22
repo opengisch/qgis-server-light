@@ -79,12 +79,11 @@ class Exporter:
         self.qgis_project = self.open_qgis_project(qgis_project_path)
         self.qgis_project_tree_root = self.qgis_project.layerTreeRoot()
         self.name = self.prepare_qgis_project_name(self.qgis_project)
-        self.version = self.qgis_project.lastSaveVersion().text()
-
+        self.version = self.qgis_project.lastSaveVersion()
         # prepare QSL interface instances
         self.qsl_tree = Tree()
         self.qsl_datasets = Datasets()
-        self.qsl_project = Project(name=self.name, version=self.version)
+        self.qsl_project = Project(name=self.name, version=self.version.text())
         self.qsl_project_metadata = self.extract_metadata(self.qgis_project)
         self.qsl_config = Config(
             project=self.qsl_project,
@@ -367,6 +366,11 @@ class Exporter:
             layer.providerType(), layer.dataProvider().dataSourceUri()
         )
         logging.debug(f"Layer source: {decoded}")
+        # QGIS >= 4 percent-encodes reserved characters (eg. ":" and "/") inside
+        # datasource query values.
+        # A project saved by QGIS >= 4 and read by a QGIS 3 build therefore needs an
+        # extra unquote() pass to get clean values..
+        needs_extra_unquote = self.version.majorVersion() >= 4
         for key in decoded:
             if str(decoded[key]) == "None":
                 decoded[key] = None
@@ -374,6 +378,8 @@ class Exporter:
                 decoded[key] = None
             else:
                 decoded[key] = str(decoded[key])
+                if needs_extra_unquote and key != "path":
+                    decoded[key] = unquote(decoded[key])
             if key == "path":
                 # QGIS returns url encoded paths, which leads to incorrect operations,
                 # eg: ".%2Fdata%2Fhiroshima.mbtiles" instead of "./data/hiroshima.mbtiles"
