@@ -366,26 +366,22 @@ class Exporter:
             layer.providerType(), layer.dataProvider().dataSourceUri()
         )
         logging.debug(f"Layer source: {decoded}")
-        # QGIS >= 4 percent-encodes reserved characters (eg. ":" and "/") inside
-        # datasource query values.
-        # A project saved by QGIS >= 4 and read by a QGIS 3 build therefore needs an
-        # extra unquote() pass to get clean values..
-        needs_extra_unquote = self.version.majorVersion() >= 4
         for key in decoded:
-            if str(decoded[key]) == "None":
+            if str(decoded[key]) in ("None", "NULL"):
                 decoded[key] = None
-            elif str(decoded[key]) == "NULL":
-                decoded[key] = None
-            else:
-                decoded[key] = str(decoded[key])
-                if needs_extra_unquote and key != "path":
-                    decoded[key] = unquote(decoded[key])
+                continue
+            decoded[key] = str(decoded[key])
             if key == "path":
                 # QGIS returns url encoded paths, which leads to incorrect operations,
                 # eg: ".%2Fdata%2Fhiroshima.mbtiles" instead of "./data/hiroshima.mbtiles"
                 decoded[key] = unquote(decoded[key]).replace(
                     f"{self.qgis_project.readPath('./')}/", ""
                 )
+            elif self.version.majorVersion() >= 4:
+                # QGIS >= 4 percent-encodes reserved characters inside datasource query values.
+                # A project saved by QGIS >= 4 and read by a QGIS 3 build (QSL is based on QGIS 3) therefore needs an
+                # extra unquote() pass to get clean values.
+                decoded[key] = unquote(decoded[key])
         return decoded
 
     @staticmethod
