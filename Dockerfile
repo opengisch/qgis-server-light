@@ -52,6 +52,7 @@ ENV QSL_REDIS_URL=redis://localhost:1234
 ENV QSL_SVG_PATH=/io/svg
 ENV QSL_DATA_ROOT=/io/data
 ENV QSL_LOG_LEVEL=info
+ENV QSL_JOB_TIMEOUT=30
 
 USER 1001
 ENTRYPOINT ["/tini", "--"]
@@ -60,5 +61,6 @@ CMD [\
     --redis-url \"$QSL_REDIS_URL\" \
     --svg-path \"$QSL_SVG_PATH\" \
     --data-root \"$QSL_DATA_ROOT\" \
-    --log-level \"$QSL_LOG_LEVEL\""\
+    --log-level \"$QSL_LOG_LEVEL\" \
+    --job-timeout \"$QSL_JOB_TIMEOUT\""\
 ]

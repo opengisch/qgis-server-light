@@ -9,6 +9,7 @@ QSL_REDIS_URL ?= redis://localhost:1234
 QSL_SVG_PATH ?= /io/svg
 QSL_DATA_ROOT ?= /io/data
 QSL_LOG_LEVEL ?= info
+QSL_JOB_TIMEOUT ?= 30
 
 ifneq (,$(wildcard .env))
   include .env
@@ -162,7 +163,8 @@ run-dev: $(DEV_REQUIREMENTS)
 	--redis-url $(QSL_REDIS_URL) \
 	--svg-path $(QSL_SVG_PATH) \
 	--data-root $(QSL_DATA_ROOT) \
-	--log-level $(QSL_LOG_LEVEL)
+	--log-level $(QSL_LOG_LEVEL) \
+	--job-timeout $(QSL_JOB_TIMEOUT)
 
 .PHONY: run
 run: $(DEV_REQUIREMENTS)
@@ -170,7 +172,8 @@ run: $(DEV_REQUIREMENTS)
 	--redis-url $(QSL_REDIS_URL) \
 	--svg-path $(QSL_SVG_PATH) \
 	--data-root $(QSL_DATA_ROOT) \
-	--log-level $(QSL_LOG_LEVEL)
+	--log-level $(QSL_LOG_LEVEL) \
+	--job-timeout $(QSL_JOB_TIMEOUT)
 
 .PHONY: run-reload
 run-reload: $(DEV_REQUIREMENTS)
@@ -178,7 +181,8 @@ run-reload: $(DEV_REQUIREMENTS)
 	--redis-url $(QSL_REDIS_URL) \
 	--svg-path $(QSL_SVG_PATH) \
 	--data-root $(QSL_DATA_ROOT) \
-	--log-level $(QSL_LOG_LEVEL)
+	--log-level $(QSL_LOG_LEVEL) \
+	--job-timeout $(QSL_JOB_TIMEOUT)
 
 .PHONY: serve-exporter-api
 serve-exporter-api:

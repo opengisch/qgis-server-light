@@ -9,6 +9,7 @@ services:
     environment:
       - "QSL_REDIS_URL=redis://redis"
       - "QSL_DATA_ROOT=/app/tests/resources"
+      - "QSL_JOB_TIMEOUT=${QSL_JOB_TIMEOUT:-30}"
     volumes:
       - "./:/app"
     deploy:
