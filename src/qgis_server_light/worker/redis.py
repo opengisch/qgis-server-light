@@ -19,6 +19,7 @@ from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.redis_asio import RedisQueue
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.worker.engine import Engine, EngineContext
+from qgis_server_light.worker.watchdog import JobWatchdog
 
 DEFAULT_DATA_ROOT = "/io/data"
 DEFAULT_SVG_PATH = "/io/svg"
@@ -30,6 +31,7 @@ class RedisEngine(Engine):
         context: EngineContext,
         runner_plugins: list[str],
         svg_paths: Optional[List] = None,
+        job_timeout_seconds: float = 30,
     ) -> None:
         self.boot_start = time.time()
         super().__init__(context, runner_plugins, svg_paths)
@@ -37,6 +39,8 @@ class RedisEngine(Engine):
         self.retry_wait = 0.01
         self.max_retries = 11
         self.info_expire: int = 300
+        self.watchdog = JobWatchdog(job_timeout_seconds, worker_id=self.info.id)
+        self.watchdog.start()
 
     def retry_handling_with_jitter(self, count: int):
         if count <= self.max_retries:
@@ -154,6 +158,7 @@ class RedisEngine(Engine):
                 )
                 job_info_class = self.available_job_info_classes[job_info_class_name]
                 job_info = JsonParser().from_string(job_info_json, job_info_class)
+                self.watchdog.job_started(job_id, str(job_info))
                 result: JobResult = self.process(job_info)
                 result.worker_id = self.info.id
                 result.worker_host_name = socket.gethostname()
@@ -182,6 +187,7 @@ class RedisEngine(Engine):
                 # we provide error information to the logs
                 logging.error(e, exc_info=True)
             finally:
+                self.watchdog.job_finished()
                 p.execute()
             logging.debug(f"Job duration: {time.time() - start_time}")
         exit(0)
@@ -214,6 +220,15 @@ def main() -> None:
         default=DEFAULT_SVG_PATH,
     )
 
+    parser.add_argument(
+        "--job-timeout",
+        type=float,
+        help="Seconds a single job may run before the worker force-restarts "
+        "itself. Guards against native/Qt deadlocks that can't otherwise be "
+        "detected or recovered from. Defaults to 30.",
+        default=30,
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -237,6 +252,7 @@ def main() -> None:
             # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
         ],
         svg_paths=svg_paths,
+        job_timeout_seconds=args.job_timeout,
     )
     engine.run(
         args.redis_url,
