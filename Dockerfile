@@ -10,14 +10,13 @@ USER 0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+FROM base AS base-builder
+
 RUN apt-get update \
   && apt-get remove -y python3-sip \
   && apt-get install -y \
-    perl \
     build-essential \
-    python3-dev \
-    openssh-server \
-    sudo
+    python3-dev
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
 
@@ -34,6 +33,12 @@ ARG UV_CACHE_DIR_BUILD_TIME=/home/$USER/.cache/uv-build-time
 ARG UV_CACHE_DIR_RUN_TIME=/home/$USER/.cache/uv
 #https://docs.astral.sh/uv/reference/environment/#uv_override
 ARG UV_PROJECT_ENVIRONMENT=/home/$USER/.venv
+
+RUN apt-get update \
+  && apt-get install -y \
+    perl \
+    openssh-server \
+    sudo
 
 RUN deluser --remove-home $(id -nu $UID)
 
@@ -72,3 +77,40 @@ RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
  && uv venv --system-site-packages $UV_PROJECT_ENVIRONMENT \
  && uv sync --frozen --no-install-project --group dev \
  && cp -r $UV_CACHE_DIR_BUILD_TIME/. $UV_CACHE_DIR_RUN_TIME
+
+
+#########################
+#  BUILDER (FOR RELEASE)
+#########################
+FROM base-builder AS builder
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv venv --system-site-packages
+RUN uv sync --frozen --no-install-project --no-dev --group worker
+
+COPY ./src ./src
+COPY ./README.md ./
+COPY ./LICENSE ./
+RUN uv sync --frozen --no-dev --no-editable --group worker
+
+#########################
+#  RELEASE
+#########################
+FROM base
+
+ENV QSL_LOG_LEVEL=info
+
+WORKDIR /io/data
+WORKDIR /io/svg
+WORKDIR /app
+
+COPY docker/prod.run.sh /usr/local/bin/
+COPY --from=builder /app/.venv /app/.venv
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD [ "/usr/local/bin/prod.run.sh" ]
+
+USER 1001
