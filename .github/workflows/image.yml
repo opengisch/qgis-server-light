@@ -4,10 +4,29 @@ on:
   push:
     branches:
       - master
+  release:
+    types: [ published ]
+  pull_request:
+    branches:
+      - master
+      - refactoring
+    types: [ opened, synchronize, closed ]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   docker-image-latest:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        include:
+          - target: dev
+            label: latest-dev
+          - target: release
+            label: latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -21,16 +40,24 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release
+      - name: Build release (${{ matrix.target }})
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          target: release
+          target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light:latest
-  docker-image-latest-dev:
+          tags: opengisch/qgis-server-light:${{ matrix.target }}
+  docker-image-pr:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - target: dev
+            label: latest-dev
+          - target: release
+            label: latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -44,11 +71,12 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release
+      - name: Build release (${{ matrix.target }})
+        if: github.event.action != 'closed'
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          target: dev
+          target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light-dev:latest
+          tags: opengisch/qgis-server-light:${{ matrix.target }}-pr-${{ github.event.pull_request.number }}
