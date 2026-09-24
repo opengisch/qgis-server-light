@@ -21,9 +21,9 @@ RUN apt-get update \
 COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
 
 #########################
-#  DEV
+#  DEV (contains all interface,worker,exporter)
 #########################
-FROM base AS dev
+FROM base-builder AS dev
 
 ARG UID=1000
 ARG GID=1000
@@ -80,9 +80,9 @@ RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
 
 
 #########################
-#  BUILDER (FOR RELEASE)
+#  BUILD WORKER (FOR RELEASE)
 #########################
-FROM base-builder AS builder
+FROM base-builder AS worker-builder
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 WORKDIR /app
@@ -96,7 +96,43 @@ COPY ./LICENSE ./
 RUN uv sync --frozen --no-dev --no-editable --group worker
 
 #########################
-#  RELEASE
+#  BUILD EXPORTER (FOR RELEASE)
+#########################
+FROM base-builder AS exporter-builder
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv venv --system-site-packages
+RUN uv sync --frozen --no-install-project --no-dev --group exporter
+
+COPY ./src ./src
+COPY ./README.md ./
+COPY ./LICENSE ./
+RUN uv sync --frozen --no-dev --no-editable --group exporter
+
+#########################
+#  RELEASE EXPORTER
+#########################
+FROM base AS exporter
+
+ENV QSL_EXPORTER_LOG_LEVEL=info
+
+WORKDIR /io/data
+WORKDIR /io/svg
+WORKDIR /app
+
+COPY docker/prod.run-exporter.sh /usr/local/bin/
+COPY --from=exporter-builder /app/.venv /app/.venv
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD [ "/usr/local/bin/prod.run-exporter.sh" ]
+
+USER 1001
+
+#########################
+#  RELEASE WORKER
 #########################
 FROM base
 
@@ -106,11 +142,11 @@ WORKDIR /io/data
 WORKDIR /io/svg
 WORKDIR /app
 
-COPY docker/prod.run.sh /usr/local/bin/
-COPY --from=builder /app/.venv /app/.venv
+COPY docker/prod.run-worker.sh /usr/local/bin/
+COPY --from=worker-builder /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD [ "/usr/local/bin/prod.run.sh" ]
+CMD [ "/usr/local/bin/prod.run-worker.sh" ]
 
 USER 1001
