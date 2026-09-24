@@ -42,14 +42,14 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release (${{ matrix.target }})
+      - name: Build release (${{ matrix.label }})
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light:${{ matrix.target }}
+          tags: opengisch/qgis-server-light:${{ matrix.label }}
   docker-image-pr:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -75,7 +75,7 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release (${{ matrix.target }})
+      - name: Build release (${{ matrix.label }})
         if: github.event.action != 'closed'
         uses: docker/build-push-action@v7
         with:
@@ -83,4 +83,4 @@ jobs:
           push: true
           target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light:${{ matrix.target }}-pr-${{ github.event.pull_request.number }}
+          tags: opengisch/qgis-server-light:${{ matrix.label }}-pr-${{ github.event.pull_request.number }}
