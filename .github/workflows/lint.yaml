@@ -1,0 +1,18 @@
+name: Linting/Formatting
+on: push
+jobs:
+  lint-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare Build Environment
+        run: |
+          cp .env.compose.example .env
+          echo "UID=$(id -u)" >> .env
+          echo "GID=$(id -g)" >> .env
+          cat .env
+      - name: Build Georama Image
+        run: |
+          docker compose build qsl
+      - name: Run Ruff
+        run: docker compose run --entrypoint bash qsl -c "uv run ruff check --output-format=github ."
