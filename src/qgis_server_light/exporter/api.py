@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -14,6 +15,9 @@ app = Flask(__name__)
 
 DATA_ROOT: Path | None = None
 LOGLEVEL: str = "INFO"
+# per default we set the root path from ENV
+env_data_root = os.environ.get("QSL_DATA_ROOT", None)
+DATA_ROOT = Path(env_data_root) if env_data_root is not None else None
 
 
 def assemble_project_base_path(data_path: Path, project_path: str) -> Path:
@@ -130,6 +134,7 @@ def start(
     global DATA_ROOT, LOGLEVEL
     root_path = Path(data_root)
     if root_path.exists() and root_path.is_dir():
+        # we reset root path to the passed variable value and ignore ENV!
         DATA_ROOT = root_path
         LOGLEVEL = log_level.upper()
         app.run(
