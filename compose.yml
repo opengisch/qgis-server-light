@@ -78,7 +78,6 @@ services:
       - ./docker/dev.start.exporter_api.sh:/bin/dev.start.sh
     entrypoint: [ "/bin/dev.start.sh" ]
     ports:
-      # we expose the ssh which is running in the container for DEV access
-      - "127.0.0.1:5555:5000"
+      - "127.0.0.1:5555:8000"
 volumes:
   qsl-venv:

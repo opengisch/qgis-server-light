@@ -3,7 +3,7 @@
 set -e
 
 /app/.venv/bin/gunicorn qgis_server_light.exporter.api:app \
-  --bind 127.0.0.1:8000 \
+  --bind 0.0.0.0:8000 \
   --workers 2 \
   --access-logfile - \
   --error-logfile - \
