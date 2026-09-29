@@ -7,7 +7,7 @@ import pathlib
 import uuid
 from abc import ABC
 from dataclasses import asdict, dataclass
-from typing import Any, List, Optional, Type, Union
+from typing import Any
 
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -22,23 +22,23 @@ from qgis_server_light.worker.runner.common import JobContext, Runner
 
 @dataclass
 class EngineContext:
-    base_path: Union[str, pathlib.Path]
+    base_path: str | pathlib.Path
 
 
-class Engine(ABC):
+class Engine(ABC):  # noqa: B024
     def __init__(
         self,
         context: EngineContext,
         runner_plugins: list[str],
-        svg_paths: Optional[List[str]] = None,
+        svg_paths: list[str] | None = None,
         log_level=logging.WARNING,
     ):
         self.qgis = Qgis(svg_paths, log_level)
         self.context = context
         self.layer_cache: dict[Any, Any] = {}
-        self.available_runner_classes: dict[str, Type[Runner]] = {}
-        self.available_runner_classes_by_job_info: dict[str, Type[Runner]] = {}
-        self.available_job_info_classes: dict[str, Type[QslJobInfoParameter]] = {}
+        self.available_runner_classes: dict[str, type[Runner]] = {}
+        self.available_runner_classes_by_job_info: dict[str, type[Runner]] = {}
+        self.available_job_info_classes: dict[str, type[QslJobInfoParameter]] = {}
         self._load_runner_plugins(runner_plugins)
         logging.debug(self.available_runner_classes)
         logging.debug(self.available_runner_classes_by_job_info)
@@ -53,15 +53,15 @@ class Engine(ABC):
             loaded_class = self._load_runner_class(path)
             if loaded_class is not None:
                 self.available_runner_classes[path] = loaded_class
-                self.available_runner_classes_by_job_info[
-                    loaded_class.job_info_class.__name__
-                ] = loaded_class
-                self.available_job_info_classes[
-                    loaded_class.job_info_class.__name__
-                ] = loaded_class.job_info_class
+                self.available_runner_classes_by_job_info[loaded_class.job_info_class.__name__] = (
+                    loaded_class
+                )
+                self.available_job_info_classes[loaded_class.job_info_class.__name__] = (
+                    loaded_class.job_info_class
+                )
 
     @staticmethod
-    def _load_runner_class(path: str) -> Type[Runner] | None:
+    def _load_runner_class(path: str) -> type[Runner] | None:
         """
         Loads a class dynamically at runtime, like:
         "mypackage.mymodule.MyClass"
@@ -73,15 +73,14 @@ class Engine(ABC):
 
         # Ensure the class was loaded correctly
         if cls is None:
-            raise ImportError(
-                f"Class '{class_name}' not found in module '{module_path}'."
-            )
+            raise ImportError(f"Class '{class_name}' not found in module '{module_path}'.")
         if not inspect.isclass(cls):
             raise TypeError(f"Passed '{class_name}' is not a class.")
 
         if not issubclass(cls, Runner):
             raise TypeError(
-                f"{cls.__name__} is not a plugin as expected (each plugin has to inherit from qgis_server_light.worker.job.common.Job)."
+                f"{cls.__name__} is not a plugin as expected (each plugin has to inherit "
+                f"from qgis_server_light.worker.job.common.Job)."
             )
 
         return cls
@@ -100,7 +99,7 @@ class Engine(ABC):
         logging.debug(json.dumps(asdict(worker_info), indent=2))
         return worker_info
 
-    def runner_plugin_by_job_info(self, job_info: QslJobInfoParameter) -> Type[Runner]:
+    def runner_plugin_by_job_info(self, job_info: QslJobInfoParameter) -> type[Runner]:
         """
         Here we decide which plugin we load dynamically out of the available ones.
 
@@ -112,11 +111,9 @@ class Engine(ABC):
             The selected runner class
         """
         try:
-            return self.available_runner_classes_by_job_info[
-                job_info.__class__.__name__
-            ]
-        except KeyError:
-            raise RuntimeError(f"Type {type(job_info)} not supported")
+            return self.available_runner_classes_by_job_info[job_info.__class__.__name__]
+        except KeyError as e:
+            raise RuntimeError(f"Type {type(job_info)} not supported") from e
 
     def process(self, job_info: QslJobInfoParameter) -> JobResult:
         runner_class = self.runner_plugin_by_job_info(job_info)

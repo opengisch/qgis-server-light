@@ -5,7 +5,7 @@ from qgis_server_light.interface.common import BaseInterface, Style
 
 
 @dataclass
-class QslJobParameter(ABC):
+class QslJobParameter(ABC):  # noqa: B024
     """The minimal interface of a job parameter interface. In the domain
     specific refinement it holds the relevant information about a job.
     """
@@ -14,7 +14,7 @@ class QslJobParameter(ABC):
 
 
 @dataclass
-class QslJobInfoParameter(ABC):
+class QslJobInfoParameter(ABC):  # noqa: B024
     """The common minimal interface of a job which is
     shipped around. Each job for QSL has to implement at least this
     interface.
@@ -75,15 +75,12 @@ class OgcFilterFES20(AbstractFilter):
 class QslJobLayer(BaseInterface):
     id: str = field(metadata={"type": "Element"})
     name: str = field(metadata={"type": "Element"})
-    title: str = field(metadata={"type": "Element"})
     source: str = field(metadata={"type": "Element"})
     remote: bool = field(metadata={"type": "Element"})
     folder_name: str = field(metadata={"type": "Element"})
     driver: str = field(metadata={"type": "Element"})
     style: Style | None = field(default=None, metadata={"type": "Element"})
-    filter: OgcFilter110 | OgcFilterFES20 | None = field(
-        default=None, metadata={"type": "Element"}
-    )
+    filter: OgcFilter110 | OgcFilterFES20 | None = field(default=None, metadata={"type": "Element"})
 
     @property
     def redacted_fields(self) -> set:

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
@@ -34,8 +34,8 @@ class GetFeatureRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoFeature,
-        layer_cache: Optional[Dict] = None,
-        layer_style_cache: Optional[set] = None,
+        layer_cache: dict | None = None,
+        layer_style_cache: set | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)
 
@@ -45,10 +45,7 @@ class GetFeatureRunner(MapRunner):
         return attribute_value
 
     def _clean_attributes(self, attributes, layer):
-        return [
-            self._clean_attribute(attr, idx, layer)
-            for idx, attr in enumerate(attributes)
-        ]
+        return [self._clean_attribute(attr, idx, layer) for idx, attr in enumerate(attributes)]
 
     def _load_style(self, qgs_layer: QgsMapLayer, job_layer_definition: QslJobLayer):
         logging.info(" ✓ Omit style loading on WFS layer operation.")
@@ -57,7 +54,8 @@ class GetFeatureRunner(MapRunner):
         query_collection = QueryCollection()
         numbers_matched = 0
         for query in self.job_info.job.queries:
-            # we need to reset this because we want always only the layers related to the current query
+            # we need to reset this because we want always only the layers related to
+            # the current query
             self.map_layers = []
             wfs_filter = query.filter
             for job_layer_definition in query.layers:
@@ -68,20 +66,23 @@ class GetFeatureRunner(MapRunner):
                 query_collection.feature_collections.append(feature_collection)
                 if isinstance(layer, QgsVectorLayer):
                     if wfs_filter is not None and wfs_filter.definition is not None:
-                        # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                        # TODO: This is potentially bad: We always get all features from
+                        #  datasource. However, QGIS
                         #   does not seem to support sliding window feature filter out of the box...
                         logging.info(" QslJobLayer is filtered by:")
                         logging.info(f" {wfs_filter.definition}")
                         filter_doc = QDomDocument()
                         filter_doc.setContent(wfs_filter.definition)
-                        # This is not correct in the WFS 2.0 way. We apply a filter to a job_layer_definition. But WFS 2.0
+                        # This is not correct in the WFS 2.0 way. We apply a filter
+                        # to a job_layer_definition. But WFS 2.0
                         # allows filters on multiple layers.
                         expression = QgsOgcUtils.expressionFromOgcFilter(
                             filter_doc.documentElement(),
                             QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
                         )
                         logging.info(
-                            f" This was transformed to the QGIS expression (valid: {expression.isValid()})"
+                            f" This was transformed to the QGIS expression "
+                            f"(valid: {expression.isValid()})"
                         )
                         logging.info(f" '{expression.dump()}'")
                         feature_request = QgsFeatureRequest(expression)
@@ -99,6 +100,7 @@ class GetFeatureRunner(MapRunner):
                         property_list = zip(
                             layer_feature.fields().names(),
                             self._clean_attributes(layer_feature.attributes(), layer),
+                            strict=True,
                         )
                         feature = Feature(
                             geometry=Geometry(
@@ -110,7 +112,8 @@ class GetFeatureRunner(MapRunner):
                             feature.attributes.append(Attribute(name=name, value=value))
                 else:
                     raise RuntimeError(
-                        f"QslJobLayer type `{layer.type().name}` of layer `{layer.shortName()}` not supported by GetFeatureInfo"
+                        f"QslJobLayer type `{layer.type().name}` of layer "
+                        f"`{layer.shortName()}` not supported by GetFeatureInfo"
                     )
         if numbers_matched > 0:
             query_collection.numbers_matched = numbers_matched

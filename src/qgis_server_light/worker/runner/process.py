@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from qgis.analysis import QgsNativeAlgorithms, QgsPdalAlgorithms
 from qgis.core import Qgis, QgsApplication, QgsProviderRegistry
@@ -15,7 +14,7 @@ class ProcessRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: Optional[dict],
+        layer_cache: dict | None = None,
     ):
         super().__init__(qgis, context, job_info, layer_cache)
 

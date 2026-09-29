@@ -2,10 +2,10 @@
 capabilities."""
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     STARTING = "starting"
     CRASHED = "crashed"
     WAITING = "waiting"

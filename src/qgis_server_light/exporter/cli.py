@@ -19,7 +19,7 @@ allowed_extensions = ("qgz", "qgs")
 
 
 @click.group
-def cli() -> None:
+def main() -> None:
     """
     Just the central cli entry command. Currently, we don't use it, but its here
     for future content.
@@ -44,18 +44,22 @@ def cli() -> None:
     default=None,
     help="Absolute path to a pg_service.conf file to take connection information from.",
 )
-@cli.command(
+@main.command(
     "export",
     context_settings={"max_content_width": 120},
     help=f"""
-    Export a QGIS project ({"|".join(allowed_extensions)}) (1st argument) file to {"|".join(allowed_output_formats)} format.
+    Export a QGIS project ({"|".join(allowed_extensions)}) (1st argument) file
+    to {"|".join(allowed_output_formats)} format.
 
-    It takes into account the PGSERVICEFILE environment variable. The cli might be called with:
+    It takes into account the PGSERVICEFILE environment variable. The cli might be
+    called with:
 
       PGSERVICEFILE=<absolute-path-to-pg_service.conf> python -m qgis_server_light.exporter.cli ...
 
-    The pg_service.conf absolute path can be passed with parameter too. If this is done, the one out of
-    environment will be joined with the passed one. The passed one overwrites values of the environment one.
+    The pg_service.conf absolute path can be passed with parameter too. If this is
+    done, the one out of
+    environment will be joined with the passed one. The passed one overwrites values
+    of the environment one.
     """,
 )
 def export(
@@ -70,7 +74,8 @@ def export(
         output_format = "json"
     if not project.lower().endswith(allowed_extensions):
         raise NotImplementedError(
-            f"Allowed qgis project file extensions are: {'|'.join(allowed_extensions)} not => {project}"
+            f"Allowed qgis project file extensions "
+            f"are: {'|'.join(allowed_extensions)} not => {project}"
         )
     if output_format.lower() not in allowed_output_formats:
         raise NotImplementedError(
@@ -94,4 +99,4 @@ def export(
 
 
 if __name__ == "__main__":
-    export()
+    main()

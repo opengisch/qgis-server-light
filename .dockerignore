@@ -1,6 +1,1 @@
 .venv
-build
-dist
-docs
-Dockerfile
-.env

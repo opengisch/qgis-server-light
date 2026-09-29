@@ -1,4 +1,0 @@
-redis==5.0.8
-fpng-py==0.0.2
-xsdata==26.2
-hupper==1.12.1
