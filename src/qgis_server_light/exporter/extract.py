@@ -79,12 +79,11 @@ class Exporter:
         self.qgis_project = self.open_qgis_project(qgis_project_path)
         self.qgis_project_tree_root = self.qgis_project.layerTreeRoot()
         self.name = self.prepare_qgis_project_name(self.qgis_project)
-        self.version = self.qgis_project.lastSaveVersion().text()
-
+        self.version = self.qgis_project.lastSaveVersion()
         # prepare QSL interface instances
         self.qsl_tree = Tree()
         self.qsl_datasets = Datasets()
-        self.qsl_project = Project(name=self.name, version=self.version)
+        self.qsl_project = Project(name=self.name, version=self.version.text())
         self.qsl_project_metadata = self.extract_metadata(self.qgis_project)
         self.qsl_config = Config(
             project=self.qsl_project,
@@ -368,18 +367,21 @@ class Exporter:
         )
         logging.debug(f"Layer source: {decoded}")
         for key in decoded:
-            if str(decoded[key]) == "None":
+            if str(decoded[key]) in ("None", "NULL"):
                 decoded[key] = None
-            elif str(decoded[key]) == "NULL":
-                decoded[key] = None
-            else:
-                decoded[key] = str(decoded[key])
+                continue
+            decoded[key] = str(decoded[key])
             if key == "path":
                 # QGIS returns url encoded paths, which leads to incorrect operations,
                 # eg: ".%2Fdata%2Fhiroshima.mbtiles" instead of "./data/hiroshima.mbtiles"
                 decoded[key] = unquote(decoded[key]).replace(
                     f"{self.qgis_project.readPath('./')}/", ""
                 )
+            elif self.version.majorVersion() >= 4:
+                # QGIS >= 4 percent-encodes reserved characters inside datasource query values.
+                # A project saved by QGIS >= 4 and read by a QGIS 3 build (QSL is based on QGIS 3) therefore needs an
+                # extra unquote() pass to get clean values.
+                decoded[key] = unquote(decoded[key])
         return decoded
 
     @staticmethod
