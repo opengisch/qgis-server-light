@@ -27,7 +27,6 @@ from qgis.core import (
     QgsVectorTileLayer,
 )
 from xsdata.formats.dataclass.parsers import JsonParser
-from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job.common.input import (
     OgcFilter110,
@@ -150,6 +149,39 @@ class MapRunner(Runner):
 
         logging.info(f" ✓ Style loaded: {success}")
 
+    def _apply_filter(
+        self, qgs_layer: QgsVectorLayer, job_layer_definition: QslJobLayer
+    ):
+        if job_layer_definition.filter:
+            if isinstance(job_layer_definition.filter, OgcFilter110):
+                # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
+                #   does not seem to support sliding window feature filter out of the box...
+                logging.info(" QslJobLayer is filtered by:")
+                logging.info(job_layer_definition.filter.definition)
+                filter_doc = QDomDocument()
+                filter_doc.setContent(job_layer_definition.filter.definition)
+                filter_expression = QgsOgcUtils.expressionFromOgcFilter(
+                    filter_doc.documentElement(),
+                    QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
+                    qgs_layer,
+                )
+                original_filter = qgs_layer.customProperty("qsl.original_filter", None)
+                if original_filter:
+                    # Combining with AND the originally defined expression always takes precedence
+                    expression = (
+                        f"({original_filter}) AND ({filter_expression.expression()})"
+                    )
+                else:
+                    expression = filter_expression.expression()
+                qgs_layer.setSubsetString(expression)
+        else:
+            # reset filter to original filter (provided from project) or to empty filter
+            original_filter = qgs_layer.customProperty("qsl.original_filter", None)
+            if original_filter:
+                qgs_layer.setSubsetString(original_filter)
+            else:
+                qgs_layer.setSubsetString("")
+
     def get_cache_name(self, job_layer_definition: QslJobLayer) -> str:
         """Central method to decide which name is used in the cache to
         identify a layer.
@@ -203,6 +235,10 @@ class MapRunner(Runner):
             qgs_layer = self.layer_cache[cache_name]
         else:
             qgs_layer = self._decide_drivers(job_layer_definition)
+            if isinstance(qgs_layer, QgsVectorLayer):
+                qgs_layer.setCustomProperty(
+                    "qsl.original_filter", qgs_layer.subsetString()
+                )
             if qgs_layer.isValid():
                 logging.debug(
                     f"Newly initialized layer {job_layer_definition.name} is valid: {qgs_layer.isValid()}"
@@ -227,6 +263,9 @@ class MapRunner(Runner):
             None
         """
         qgs_layer = self._handle_layer_cache(job_layer_definition)
+        # applying the maybe existing filter of the job_definition
+        if isinstance(qgs_layer, QgsVectorLayer):
+            self._apply_filter(qgs_layer, job_layer_definition)
         # applying the style to the job_layer_definition
         self._load_style(qgs_layer, job_layer_definition)
         self.map_layers.append(qgs_layer)
@@ -281,26 +320,6 @@ class MapRunner(Runner):
             options,
         )
         qgs_layer.setTitle(job_layer_definition.title)
-        if job_layer_definition.filter:
-            if isinstance(job_layer_definition.filter, OgcFilter110):
-                # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
-                #   does not seem to support sliding window feature filter out of the box...
-                logging.info(" QslJobLayer is filtered by:")
-                logging.info(job_layer_definition.filter.definition)
-                filter_doc = QDomDocument()
-                filter_doc.setContent(job_layer_definition.filter.definition)
-                filter_expression = QgsOgcUtils.expressionFromOgcFilter(
-                    filter_doc.documentElement(),
-                    QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
-                    qgs_layer,
-                )
-                existing_expression = qgs_layer.subsetString()
-                if existing_expression:
-                    # Combining with AND the originally defined expression always takes precedence
-                    expression = f"({existing_expression}) AND ({filter_expression.expression()})"
-                else:
-                    expression = filter_expression.expression()
-                qgs_layer.setSubsetString(expression)
         return qgs_layer
 
     def _prepare_custom_layer(
