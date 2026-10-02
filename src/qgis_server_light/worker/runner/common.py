@@ -101,6 +101,7 @@ class MapRunner(Runner):
         self.job_info = job_info
         self.map_layers = list()
         self.layer_cache = layer_cache
+        self._custom_prop_original_filter = "qsl.original_filter"
 
     def _get_map_settings(self, layers: List[QgsMapLayer]) -> QgsMapSettings:
         """Produces a QgsMapSettings object from a set of layers"""
@@ -140,6 +141,12 @@ class MapRunner(Runner):
         logging.info(
             f"Preparing job_layer_definition Style: {job_layer_definition.style.name}"
         )
+        # the custom attributes on layers are stored in the style in fact, so
+        # we first have to secure the custom property before applying the filter
+        logging.debug("Preserving subset string")
+        original_filter = qgs_layer.customProperty(
+            self._custom_prop_original_filter, None
+        )
         style_doc = QDomDocument()
         style_xml = zlib.decompress(
             urlsafe_b64decode(job_layer_definition.style.definition)
@@ -147,12 +154,17 @@ class MapRunner(Runner):
         style_doc.setContent(style_xml)
         success, _ = qgs_layer.importNamedStyle(style_doc)
 
+        # we are apply the secured custom property since it was potentially wiped
+        # by applying the style
+        logging.debug("Re-apply subset string")
+        qgs_layer.setCustomProperty(self._custom_prop_original_filter, original_filter)
         logging.info(f" ✓ Style loaded: {success}")
 
     def _apply_filter(
         self, qgs_layer: QgsVectorLayer, job_layer_definition: QslJobLayer
     ):
         if job_layer_definition.filter:
+            logging.debug("Job definition has a filter")
             if isinstance(job_layer_definition.filter, OgcFilter110):
                 # TODO: This is potentially bad: We always get all features from datasource. However, QGIS
                 #   does not seem to support sliding window feature filter out of the box...
@@ -165,22 +177,35 @@ class MapRunner(Runner):
                     QgsOgcUtils.FilterVersion.FILTER_OGC_1_1,
                     qgs_layer,
                 )
-                original_filter = qgs_layer.customProperty("qsl.original_filter", None)
+                original_filter = qgs_layer.customProperty(
+                    self._custom_prop_original_filter, None
+                )
                 if original_filter:
                     # Combining with AND the originally defined expression always takes precedence
                     expression = (
                         f"({original_filter}) AND ({filter_expression.expression()})"
                     )
+                    logging.debug(
+                        f"Layer filter existed AND combined with passed: {expression}"
+                    )
                 else:
                     expression = filter_expression.expression()
+                    logging.debug(
+                        f"No filter existed will be just the passed one: {expression}"
+                    )
                 qgs_layer.setSubsetString(expression)
         else:
+            logging.debug("Job definition has no filter")
             # reset filter to original filter (provided from project) or to empty filter
-            original_filter = qgs_layer.customProperty("qsl.original_filter", None)
-            if original_filter:
-                qgs_layer.setSubsetString(original_filter)
-            else:
+            original_filter = qgs_layer.customProperty(
+                self._custom_prop_original_filter, None
+            )
+            if original_filter is None:
+                logging.debug("No original Filter, resetting to empty substring ''")
                 qgs_layer.setSubsetString("")
+            else:
+                logging.debug(f"Original Filter, resetting to {original_filter}")
+                qgs_layer.setSubsetString(original_filter)
 
     def get_cache_name(self, job_layer_definition: QslJobLayer) -> str:
         """Central method to decide which name is used in the cache to
@@ -259,11 +284,12 @@ class MapRunner(Runner):
             None
         """
         qgs_layer = self._handle_layer_cache(job_layer_definition)
+        # applying the style to the job_layer_definition
+        # this has to be before applying the filter!
+        self._load_style(qgs_layer, job_layer_definition)
         # applying the maybe existing filter of the job_definition
         if isinstance(qgs_layer, QgsVectorLayer):
             self._apply_filter(qgs_layer, job_layer_definition)
-        # applying the style to the job_layer_definition
-        self._load_style(qgs_layer, job_layer_definition)
         self.map_layers.append(qgs_layer)
 
     def _handle_datasource_definition(self, job_layer_definition: QslJobLayer) -> dict:
@@ -316,7 +342,10 @@ class MapRunner(Runner):
             options,
         )
         qgs_layer.setTitle(job_layer_definition.title)
-        qgs_layer.setCustomProperty("qsl.original_filter", qgs_layer.subsetString())
+        logging.debug(f"Preserving predefined layer subset: {qgs_layer.subsetString()}")
+        qgs_layer.setCustomProperty(
+            self._custom_prop_original_filter, qgs_layer.subsetString()
+        )
         return qgs_layer
 
     def _prepare_custom_layer(
