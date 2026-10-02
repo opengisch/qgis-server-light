@@ -235,10 +235,6 @@ class MapRunner(Runner):
             qgs_layer = self.layer_cache[cache_name]
         else:
             qgs_layer = self._decide_drivers(job_layer_definition)
-            if isinstance(qgs_layer, QgsVectorLayer):
-                qgs_layer.setCustomProperty(
-                    "qsl.original_filter", qgs_layer.subsetString()
-                )
             if qgs_layer.isValid():
                 logging.debug(
                     f"Newly initialized layer {job_layer_definition.name} is valid: {qgs_layer.isValid()}"
@@ -320,6 +316,7 @@ class MapRunner(Runner):
             options,
         )
         qgs_layer.setTitle(job_layer_definition.title)
+        qgs_layer.setCustomProperty("qsl.original_filter", qgs_layer.subsetString())
         return qgs_layer
 
     def _prepare_custom_layer(
