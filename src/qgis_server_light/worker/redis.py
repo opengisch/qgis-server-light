@@ -134,12 +134,12 @@ class RedisEngine(Engine):
     def run(self, redis_url):
         r = self.start(redis_url)
         p = r.pipeline()
+        self.register_worker(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         retry_count = 0
         while not self.shutdown:
             try:
-                self.register_worker(r)
                 logging.debug("Waiting for jobs")
                 self.set_waiting()
                 # this is blocking the loop until a job is found in the redis
