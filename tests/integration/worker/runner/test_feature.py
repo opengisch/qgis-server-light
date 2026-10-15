@@ -63,7 +63,7 @@ class TestFeatureRunnerIntegration:
         assert len(data.feature_collections) == 1
         feature_collection = data.feature_collections[0]
         assert isinstance(feature_collection, FeatureCollection)
-        assert feature_collection.name == job_layer.name
+        assert feature_collection.name == job_layer.id
         assert len(feature_collection.features) > 0
         feature = feature_collection.features[0]
         assert isinstance(feature, Feature)

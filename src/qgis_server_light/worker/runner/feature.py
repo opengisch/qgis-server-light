@@ -61,8 +61,8 @@ class GetFeatureRunner(MapRunner):
             for job_layer_definition in query.layers:
                 self._provide_layer(job_layer_definition)
 
-            for layer in self.map_layers:
-                feature_collection = FeatureCollection(layer.name())
+            for job_layer_definition, layer in zip(query.layers, self.map_layers, strict=True):
+                feature_collection = FeatureCollection(job_layer_definition.id)
                 query_collection.feature_collections.append(feature_collection)
                 if isinstance(layer, QgsVectorLayer):
                     if wfs_filter is not None and wfs_filter.definition is not None:
