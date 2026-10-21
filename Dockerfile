@@ -1,6 +1,8 @@
 ARG QGIS_VERSION=3.44.13
 FROM ghcr.io/opengisch/qgis-slim:$QGIS_VERSION AS base
 
+# this base image defines ENTRYPOINT [ "/tini", "--", "/usr/local/bin/uid_entrypoint.sh" ]!!!
+
 LABEL org.opencontainers.image.authors="OPENGIS.ch <info@opengis.ch>"
 LABEL org.opencontainers.image.vendor="opengis.ch"
 LABEL org.opencontainers.image.title="QGIS-Server-Light Base Image"
@@ -34,22 +36,17 @@ ARG UV_CACHE_DIR_RUN_TIME=/home/$USER/.cache/uv
 #https://docs.astral.sh/uv/reference/environment/#uv_override
 ARG UV_PROJECT_ENVIRONMENT=/home/$USER/.venv
 
+ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
+
 RUN apt-get update \
   && apt-get install -y \
-    perl \
-    openssh-server \
-    sudo
-
+    perl
 RUN deluser --remove-home $(id -nu $UID)
 
 # Setup a non-root user
 RUN groupadd --system --gid $GID nonroot \
  && useradd --system --gid $GID --uid $UID --create-home appuser \
  && echo "$USER:$USERPWD" | chpasswd
-
-# We allow the non root user sudo access on decent actions
-RUN echo "$USER ALL=(root) NOPASSWD: /usr/sbin/sshd, /etc/ssh/ssh_keygen, /bin/chown, /bin/chmod, /bin/mkdir" >> /etc/sudoers.d/$USER && \
-    chmod 0440 /etc/sudoers.d/$USER
 
 WORKDIR /app
 
