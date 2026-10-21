@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Prepare Build Environment
         run: |
-          cp .env.compose.example .env
+          cp .env.dev.example .env
           echo "UID=$(id -u)" >> .env
           echo "GID=$(id -g)" >> .env
           cat .env
