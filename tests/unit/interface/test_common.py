@@ -10,13 +10,10 @@ from qgis_server_light.interface.common import (
     BaseInterface,
     BBox,
     Crs,
-    PgServiceConf,
     RedactedString,
-    SslMode,
     Style,
 )
 from tests.base.dataclass_test import DataclassTest
-from tests.base.enum_test import EnumTest
 
 
 class TestBaseInterface:
@@ -150,73 +147,6 @@ class TestRedactedString:
 
         output = f.getvalue().strip()
         assert output == "[<RedactedString **REDACTED**>]"
-
-
-class TestSslMode(EnumTest):
-    enum_names = {
-        "DISABLE",
-        "ALLOW",
-        "PREFER",
-        "REQUIRE",
-        "VERIFY_CA",
-        "VERIFY_FULL",
-    }
-    enum_values = {
-        "disable",
-        "allow",
-        "prefer",
-        "require",
-        "verify-ca",
-        "verify-full",
-    }
-    enum_class_to_test = SslMode
-
-
-class TestPgServiceConf(DataclassTest):
-    field_defs = [
-        ("name", str),
-        ("host", str | None),
-        ("port", int | None),
-        ("user", str | None),
-        ("dbname", str | None),
-        ("password", str | None),
-        ("sslmode", SslMode),
-        ("application_name", str | None),
-        ("client_encoding", str),
-        ("service", str | None),
-    ]
-    field_defaults = [
-        ("host", None),
-        ("port", None),
-        ("user", None),
-        ("dbname", None),
-        ("password", None),
-        ("sslmode", SslMode.PREFER),
-        ("application_name", None),
-        ("client_encoding", "UTF8"),
-        ("service", None),
-    ]
-    dataclass_to_test = PgServiceConf
-
-    def test_instantiation(self):
-        """Check that we can instantiate with some values"""
-        conf = PgServiceConf(
-            name="myservice",
-            host="localhost",
-            port=5432,
-            user="postgres",
-            dbname="testdb",
-            password="secret",  # NOSONAR
-        )
-
-        assert conf.name == "myservice"
-        assert conf.host == "localhost"
-        assert conf.port == 5432
-        assert conf.user == "postgres"
-        assert conf.dbname == "testdb"
-        assert conf.password == "secret"
-        assert conf.sslmode == SslMode.PREFER.value
-        assert conf.client_encoding == "UTF8"
 
 
 class TestBBox(DataclassTest):
