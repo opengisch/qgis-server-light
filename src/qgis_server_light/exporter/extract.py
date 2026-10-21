@@ -3,7 +3,6 @@ import re
 import unicodedata
 import zlib
 from base64 import urlsafe_b64encode
-from dataclasses import fields
 from functools import reduce
 from itertools import zip_longest
 from urllib.parse import unquote
@@ -32,7 +31,6 @@ from qgis.core import (
     QgsVectorLayer,
     QgsVectorTileLayer,
 )
-from xsdata.formats.dataclass.serializers import DictEncoder
 
 from qgis_server_light.crs import create_qsl_crs
 from qgis_server_light.interface.common import BBox, Crs, Style
@@ -67,12 +65,10 @@ class Exporter:
         qgis_project_path: str,
         unify_layer_names_by_group=False,
         unify_layer_names_by_group_separator=".",
-        pg_service_configs=None,
     ):
         self.unify_layer_names_by_group_separator = unify_layer_names_by_group_separator
         self.path = qgis_project_path
         self.unify_layer_names_by_group = unify_layer_names_by_group
-        self.pg_service_configs = pg_service_configs or {}
 
         # prepare QGIS instances
         self.qgis_project = self.open_qgis_project(qgis_project_path)
@@ -219,12 +215,6 @@ class Exporter:
                 source = DataSource(ogr=self.create_qsl_source_ogr(decoded))
             elif layer.providerType().lower() == "postgres":
                 source = DataSource(postgres=self.create_qsl_source_postgresql(decoded))
-                source_path_parts = []
-                DictEncoder().encode(source.postgres)
-                for field in fields(source.postgres):
-                    source_path_parts.append(
-                        f"{field.name}={getattr(source.postgres, field.name)!r}"
-                    )
             elif layer.providerType().lower() == "wfs":
                 # TODO: Correctly implement source!
                 source = WfsSource()
@@ -668,65 +658,25 @@ class Exporter:
     def create_qsl_source_ogr(datasource: dict) -> OgrSource:
         return OgrSource.from_qgis_decoded_uri(datasource)
 
-    def create_qsl_source_postgresql(self, datasource: dict) -> PostgresSource:
-        config = datasource
-        if datasource.get("service"):
-            if self.pg_service_configs.get(datasource["service"]):
-                service_config = self.pg_service_configs[datasource["service"]]
-            else:
-                service_config = {}
-            if service_config == {}:
-                logging.error(
-                    f"""
-                    There was a pg_service configuration in the project but it could not be found in
-                    available configurations: {datasource["service"]}
-                    Its highly possible that the exported project won't work.
-                """
-                )
-            # merging pg_service content with config of qgis project (qgis project config overwrites
-            # pg_service configs
-            config = Exporter.merge_dicts(service_config, datasource)
-        if not config.get("username") and not config.get("user"):
-            raise LookupError(
-                f"Configuration does not contain any info about the db user name {config}"
-            )
-        if config.get("sslmode") and isinstance(config["sslmode"], str):
-            # this case happens when the sslmode is defined in the pg_service.conf and
-            # not in the qgis project (happens when project files are generated not with
-            # qgis desktop but with some automation (CI/CD) via pyqgis).
-            # in those cases we first translate the string representation from pg_service.conf
-            # to the int representation used in QGIS world.
-            config["sslmode"] = self.sslmode_str_to_int(config["sslmode"])
-
-        postgres_source = PostgresSource.from_qgis_decoded_uri(config)
-        postgres_source.ssl_mode_text = self.sslmode_int_to_str(postgres_source.sslmode)
-        return postgres_source
-
     @staticmethod
-    def merge_dicts(a, b):
+    def create_qsl_source_postgresql(datasource: dict) -> PostgresSource:
         """
-        Merges two dicts recursively, b values overwrites a values.
+        Creates the QSL postgres source from the datasource as it is stored in the
+        QGIS project. A referenced pg_service is NOT resolved: connection info and
+        credentials stay in the pg_service.conf (PGSERVICEFILE) and are resolved by
+        libpq at connection time on the consumer side.
 
         Args:
-            a: Dictionary which is the base.
-            b: Dictionary which is merged in and whose values overwrites the one.
+            datasource: The decoded and cleaned datasource of the layer. Its sslmode,
+                if any, is the stringified QGIS int (e.g. "3" for require).
 
         Returns:
-            The merged dict.
+            The QSL postgres source.
         """
-        result = a.copy()
-        for key, value in b.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                result[key] = Exporter.merge_dicts(result[key], value)
-            else:
-                if key in ["user", "username"] and value is None:
-                    logging.debug(
-                        f"QGIS Datasource contained '{key}', but it's value was NONE, so we"
-                        f"not copied that over! "
-                    )
-                else:
-                    result[key] = value
-        return result
+        postgres_source = PostgresSource.from_qgis_decoded_uri(datasource)
+        if postgres_source.sslmode is not None:
+            postgres_source.ssl_mode_text = Exporter.sslmode_int_to_str(postgres_source.sslmode)
+        return postgres_source
 
     @staticmethod
     def sslmode_int_to_str(ssl_mode: int) -> str:
@@ -741,20 +691,6 @@ class Exporter:
             The string representation of the ssl mode as it is used by postgres connections.
         """
         return QgsDataSourceUri.encodeSslMode(int(ssl_mode))
-
-    @staticmethod
-    def sslmode_str_to_int(ssl_mode: str) -> int:
-        """
-        Mapper to map ssl modes from plain postgres to QGIS int.
-
-        Args:
-            ssl_mode: The ssl mode of the datasource as a string matching one of
-                https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION
-
-        Returns:
-            The integer representation of the ssl mode as it is used by qgis connections.
-        """
-        return QgsDataSourceUri.decodeSslMode(ssl_mode)
 
     @staticmethod
     def create_qsl_crs_from_qgs_layer(layer: QgsMapLayer) -> Crs:

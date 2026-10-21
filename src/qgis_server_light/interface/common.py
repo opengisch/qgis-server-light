@@ -2,7 +2,6 @@
 QGIS-Server-Light interface."""
 
 from dataclasses import dataclass, field, fields
-from enum import StrEnum
 
 
 @dataclass
@@ -139,41 +138,6 @@ class RedactedString:
         """
 
         return self._value
-
-
-class SslMode(StrEnum):
-    DISABLE = "disable"
-    ALLOW = "allow"
-    PREFER = "prefer"
-    REQUIRE = "require"
-    VERIFY_CA = "verify-ca"
-    VERIFY_FULL = "verify-full"
-
-
-@dataclass(repr=False)
-class PgServiceConf(BaseInterface):
-    """
-    A typed definition of the pg_service.conf definition which might be used.
-    """
-
-    name: str = field(metadata={"type": "Element"})
-    host: str | None = field(
-        default=None,
-        metadata={"type": "Element"},
-    )
-    port: int | None = field(default=None, metadata={"type": "Element"})
-    user: str | None = field(default=None, metadata={"type": "Element"})
-    dbname: str | None = field(default=None, metadata={"type": "Element"})
-    password: str | None = field(default=None, metadata={"type": "Element"})
-    sslmode: SslMode = field(default=SslMode.PREFER, metadata={"type": "Element"})
-    application_name: str | None = field(default=None, metadata={"type": "Element"})
-    client_encoding: str = field(default="UTF8", metadata={"type": "Element"})
-    # possibilitiy to link to another service (nested definitions!)
-    service: str | None = field(default=None, metadata={"type": "Element"})
-
-    @property
-    def redacted_fields(self) -> set:
-        return {"password"}
 
 
 @dataclass(repr=False)
