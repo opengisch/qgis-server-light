@@ -34,6 +34,17 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = []
 
+# extras are for 3rd party applications, they only declare dependencies,
+# the code is always installed completely
+[project.optional-dependencies]
+# interface has no deps itself so far
+interface = []
+dispatcher = [
+    "qgis-server-light[interface]",
+    "redis==5.0.8",
+    "xsdata>=26.2",
+]
+
 [project.urls]
 Homepage = "https://github.com/opengisch/qgis-server-light"
 Documentation = "https://opengisch.github.io/qgis-server-light/"
