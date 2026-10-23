@@ -130,3 +130,11 @@ GitHub link.
 ```requirements
 git+ssh://git@github.com/opengisch/qgis-server-light.git@master#egg=qgis_server_light
 ```
+
+If your application posts jobs to the redis queue with the dispatcher (`qgis_server_light.dispatcher`),
+install it with the extra `dispatcher`. It adds the dependencies of the dispatcher (`redis`, `xsdata`).
+The interface alone has no dependencies.
+
+```requirements
+qgis_server_light[dispatcher] @ git+ssh://git@github.com/opengisch/qgis-server-light.git@master
+```

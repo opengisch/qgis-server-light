@@ -760,6 +760,12 @@ name = "qgis-server-light"
 version = "0.1.0"
 source = { editable = "." }
 
+[package.optional-dependencies]
+dispatcher = [
+    { name = "redis" },
+    { name = "xsdata" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "click" },
@@ -819,6 +825,12 @@ worker = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "qgis-server-light", extras = ["interface"], marker = "extra == 'dispatcher'" },
+    { name = "redis", marker = "extra == 'dispatcher'", specifier = "==5.0.8" },
+    { name = "xsdata", marker = "extra == 'dispatcher'", specifier = ">=26.2" },
+]
+provides-extras = ["interface", "dispatcher"]
 
 [package.metadata.requires-dev]
 dev = [

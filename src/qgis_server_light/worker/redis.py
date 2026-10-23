@@ -17,7 +17,7 @@ from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
-from qgis_server_light.interface.dispatcher.redis_asio import RedisQueue
+from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.worker.engine import Engine, EngineContext
 
@@ -68,14 +68,14 @@ class RedisEngine(Engine):
     ):
         duration = time.time() - start_time
         ts = datetime.datetime.now().isoformat()
-        pipeline.hset(f"job:{job_id}", RedisQueue.job_status_key, status)
+        pipeline.hset(RedisProtocol.job_key(job_id), RedisProtocol.job_status_key, status)
         pipeline.hset(
-            f"job:{job_id}",
-            f"{RedisQueue.job_timestamp_key}.{status}",
+            RedisProtocol.job_key(job_id),
+            f"{RedisProtocol.job_timestamp_key}.{status}",
             ts,
         )
-        pipeline.hset(f"job:{job_id}", RedisQueue.job_last_update_key, ts)
-        pipeline.hset(f"job:{job_id}", RedisQueue.job_duration_key, str(duration))
+        pipeline.hset(RedisProtocol.job_key(job_id), RedisProtocol.job_last_update_key, ts)
+        pipeline.hset(RedisProtocol.job_key(job_id), RedisProtocol.job_duration_key, str(duration))
         pipeline.execute()
 
     def heartbeat(self, client: Redis) -> datetime.datetime:
@@ -144,7 +144,7 @@ class RedisEngine(Engine):
                 self.set_waiting()
                 # this is blocking the loop until a job is found in the redis
                 # list/queue, if there is one we take it
-                result = r.blpop([RedisQueue.job_queue_name], timeout=0)
+                result = r.blpop([RedisProtocol.job_queue_name], timeout=0)
                 if result is not None:
                     _, job_id = result
                     start_time = time.time()
@@ -152,8 +152,12 @@ class RedisEngine(Engine):
                         # we inform, that the job is running.
                         self.set_job_runtime_status(job_id, p, Status.RUNNING.value, start_time)
 
-                        job_info_json = r.hget(f"job:{job_id}", RedisQueue.job_info_key)
-                        job_info_class_name = r.hget(f"job:{job_id}", RedisQueue.job_info_type_key)
+                        job_info_json = r.hget(
+                            RedisProtocol.job_key(job_id), RedisProtocol.job_info_key
+                        )
+                        job_info_class_name = r.hget(
+                            RedisProtocol.job_key(job_id), RedisProtocol.job_info_type_key
+                        )
                         job_info_class = self.available_job_info_classes[job_info_class_name]
                         job_info = JsonParser().from_string(job_info_json, job_info_class)
                         result: JobResult = self.process(job_info)
@@ -165,7 +169,7 @@ class RedisEngine(Engine):
                         self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
 
                         # we publish the result to any subscribers
-                        p.publish(f"{RedisQueue.job_channel_name}:{job_id}", data)
+                        p.publish(RedisProtocol.channel(job_id), data)
 
                     except Exception as e:
                         # preparation of the result, containing error information
@@ -179,7 +183,7 @@ class RedisEngine(Engine):
                         # start_time)
 
                         # we publish the result to any subscribers
-                        p.publish(f"{RedisQueue.job_channel_name}:{job_id}", data)
+                        p.publish(RedisProtocol.channel(job_id), data)
 
                         # we provide error information to the logs
                         logging.error(e, exc_info=True)
