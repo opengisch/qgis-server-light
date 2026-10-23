@@ -58,6 +58,7 @@ dev = [
     { include-group = "exporter" },
     { include-group = "interface" },
     { include-group = "docs" },
+    "debugpy>=1.8.22",
     "pyprof2calltree>=1.4.5",
     "ty>=0.0.56",
 ]
