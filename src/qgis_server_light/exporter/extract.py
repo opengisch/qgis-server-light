@@ -34,10 +34,10 @@ from qgis.core import (
 )
 from xsdata.formats.dataclass.serializers import DictEncoder
 
-from qgis_server_light.interface.common import BBox, Style
+from qgis_server_light.crs import create_qsl_crs
+from qgis_server_light.interface.common import BBox, Crs, Style
 from qgis_server_light.interface.exporter.extract import (
     Config,
-    Crs,
     Custom,
     Datasets,
     DataSource,
@@ -769,13 +769,7 @@ class Exporter:
         Returns:
             The instance of the QSL interface Crs.
         """
-        layer_crs = layer.dataProvider().crs()
-        return Crs(
-            postgis_srid=layer_crs.postgisSrid(),
-            auth_id=layer_crs.authid(),
-            ogc_uri=layer_crs.toOgcUri(),
-            ogc_urn=layer_crs.toOgcUrn(),
-        )
+        return create_qsl_crs(layer.dataProvider().crs())
 
     @staticmethod
     def get_layer_short_name(layer: QgsLayerTreeLayer) -> str:

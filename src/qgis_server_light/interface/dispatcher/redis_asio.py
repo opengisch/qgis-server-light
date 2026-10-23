@@ -17,6 +17,10 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.crs.input import (
+    QslJobInfoCrs,
+    QslJobParameterCrs,
+)
 from qgis_server_light.interface.job.feature.input import (
     QslJobInfoFeature,
     QslJobParameterFeature,
@@ -83,6 +87,7 @@ class RedisQueue:
             | QslJobParameterFeatureInfo
             | QslJobParameterLegend
             | QslJobParameterFeature
+            | QslJobParameterCrs
         ),
         to: float = 10.0,
     ) -> tuple[JobResult, str]:
@@ -113,6 +118,8 @@ class RedisQueue:
             job_info = QslJobInfoFeature(
                 id=job_id, type=QslJobInfoFeature.__name__, job=job_parameter
             )
+        elif isinstance(job_parameter, QslJobParameterCrs):
+            job_info = QslJobInfoCrs(id=job_id, type=QslJobInfoCrs.__name__, job=job_parameter)
         else:
             return (
                 JobResult(
