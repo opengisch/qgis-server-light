@@ -1,5 +1,7 @@
+import re
+
 import pytest
-from qgis.core import QgsProject, QgsVectorLayer
+from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
@@ -99,3 +101,53 @@ class TestPostgresServiceExport:
         assert self.service_password not in output
         assert self.service_user not in output
         assert self.service_dbname not in output
+
+
+class TestQgis4DatasourceDecoding:
+    """
+    QGIS >= 4 percent-encodes reserved characters inside datasource query values. The
+    project is written by the QGIS 3 build of the test run and its save version is set
+    to 4 afterwards, as if it was saved by QGIS 4.
+    """
+
+    encoded_url = "https%3A%2F%2Fwms.example.com%2Fwms%3Fmap%3Dbase"
+
+    def write_project(self, tmp_path, version: str | None = None) -> str:
+        project = QgsProject()
+        project.addMapLayer(
+            QgsRasterLayer(
+                "contextualWMSLegend=0&crs=EPSG:2056&format=image/png&layers=base"
+                f"&styles&url={self.encoded_url}",
+                "my_background",
+                "wms",
+            )
+        )
+        path = tmp_path / "project.qgs"
+        assert project.write(str(path))
+        if version:
+            content = path.read_text()
+            path.write_text(re.sub(r'(<qgis [^>]*version=")[^"]*', rf"\g<1>{version}", content))
+        return str(path)
+
+    @pytest.fixture
+    def qgis3_config(self, qgis_app, tmp_path):
+        yield Exporter(self.write_project(tmp_path)).run()
+        QgsProject.instance().clear()
+
+    @pytest.fixture
+    def qgis4_config(self, qgis_app, tmp_path):
+        yield Exporter(self.write_project(tmp_path, "4.0.0-Norrköping")).run()
+        QgsProject.instance().clear()
+
+    def test_qgis4_project_values_are_unquoted(self, qgis4_config):
+        assert qgis4_config.project.version == "4.0.0-Norrköping"
+        source = qgis4_config.datasets.raster[0].source.wms
+        assert source.url == "https://wms.example.com/wms?map=base"
+        assert source.crs == "EPSG:2056"
+
+    def test_qgis4_project_null_values_are_none(self, qgis4_config):
+        assert qgis4_config.datasets.raster[0].source.wms.styles is None
+
+    def test_qgis3_project_values_are_not_unquoted_twice(self, qgis3_config):
+        source = qgis3_config.datasets.raster[0].source.wms
+        assert source.url.startswith("https%3A%2F%2F")
