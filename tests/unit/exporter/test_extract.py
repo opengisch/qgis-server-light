@@ -1,11 +1,8 @@
-import logging
-
 import pytest
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.core import QgsProject, QgsVectorLayer
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
-from qgis_server_light.worker.qgis import Qgis
 
 
 class TestCreateQslSourcePostgresql:
@@ -35,11 +32,6 @@ class TestCreateQslSourcePostgresql:
         assert source.password == "secret"
 
 
-@pytest.fixture(scope="module")
-def qgis_application():
-    yield QgsApplication.instance() or Qgis(None, logging.INFO)
-
-
 class TestPostgresServiceExport:
     """
     Exports a project whose postgres layer references a pg_service and checks the
@@ -52,7 +44,7 @@ class TestPostgresServiceExport:
     service_dbname = "qsl_service_db"
 
     @pytest.fixture
-    def project_path(self, qgis_application, tmp_path, monkeypatch):
+    def project_path(self, qgis_app, tmp_path, monkeypatch):
         pg_service_file = tmp_path / "pg_service.conf"
         # unreachable port, so that libpq fails right away instead of connecting
         pg_service_file.write_text(
