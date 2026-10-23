@@ -9,7 +9,7 @@ from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 
-from qgis_server_light.interface.common import BaseInterface, BBox, Style
+from qgis_server_light.interface.common import BaseInterface, BBox, Crs, Style
 
 
 @dataclass(repr=False)
@@ -84,17 +84,6 @@ class Field(BaseInterface):
 @dataclass(repr=False)
 class AbstractDataset(LayerLike):
     title: str = field(metadata={"type": "Element"})
-
-
-@dataclass(repr=False)
-class Crs(BaseInterface):
-    auth_id: str = field(default=None, metadata={"type": "Element"})
-    postgis_srid: int = field(
-        default=None,
-        metadata={"type": "Element"},
-    )
-    ogc_uri: str = field(default=None, metadata={"type": "Element"})
-    ogc_urn: str = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass(repr=False)

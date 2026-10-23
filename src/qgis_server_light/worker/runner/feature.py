@@ -4,6 +4,9 @@ from typing import Any
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
     QgsApplication,
+    QgsCoordinateReferenceSystem,
+    QgsExpressionContext,
+    QgsExpressionContextUtils,
     QgsFeatureRequest,
     QgsMapLayer,
     QgsOgcUtils,
@@ -12,6 +15,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import NULL
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
+from qgis_server_light.interface.common import Crs
 from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.feature.input import QslJobInfoFeature
@@ -50,6 +54,17 @@ class GetFeatureRunner(MapRunner):
     def _load_style(self, qgs_layer: QgsMapLayer, job_layer_definition: QslJobLayer):
         logging.info(" ✓ Omit style loading on WFS layer operation.")
 
+    @staticmethod
+    def _destination_crs(crs: Crs | None) -> QgsCoordinateReferenceSystem | None:
+        if crs is None:
+            return None
+        # the identifiers are equivalent, the first one present is taken
+        identifier = crs.ogc_urn or crs.ogc_uri or crs.auth_id
+        destination_crs = QgsCoordinateReferenceSystem.fromOgcWmsCrs(identifier or "")
+        if not destination_crs.isValid():
+            raise RuntimeError(f"Crs `{crs}` of the query is not valid")
+        return destination_crs
+
     def run(self):
         query_collection = QueryCollection()
         numbers_matched = 0
@@ -58,6 +73,7 @@ class GetFeatureRunner(MapRunner):
             # the current query
             self.map_layers = []
             wfs_filter = query.filter
+            destination_crs = self._destination_crs(query.crs)
             for job_layer_definition in query.layers:
                 self._provide_layer(job_layer_definition)
 
@@ -76,9 +92,11 @@ class GetFeatureRunner(MapRunner):
                         # This is not correct in the WFS 2.0 way. We apply a filter
                         # to a job_layer_definition. But WFS 2.0
                         # allows filters on multiple layers.
+                        # The layer is used to type literals by the field types.
                         expression = QgsOgcUtils.expressionFromOgcFilter(
                             filter_doc.documentElement(),
                             QgsOgcUtils.FilterVersion.FILTER_FES_2_0,
+                            layer,
                         )
                         logging.info(
                             f" This was transformed to the QGIS expression "
@@ -86,8 +104,19 @@ class GetFeatureRunner(MapRunner):
                         )
                         logging.info(f" '{expression.dump()}'")
                         feature_request = QgsFeatureRequest(expression)
+                        # geom_from_gml takes the layer out of the expression context to
+                        # transform geometry literals with srsName into the layer crs
+                        feature_request.setExpressionContext(
+                            QgsExpressionContext(
+                                QgsExpressionContextUtils.globalProjectLayerScopes(layer)
+                            )
+                        )
                     else:
                         feature_request = QgsFeatureRequest()
+                    if destination_crs is not None:
+                        # filter expressions are still evaluated in the layer crs, only
+                        # the returned geometries are transformed
+                        feature_request.setDestinationCrs(destination_crs, layer.transformContext())
                     layer_features = list(layer.getFeatures(feature_request))
                     numbers_matched += len(layer_features)
                     logging.info(f" Found {len(layer_features)} features")

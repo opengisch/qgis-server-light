@@ -9,6 +9,7 @@ import pytest
 from qgis_server_light.interface.common import (
     BaseInterface,
     BBox,
+    Crs,
     PgServiceConf,
     RedactedString,
     SslMode,
@@ -284,6 +285,38 @@ class TestBBox(DataclassTest):
     def test_from_list_invalid(self):
         with pytest.raises(ValueError):
             BBox.from_list([1, 2, 3])
+
+
+class TestCrs(DataclassTest):
+    field_defs = [
+        ("auth_id", str),
+        ("postgis_srid", int),
+        ("ogc_uri", str),
+        ("ogc_urn", str),
+        ("axis_inverted", bool),
+    ]
+    field_defaults = [
+        ("auth_id", None),
+        ("postgis_srid", None),
+        ("ogc_uri", None),
+        ("ogc_urn", None),
+        ("axis_inverted", False),
+    ]
+    dataclass_to_test = Crs
+
+    def test_instantiation(self):
+        crs = Crs(
+            auth_id="EPSG:4326",
+            postgis_srid=4326,
+            ogc_uri="http://www.opengis.net/def/crs/EPSG/0/4326",
+            ogc_urn="urn:ogc:def:crs:EPSG::4326",
+            axis_inverted=True,
+        )
+        assert crs.auth_id == "EPSG:4326"
+        assert crs.axis_inverted is True
+
+    def test_axis_inverted_default(self):
+        assert Crs(auth_id="EPSG:2056").axis_inverted is False
 
 
 class TestStyle(DataclassTest):

@@ -34,10 +34,9 @@ from qgis.core import (
 )
 from xsdata.formats.dataclass.serializers import DictEncoder
 
-from qgis_server_light.interface.common import BBox, Style
+from qgis_server_light.interface.common import BBox, Crs, Style
 from qgis_server_light.interface.exporter.extract import (
     Config,
-    Crs,
     Custom,
     Datasets,
     DataSource,
@@ -775,6 +774,7 @@ class Exporter:
             auth_id=layer_crs.authid(),
             ogc_uri=layer_crs.toOgcUri(),
             ogc_urn=layer_crs.toOgcUrn(),
+            axis_inverted=layer_crs.hasAxisInverted(),
         )
 
     @staticmethod

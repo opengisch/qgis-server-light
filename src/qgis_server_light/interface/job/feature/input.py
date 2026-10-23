@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from qgis_server_light.interface.common import BaseInterface
+from qgis_server_light.interface.common import BaseInterface, Crs
 from qgis_server_light.interface.job.common.input import (
     OgcFilterFES20,
     QslJobInfoParameter,
@@ -21,11 +21,14 @@ class FeatureQuery(BaseInterface):
         list of datasets.
         filter: An optional filter which might reference all passed layers thats why layers
             has to be added
+        crs: An optional crs the geometries of the features are transformed to. If not
+            set, geometries stay in the crs of the layer.
     """
 
     layers: list[QslJobLayer] = field(metadata={"type": "Element"})
     aliases: list[str] = field(default_factory=list, metadata={"type": "Element"})
     filter: OgcFilterFES20 = field(default=None, metadata={"type": "Element"})
+    crs: Crs | None = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass

@@ -252,6 +252,20 @@ class BBox(BaseInterface):
 
 
 @dataclass(repr=False)
+class Crs(BaseInterface):
+    auth_id: str = field(default=None, metadata={"type": "Element"})
+    postgis_srid: int = field(
+        default=None,
+        metadata={"type": "Element"},
+    )
+    ogc_uri: str = field(default=None, metadata={"type": "Element"})
+    ogc_urn: str = field(default=None, metadata={"type": "Element"})
+    # True when the axis order of the crs is north/east (lat/lon) e.g. EPSG:4326, coordinates
+    # written with the URN or URI notation have to be swapped
+    axis_inverted: bool = field(default=False, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
 class Style(BaseInterface):
     name: str = field(metadata={"type": "Element"})
     definition: str = field(metadata={"type": "Element"})
