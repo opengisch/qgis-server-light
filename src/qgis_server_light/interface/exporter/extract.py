@@ -350,7 +350,9 @@ class PostgresSource(Source):
             type=int(decoded_uri.get("type")) if decoded_uri.get("type") is not None else None,
             username=decoded_uri.get("username") or decoded_uri.get("user"),
             srid=decoded_uri.get("srid"),
-            sslmode=int(decoded_uri.get("sslmode", 2)),
+            sslmode=(
+                int(decoded_uri.get("sslmode")) if decoded_uri.get("sslmode") is not None else None
+            ),
             service=decoded_uri.get("service"),
             check_primary_key_unicity=decoded_uri.get("check_primary_key_unicity"),
             sql=decoded_uri.get("sql"),
