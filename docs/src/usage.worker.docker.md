@@ -13,12 +13,17 @@ This redis instance will be available with url: `redis://localhost:1234`
 In order to use QGIS-Server-Light locally as a docker container we need to build the image first:
 
 ```shell
-docker build -t opengisch/qgis-server-light-dev:latest --target dev .
+docker build -t local/qsl:dev --target dev .
 ```
 
 !!! note
     If you are developing this project, and you use the docker approach: This step has to be executed
     anytime you do changes on the pip dependencies.
+
+!!! info
+    The `dev` stage is not published, it is always built locally. Published on Docker Hub
+    (`opengisch/qgis-server-light`) are the worker and the exporter only: `pr-<n>` / `pr-<n>-exporter`
+    follow the head of pull request `n` and are deleted when it is closed.
 
 
 ### Spin up QGIS-Server-Light worker
@@ -33,14 +38,14 @@ So we can spin up our QGIS-Server-Light worker instance and let it connect to th
 This section tells you how to simply start QGIS-Server-Light as built before in a container.
 
 ```shell
-docker run --rm -ti --net host --name qsl opengisch/qgis-server-light-dev:latest
+docker run --rm -ti --net host --name qsl local/qsl:dev
 ```
 
 In case you have local geodata which is used in your QGIS projects, you need to make it available to
 QGIS-Server-Light through a volume mount:
 
 ```shell
-docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest
+docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data local/qsl:dev
 ```
 
 This works because QGIS-Server-Light has a default value for the connection to redis which fits redis
@@ -68,13 +73,13 @@ This section tells you how to start QGIS-Server-Light for development. It assume
 project directory when calling the `docker` command.
 
 ```shell
-docker run --rm -ti --net host -v $(pwd):/app --name qsl opengisch/qgis-server-light-dev:latest run-reload
+docker run --rm -ti --net host -v $(pwd):/app --name qsl local/qsl:dev run-reload
 ```
 
 or in case you have file geodata locally (e.g. GeoPackage):
 
 ```shell
-docker run -ti --rm --net host --name qsl -v $(pwd):/app -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light-dev:latest run-reload
+docker run -ti --rm --net host --name qsl -v $(pwd):/app -v <local-path-to-your-qgis-projects>:/io/data local/qsl:dev run-reload
 ```
 
 This mounts the source code directory into the container so that you can change source code locally, and it

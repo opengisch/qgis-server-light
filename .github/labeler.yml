@@ -1,0 +1,7 @@
+interface-change:
+  - changed-files:
+      - any-glob-to-any-file: src/qgis_server_light/interface/**
+
+dispatcher-change:
+  - changed-files:
+      - any-glob-to-any-file: src/qgis_server_light/dispatcher/**
