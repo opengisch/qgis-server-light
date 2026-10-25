@@ -138,3 +138,32 @@ The interface alone has no dependencies.
 ```requirements
 qgis_server_light[dispatcher] @ git+ssh://git@github.com/opengisch/qgis-server-light.git@master
 ```
+
+### Release
+
+Releases are cut from `master` only and go forward only, there are no maintenance branches.
+A fix, also a security fix, is a regular PR and goes out with the next release.
+
+Versions are calendar style `vYY.N`, `N` counting up within the year from `0` (`v26.1`, `v26.2`, …,
+`v27.0`). The number carries no compatibility promise.
+
+To release, tag the `master` commit and push the tag:
+
+```shell
+git switch master
+git pull
+git tag v26.1
+git push origin v26.1
+```
+
+The tag triggers the workflow [release.yml](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/release.yml):
+
+- fails if the tagged commit is not reachable from `master`
+- sets the package version from the tag (`26.1`), not committed
+- builds and pushes `opengisch/qgis-server-light:26.1-worker` / `26.1-exporter` and moves
+  `latest-worker` / `latest-exporter`
+- creates the GitHub release, the notes list the PRs merged since the previous tag, grouped by label
+  (see [release.yml](https://github.com/opengisch/qgis-server-light/blob/master/.github/release.yml))
+
+The `version` in `pyproject.toml` is a placeholder (`0.0.0`). Only images built by the workflow carry
+the real version, an install from git reports `0.0.0`.

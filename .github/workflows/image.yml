@@ -60,14 +60,14 @@ jobs:
       - name: Delete PR tags on Docker Hub
         env:
           DOCKER_HUB_USERNAME: ${{ vars.DOCKER_HUB_USERNAME }}
-          DOCKER_HUB_DELETE_TOKEN: ${{ secrets.DOCKER_HUB_DELETE_TOKEN }}
+          DOCKER_HUB_DELETE_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           TOKEN=$(curl -sSf -X POST https://hub.docker.com/v2/auth/token \
             -H "Content-Type: application/json" \
             -d "{\"identifier\": \"${DOCKER_HUB_USERNAME}\", \"secret\": \"${DOCKER_HUB_DELETE_TOKEN}\"}" \
             | jq -r .access_token)
-          for TAG in "pr-${PR_NUMBER}" "pr-${PR_NUMBER}-exporter"; do
+          for TAG in "pr-${PR_NUMBER}-worker" "pr-${PR_NUMBER}-exporter"; do
             STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
               -H "Authorization: Bearer ${TOKEN}" \
               "https://hub.docker.com/v2/repositories/opengisch/qgis-server-light/tags/${TAG}/")

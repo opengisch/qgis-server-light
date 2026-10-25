@@ -1,6 +1,7 @@
 [project]
 name = "qgis-server-light"
-version = "0.1.0"
+# placeholder, the release workflow sets the version from the tag (vYY.N)
+version = "0.0.0"
 description = "QGIS workers in pure python"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -50,7 +51,7 @@ Homepage = "https://github.com/opengisch/qgis-server-light"
 Documentation = "https://opengisch.github.io/qgis-server-light/"
 Repository = "https://github.com/opengisch/qgis-server-light.git"
 Issues = "https://github.com/opengisch/qgis-server-light/issues"
-Changelog = "https://github.com/opengisch/qgis-server-light/blob/master/CHANGES.md"
+Changelog = "https://github.com/opengisch/qgis-server-light/releases"
 
 [project.scripts]
 redis-worker = "qgis_server_light.worker.redis:main"
