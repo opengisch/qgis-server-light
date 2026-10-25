@@ -47,7 +47,7 @@ the recommended way of running this stack is Docker (docker need to be installed
 
 First you need to build the image:
 ```shell
-docker build -t opengisch/qgis-server-light-dev:latest --target dev .
+docker build -t local/qsl:dev --target dev .
 ```
 
 #### Run QGIS-Server-Light worker
@@ -60,7 +60,7 @@ docker run --rm -d -p 1234:6379 --name georama-redis redis
 
 Then run:
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
+docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host local/qsl:dev
 ```
 
 Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
@@ -92,7 +92,7 @@ If you have issues with matching QGIS version on your system and the one used by
 you should prefer the docker way with the source code mounted to the running container.
 
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
+docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host local/qsl:dev
 ```
 
 That way the current changes you make are transparently available in the container.

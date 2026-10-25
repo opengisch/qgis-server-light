@@ -129,9 +129,9 @@ CMD [ "/usr/local/bin/prod.run-exporter.sh" ]
 USER 1001
 
 #########################
-#  RELEASE WORKER
+#  RELEASE WORKER (stays last, default target)
 #########################
-FROM base
+FROM base AS worker
 
 ENV QSL_LOG_LEVEL=info
 
