@@ -1,0 +1,15 @@
+# categories of the generated release notes, a PR is listed in the first matching category
+changelog:
+  categories:
+    - title: Interface changes
+      labels:
+        - interface-change
+    - title: Dispatcher changes
+      labels:
+        - dispatcher-change
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other changes
+      labels:
+        - "*"
