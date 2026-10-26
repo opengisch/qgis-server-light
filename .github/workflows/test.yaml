@@ -27,6 +27,6 @@ jobs:
           cat .env
       - name: Build QGIS-Server-Light Image
         run: |
-          docker compose build qsl
+          docker compose build worker
       - name: Run tests
-        run: docker compose run --rm --entrypoint bash qsl -c "uv run pytest"
+        run: docker compose run --rm --entrypoint bash worker -c "uv run pytest"

@@ -6,7 +6,6 @@ nav:
   - Prerequisites: prerequisites.md
   - Usage of Worker:
       - CLI: usage.worker.cli.md
-      - Local-DEV: usage.worker.local.md
       - Docker-DEV: usage.worker.docker.md
   - Usage of Exporter: usage.exporter.md
   - Usage of Interface: usage.interface.md

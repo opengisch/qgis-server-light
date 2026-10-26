@@ -40,7 +40,9 @@ ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
 
 RUN apt-get update \
   && apt-get install -y \
-    perl
+    perl \
+    git \
+    zsh
 RUN deluser --remove-home $(id -nu $UID)
 
 # Setup a non-root user
@@ -74,6 +76,17 @@ RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
  && uv venv --system-site-packages $UV_PROJECT_ENVIRONMENT \
  && uv sync --frozen --no-install-project --group dev \
  && cp -r $UV_CACHE_DIR_BUILD_TIME/. $UV_CACHE_DIR_RUN_TIME
+
+COPY ./docker/dev.debug.entrypoint.sh /usr/local/bin/dev.debug.entrypoint.sh
+COPY ./docker/dev.start.worker.sh /usr/local/bin/dev.start.worker.sh
+
+# starts the worker when container starts, set this to 0 to use it with devcontainers
+# or with remote development features of your favourite IDE
+ENV DEV_AUTOSTART=1
+
+ENTRYPOINT [ "/tini", "--", "/usr/local/bin/uid_entrypoint.sh", "/usr/local/bin/dev.debug.entrypoint.sh"]
+
+CMD [ "/usr/local/bin/dev.start.worker.sh" ]
 
 
 #########################
