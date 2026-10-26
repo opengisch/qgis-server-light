@@ -38,7 +38,7 @@ services:
     # a new command yourself in the system
     # of your choice: compose, Kubernetes, etc.
     ports:
-      - "127.0.0.1:5555:8000"
+      - "127.0.0.1:5555:5000"
   redis:
     image: redis:8.8.0
     platform: "${PLATFORM:-linux/amd64}"
