@@ -33,7 +33,7 @@ requests, and they will be picked and processed by QGIS-Server-Light.
 !!! important
 So to further proceed you need:
 
-    - a QGIS installation on the same system as you want to run the QGIS-Server-Light Worker
+    - docker to run the QGIS-Server-Light Worker (see [why docker only](usage.worker.docker.md#why-docker-only))
     - a running instance of Redis
     - 3rd party application which feeds the queue (we recommend [Georama](https://docs.georama.io))
 
