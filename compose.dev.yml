@@ -1,12 +1,10 @@
 services:
-  qsl:
+  worker:
     environment:
       - "QSL_REDIS_URL=redis://redis:6379"
       - "QSL_SVG_PATH=/io/svg"
       - "QSL_DATA_ROOT=/io/data"
       - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
-      - "DEBUGPY=${DEBUGPY:-0}"
-      - "DEBUGPY_WAIT=${DEBUGPY_WAIT:-0}"
       - "DEV_AUTOSTART=${DEV_AUTOSTART:-1}"
     build:
       target: dev
@@ -18,34 +16,8 @@ services:
       watch:
         - action: rebuild
           path: Dockerfile
-        - action: sync+restart
-          path: ./docker/dev_debug_worker.py
-          target: /opt/dev/dev_debug_worker.py
-        - action: sync+restart
-          path: ./docker/dev.debug.entrypoint.sh
-          target: /usr/local/bin/dev.debug.entrypoint.sh
-        - action: sync+restart
-          path: ./docker/dev.start.worker.sh
-          target: /usr/local/bin/dev.start.worker.sh
     volumes:
       - ./:/app:cached
       - qsl-venv:/home/appuser/.venv
-      # Specially prepared debug server entrypoint
-      - ./docker/dev.debug.entrypoint.sh:/usr/local/bin/dev.debug.entrypoint.sh:ro
-      # Start Command for the Worker to boot under the debug server
-      - ./docker/dev.start.worker.sh:/usr/local/bin/dev.start.worker.sh:ro
-      # Start Command for the Worker to boot under the debug server
-      - ./docker/dev_debug_worker.py:/opt/dev/dev_debug_worker.py:ro
-    entrypoint:
-      # we reset the entrypoint chain so everything is executed in the right order
-      - "/tini"
-      - "--"
-      - "/usr/local/bin/uid_entrypoint.sh"
-      - "/usr/local/bin/dev.debug.entrypoint.sh"
-    command:
-      - "/usr/local/bin/dev.start.worker.sh"
-    ports:
-      # in case the debugpy server runs it can be reached on this port
-      - "127.0.0.1:5678:5678"
 volumes:
   qsl-venv:
