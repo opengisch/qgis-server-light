@@ -14,19 +14,19 @@ jobs:
         uses: actions/checkout@v7
       - name: Prepare Build Environment
         run: |
-          cp .env.compose.example .env
+          cp .env.dev.example .env
           echo "UID=$(id -u)" >> .env
           echo "GID=$(id -g)" >> .env
           cat .env
       - name: Build QGIS-Server-Light Image
         run: |
-          docker compose build qsl
+          docker compose build worker
       - name: Build docs
-        run: docker compose run --rm --entrypoint bash qsl -c "uv run mkdocs build -f docs/mkdocs.yml -d site"
+        run: docker compose run --rm --entrypoint bash worker -c "uv run mkdocs build -f docs/mkdocs.yml -d site"
       - uses: actions/upload-artifact@v7
         with:
           name: docs
           path: docs/site
           if-no-files-found: error
       - name: Deploy to GitHub Pages
-        run: docker compose run --rm --entrypoint bash qsl -c "uv run mkdocs gh-deploy -f docs/mkdocs.yml -d site --force"
+        run: docker compose run --rm --entrypoint bash worker -c "uv run mkdocs gh-deploy -f docs/mkdocs.yml -d site --force"

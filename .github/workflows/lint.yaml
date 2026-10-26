@@ -11,8 +11,8 @@ jobs:
           echo "UID=$(id -u)" >> .env
           echo "GID=$(id -g)" >> .env
           cat .env
-      - name: Build Georama Image
+      - name: Build QGIS-Server-Light Image
         run: |
-          docker compose build qsl
+          docker compose build worker
       - name: Run Ruff
-        run: docker compose run --entrypoint bash qsl -c "uv run ruff check --output-format=github ."
+        run: docker compose run --entrypoint bash worker -c "uv run ruff check --output-format=github ."
