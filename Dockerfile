@@ -79,6 +79,7 @@ RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
 
 COPY ./docker/dev.debug.entrypoint.sh /usr/local/bin/dev.debug.entrypoint.sh
 COPY ./docker/dev.start.worker.sh /usr/local/bin/dev.start.worker.sh
+COPY ./docker/dev.start.exporter_api.sh /usr/local/bin/dev.start.exporter_api.sh
 
 # starts the worker when container starts, set this to 0 to use it with devcontainers
 # or with remote development features of your favourite IDE
