@@ -413,7 +413,7 @@ class Exporter:
             type_oapif_format=attribute_type_json_format,
             alias=field.alias() or field.name().title(),
             comment=field.comment(),
-            nullable=is_primary_key and Exporter.obtain_nullable(field),
+            nullable=not is_primary_key and Exporter.obtain_nullable(field),
             length=Exporter.provide_field_length(field),
             precision=Exporter.provide_field_precision(field),
             editor_widget_type=editor_widget_type,
@@ -423,8 +423,18 @@ class Exporter:
         )
 
     @staticmethod
-    def obtain_nullable(field: QgsField):
-        return field.constraints().constraints() != QgsFieldConstraints.Constraint.ConstraintNotNull
+    def obtain_nullable(field: QgsField) -> bool:
+        """
+
+        Args:
+            field: The field of an `QgsVectorLayer`.
+
+        Returns:
+            False if the field carries a NotNull constraint (possibly combined with
+            others like Unique or Expression), True otherwise.
+        """
+        constraints = field.constraints().constraints()
+        return not constraints & QgsFieldConstraints.Constraint.ConstraintNotNull
 
     @staticmethod
     def provide_field_length(field: QgsField) -> int | None:
