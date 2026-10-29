@@ -1,7 +1,13 @@
 import re
 
 import pytest
-from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
+from qgis.core import (
+    QgsField,
+    QgsFieldConstraints,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
@@ -151,3 +157,55 @@ class TestQgis4DatasourceDecoding:
     def test_qgis3_project_values_are_not_unquoted_twice(self, qgis3_config):
         source = qgis3_config.datasets.raster[0].source.wms
         assert source.url.startswith("https%3A%2F%2F")
+
+
+NOT_NULL = QgsFieldConstraints.Constraint.ConstraintNotNull
+UNIQUE = QgsFieldConstraints.Constraint.ConstraintUnique
+EXPRESSION = QgsFieldConstraints.Constraint.ConstraintExpression
+
+
+class TestFieldNullable:
+    """
+    QgsFieldConstraints.constraints() is a bitmask, the NotNull constraint can be
+    combined with others. Primary keys are never nullable.
+    """
+
+    @pytest.fixture
+    def qgis_field(self, constraints):
+        field = QgsField("attribute")
+        field_constraints = field.constraints()
+        for constraint in constraints:
+            field_constraints.setConstraint(constraint)
+        field.setConstraints(field_constraints)
+        yield field
+
+    @pytest.mark.parametrize(
+        "constraints,expected",
+        [
+            ([], True),
+            ([UNIQUE], True),
+            ([EXPRESSION], True),
+            ([NOT_NULL], False),
+            ([NOT_NULL, UNIQUE], False),
+            ([NOT_NULL, EXPRESSION], False),
+            ([NOT_NULL, UNIQUE, EXPRESSION], False),
+        ],
+    )
+    def test_obtain_nullable(self, qgis_field, expected):
+        assert Exporter.obtain_nullable(qgis_field) is expected
+
+    @pytest.mark.parametrize(
+        "constraints,is_primary_key,expected",
+        [
+            ([], False, True),
+            ([UNIQUE], False, True),
+            ([NOT_NULL], False, False),
+            ([NOT_NULL, UNIQUE], False, False),
+            ([], True, False),
+            ([NOT_NULL], True, False),
+            ([NOT_NULL, UNIQUE], True, False),
+        ],
+    )
+    def test_create_qsl_field_from_qgis_field_nullable(self, qgis_field, is_primary_key, expected):
+        field = Exporter.create_qsl_field_from_qgis_field(qgis_field, is_primary_key)
+        assert field.nullable is expected
