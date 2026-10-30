@@ -1,5 +1,4 @@
 from qgis_server_light.interface.job.common.input import (
-    ExecutionMode,
     QslJobInfoParameter,
     QslJobParameter,
 )
@@ -32,7 +31,6 @@ class TestQslJobInfoCrs(DataclassTest):
             id="lsadjlajs",
             type=QslJobInfoCrs.__name__,
             job=QslJobParameterCrs(identifiers=["EPSG:4326"]),
-            execution_mode=ExecutionMode.SYNC,
         )
         assert isinstance(job_info.job, QslJobParameterCrs)
 

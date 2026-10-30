@@ -37,7 +37,7 @@ class QslJobInfoParameter(ABC):  # noqa: B024
     id: str = field(metadata={"type": "Element"})
     type: str = field(metadata={"type": "Element"})
     job: QslJobParameter = field(metadata={"type": "Element"})
-    execution_mode: ExecutionMode = field(metadata={"type": "Element"})
+    execution_mode: ExecutionMode = field(metadata={"type": "Element"}, default=ExecutionMode.SYNC)
 
     @property
     def channel_name(self) -> str:
