@@ -101,6 +101,9 @@ class MapRunner(Runner):
         self.map_layers = list()
         self.layer_cache = layer_cache
         self._custom_prop_original_filter = "qsl.original_filter"
+        self._custom_prop_source_modified = "qsl.source_modified"
+        # clients only know the job layer id, the cache name is internal
+        self._job_layer_ids: dict[str, str] = {}
 
     def _get_map_settings(self, layers: list[QgsMapLayer]) -> QgsMapSettings:
         """Produces a QgsMapSettings object from a set of layers"""
@@ -139,6 +142,7 @@ class MapRunner(Runner):
         # we first have to secure the custom property before applying the filter
         logging.debug("Preserving subset string")
         original_filter = qgs_layer.customProperty(self._custom_prop_original_filter, None)
+        source_modified = qgs_layer.customProperty(self._custom_prop_source_modified, None)
         style_doc = QDomDocument()
         style_xml = zlib.decompress(urlsafe_b64decode(job_layer_definition.style.definition))
         style_doc.setContent(style_xml)
@@ -148,6 +152,7 @@ class MapRunner(Runner):
         # by applying the style
         logging.debug("Re-apply subset string")
         qgs_layer.setCustomProperty(self._custom_prop_original_filter, original_filter)
+        qgs_layer.setCustomProperty(self._custom_prop_source_modified, source_modified)
         logging.info(f" ✓ Style loaded: {success}")
 
     def _apply_filter(self, qgs_layer: QgsVectorLayer, job_layer_definition: QslJobLayer):
@@ -232,14 +237,24 @@ class MapRunner(Runner):
             The layer (from cache or newly created).
         """
         cache_name = self.get_cache_name(job_layer_definition)
+        self._job_layer_ids[cache_name] = job_layer_definition.id
         if self.layer_cache is not None and cache_name in self.layer_cache:
             logging.debug(
                 f"Using cached job_layer_definition {job_layer_definition.name} "
-                f"(identifier: {cache_name})"
+                f"(identifier: {self._job_layer_ids[cache_name]})"
             )
             qgs_layer = self.layer_cache[cache_name]
+            # retrying is up to the client, the next job initializes the layer again
+            if outdated_reason := self._outdated_reason(qgs_layer, job_layer_definition):
+                self._raise_on_layer_errors({cache_name: outdated_reason})
         else:
             qgs_layer = self._decide_drivers(job_layer_definition)
+            # the cache name is the central identifier, errors reported by QGIS
+            # carry the layer id and therefore point directly into the cache
+            qgs_layer.setId(cache_name)
+            qgs_layer.setCustomProperty(
+                self._custom_prop_source_modified, self._source_modified(job_layer_definition)
+            )
             qgs_layer.setTitle(job_layer_definition.name)
             if qgs_layer.isValid():
                 logging.debug(
@@ -256,6 +271,70 @@ class MapRunner(Runner):
                     f"is not valid. JobLayerDefinition: {job_layer_definition}"
                 )
         return qgs_layer
+
+    def _throw_out_layer(self, cache_name: str) -> None:
+        """Throws a layer out of the cache, so the next job initializes it again."""
+        if self.layer_cache is not None:
+            self.layer_cache.pop(cache_name, None)
+            logging.warning(
+                f"Evicted layer from cache (identifier: {self._job_layer_ids[cache_name]})"
+            )
+
+    def _outdated_reason(
+        self, qgs_layer: QgsMapLayer, job_layer_definition: QslJobLayer
+    ) -> str | None:
+        """Evaluates if a cached layer became invalid or its local data source
+        changed since it was cached.
+
+        OGR does not report read errors of opened datasets (missing or corrupted
+        files result in empty feature iterators), that is why local sources are
+        checked by a fingerprint of their file.
+
+        Returns:
+            The reason why the layer is outdated, None if it is still usable.
+        """
+        if not (qgs_layer.isValid() and qgs_layer.dataProvider().isValid()):
+            return "Cached layer became invalid"
+        source_modified = qgs_layer.customProperty(self._custom_prop_source_modified, None)
+        if source_modified != self._source_modified(job_layer_definition):
+            return "Data source changed since caching"
+        return None
+
+    def _source_modified(self, job_layer_definition: QslJobLayer) -> str | None:
+        """Fingerprint of a local data source file to detect replaced, changed or
+        deleted files. Sidecar files are not considered, changes reach the main
+        file eventually (e.g. on a GeoPackage WAL checkpoint).
+
+        Returns:
+            Modification time, size and inode of the file, None for remote or
+            missing sources.
+        """
+        if job_layer_definition.remote:
+            return None
+        path = self._handle_datasource_definition(job_layer_definition)["path"]
+        try:
+            stat = os.stat(path)
+        except FileNotFoundError:
+            return None
+        return f"{stat.st_mtime_ns}:{stat.st_size}:{stat.st_ino}"
+
+    def _raise_on_layer_errors(self, layer_errors: dict[str, str]) -> None:
+        """Evicts all layers which failed during the job and lets the job fail.
+
+        Args:
+            layer_errors: Error messages by layer id (which is the cache name).
+        Raises:
+            RuntimeError: When at least one layer failed, the message names the
+                job layer ids.
+        """
+        if layer_errors:
+            for cache_name in layer_errors:
+                self._throw_out_layer(cache_name)
+            failed_job_layers = {
+                self._job_layer_ids[cache_name]: message
+                for cache_name, message in layer_errors.items()
+            }
+            raise RuntimeError(f"Layers failed: {failed_job_layers}")
 
     def _provide_layer(self, job_layer_definition: QslJobLayer) -> None:
         """Fetches the QGIS layer relevant for the requested job layer.

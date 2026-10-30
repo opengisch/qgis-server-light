@@ -47,6 +47,7 @@ class RenderRunner(MapRunner):
         renderer.finished.connect(event_loop.quit)
         renderer.start()
         event_loop.exec_()
+        self._raise_on_layer_errors({error.layerID: error.message for error in renderer.errors()})
         img = renderer.renderedImage()
         img.setDotsPerMeterX(int(map_settings.outputDpi() * 39.37))
         img.setDotsPerMeterY(int(map_settings.outputDpi() * 39.37))
