@@ -19,6 +19,10 @@ class TestQslJobInfoParameter(DataclassTest):
         ("job", QslJobParameter),
         ("execution_mode", ExecutionMode),
     ]
+    field_defaults = [
+        ("execution_mode", ExecutionMode.SYNC),
+    ]
+
     dataclass_to_test = QslJobInfoParameter
 
     def test_instantiation(
@@ -29,7 +33,6 @@ class TestQslJobInfoParameter(DataclassTest):
             id="abc",
             type=QslJobInfoParameter.__name__,
             job=QslJobParameter(),
-            execution_mode=ExecutionMode.SYNC,
         )
         assert instance.id == "abc"
         assert instance.type == "QslJobInfoParameter"

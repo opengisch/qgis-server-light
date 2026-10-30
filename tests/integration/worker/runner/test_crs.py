@@ -4,7 +4,6 @@ import pytest
 from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.common import Crs
-from qgis_server_light.interface.job.common.input import ExecutionMode
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.crs.input import QslJobInfoCrs, QslJobParameterCrs
 from qgis_server_light.interface.job.crs.output import CrsCollection
@@ -17,19 +16,16 @@ def create_job_info(identifiers: list[str]) -> QslJobInfoCrs:
         id=str(uuid.uuid4()),
         type=QslJobInfoCrs.__name__,
         job=QslJobParameterCrs(identifiers=identifiers),
-        execution_mode=ExecutionMode.SYNC,
     )
 
 
 class TestCrsRunnerIntegration:
     def test_crs_resolved_in_order(self, qgis_app, data_path):
-        job_info = create_job_info(
-            [
-                "EPSG:3857",
-                "urn:ogc:def:crs:EPSG::4326",
-                "http://www.opengis.net/def/crs/EPSG/0/2056",
-            ]
-        )
+        job_info = create_job_info([
+            "EPSG:3857",
+            "urn:ogc:def:crs:EPSG::4326",
+            "http://www.opengis.net/def/crs/EPSG/0/2056",
+        ])
 
         result = CrsRunner(qgis_app, JobContext(base_path=data_path), job_info).run()
 

@@ -15,7 +15,6 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.input import (
-    ExecutionMode,
     QslJobInfoParameter,
     QslJobParameter,
 )
@@ -72,7 +71,6 @@ def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoPa
         id=job_id,
         type=job_info_class.__name__,
         job=job_parameter,
-        execution_mode=ExecutionMode.SYNC,
     )
 
 
