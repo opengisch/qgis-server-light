@@ -1,6 +1,5 @@
 from qgis_server_light.interface.common import BaseInterface, Crs
 from qgis_server_light.interface.job.common.input import (
-    ExecutionMode,
     OgcFilterFES20,
     QslJobInfoParameter,
     QslJobLayer,
@@ -102,7 +101,6 @@ class TestQslJobInfoRender(DataclassTest):
         job_info = QslJobInfoFeature(
             id="lsadjlajs",
             type=QslJobInfoFeature.__name__,
-            execution_mode=ExecutionMode.SYNC,
             job=QslJobParameterFeature(
                 queries=[
                     FeatureQuery(

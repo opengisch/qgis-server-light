@@ -2,7 +2,6 @@ import pytest
 
 from qgis_server_light.interface.common import BBox
 from qgis_server_light.interface.job.common.input import (
-    ExecutionMode,
     QslJobInfoParameter,
     QslJobLayer,
 )
@@ -96,7 +95,6 @@ class TestQslJobInfoRender(DataclassTest):
         job_info = QslJobInfoRender(
             id="lsadjlajs",
             type=QslJobInfoRender.__name__,
-            execution_mode=ExecutionMode.SYNC,
             job=QslJobParameterRender(
                 layers=[
                     QslJobLayer(
