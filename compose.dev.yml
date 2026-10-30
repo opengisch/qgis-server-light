@@ -1,0 +1,40 @@
+services:
+  worker:
+    environment:
+      - "QSL_REDIS_URL=redis://redis:6379"
+      - "QSL_SVG_PATH=/io/svg"
+      - "QSL_DATA_ROOT=/io/data"
+      - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
+      - "DEV_AUTOSTART=${DEV_AUTOSTART:-1}"
+    build:
+      target: dev
+      args:
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    develop:
+      watch:
+        - action: rebuild
+          path: Dockerfile
+        # scripts are baked into the dev image
+        - action: rebuild
+          path: ./docker/dev.debug.entrypoint.sh
+        - action: rebuild
+          path: ./docker/dev.start.worker.sh
+    volumes:
+      - ./:/app:cached
+      - qsl-venv:/home/appuser/.venv
+  exporter:
+    environment:
+      - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
+    build:
+      target: dev
+      args:
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    volumes:
+      - ./:/app:cached
+      - qsl-venv:/home/appuser/.venv
+    command:
+      - "/usr/local/bin/dev.start.exporter_api.sh"
+volumes:
+  qsl-venv:

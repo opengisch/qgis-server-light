@@ -1,4 +1,4 @@
-from qgis_server_light.interface.common import BaseInterface
+from qgis_server_light.interface.common import BaseInterface, Crs
 from qgis_server_light.interface.job.common.input import (
     OgcFilterFES20,
     QslJobInfoParameter,
@@ -18,9 +18,11 @@ class TestFeatureQuery(DataclassTest):
         ("layers", list[QslJobLayer]),
         ("aliases", list[str]),
         ("filter", OgcFilterFES20),
+        ("crs", Crs | None),
     ]
     field_defaults = [
         ("filter", None),
+        ("crs", None),
     ]
     field_default_factories = [
         ("aliases", list),
@@ -33,7 +35,6 @@ class TestFeatureQuery(DataclassTest):
                 QslJobLayer(
                     id="adkjfoiewjd",
                     name="test",
-                    title="Test",
                     source="x.y.z",
                     remote=False,
                     folder_name="data",
@@ -70,7 +71,6 @@ class TestQslJobParameterFeature(DataclassTest):
                         QslJobLayer(
                             id="adkjfoiewjd",
                             name="test",
-                            title="Test",
                             source="x.y.z",
                             remote=False,
                             folder_name="data",
@@ -108,7 +108,6 @@ class TestQslJobInfoRender(DataclassTest):
                             QslJobLayer(
                                 id="adkjfoiewjd",
                                 name="test",
-                                title="Test",
                                 source="x.y.z",
                                 remote=False,
                                 folder_name="data",

@@ -1,0 +1,49 @@
+services:
+  worker:
+    environment:
+      - "QSL_REDIS_URL=redis://redis:6379"
+      - "QSL_SVG_PATH=/io/svg"
+      - "QSL_DATA_ROOT=/io/data"
+      - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
+    platform: "${PLATFORM:-linux/amd64}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    deploy:
+      replicas: ${REPLICAS:-1}
+    # prod command is baked into the image
+    # overwrite the bash script or just define
+    # a new command yourself in the system
+    # of your choice: compose, Kubernetes, etc.
+    volumes:
+      - "${LOCAL_PROJECTS:-./tests/resources/projects}:/io/data"
+      - "${LOCAL_SVGS:-./tests/resources/svg}:/io/svg"
+    depends_on:
+      redis:
+        condition: service_healthy
+  exporter:
+    environment:
+      - "QSL_DATA_ROOT=/io/data"
+    platform: "${PLATFORM:-linux/amd64}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: exporter
+    volumes:
+      - "${LOCAL_PROJECTS:-./tests/resources/projects}:/io/data"
+      - "${LOCAL_SVGS:-./tests/resources/svg}:/io/svg"
+    # prod command is baked into the image
+    # overwrite the bash script or just define
+    # a new command yourself in the system
+    # of your choice: compose, Kubernetes, etc.
+    ports:
+      - "127.0.0.1:5555:5000"
+  redis:
+    image: redis:8.8.0
+    platform: "${PLATFORM:-linux/amd64}"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 0.5s
+      retries: 50

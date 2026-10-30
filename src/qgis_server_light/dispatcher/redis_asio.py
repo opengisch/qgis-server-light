@@ -1,7 +1,4 @@
-"""This contains the interface definition about how a job info
-is passed around a redis queue.
-
-"""
+"""This contains the dispatcher which passes a job info around a redis queue."""
 
 import asyncio
 import datetime
@@ -16,7 +13,13 @@ from redis.client import Pipeline
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
+from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
 from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.crs.input import (
+    QslJobInfoCrs,
+    QslJobParameterCrs,
+)
 from qgis_server_light.interface.job.feature.input import (
     QslJobInfoFeature,
     QslJobParameterFeature,
@@ -34,17 +37,32 @@ from qgis_server_light.interface.job.render.input import (
     QslJobParameterRender,
 )
 
+job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
+    QslJobParameterRender: QslJobInfoRender,
+    QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
+    QslJobParameterLegend: QslJobInfoLegend,
+    QslJobParameterFeature: QslJobInfoFeature,
+    QslJobParameterCrs: QslJobInfoCrs,
+}
 
-class RedisQueue:
-    job_queue_name: str = "jobs"
-    job_info_key: str = "info"
-    job_info_type_key: str = "info_type"
-    job_channel_name: str = "notifications"
-    job_status_key: str = "status"
-    job_duration_key: str = "duration"
-    job_timestamp_key: str = "timestamp"
-    job_last_update_key: str = f"{job_timestamp_key}.last_update"
 
+def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoParameter:
+    """Wraps the job parameter into the job info matching its type.
+
+    Args:
+        job_id: The unique identifier of the job.
+        job_parameter: The parameter for the job which should be executed.
+
+    Raises:
+        TypeError: If there is no job info for the type of the job parameter.
+    """
+    job_info_class = job_info_classes.get(type(job_parameter))
+    if job_info_class is None:
+        raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
+    return job_info_class(id=job_id, type=job_info_class.__name__, job=job_parameter)
+
+
+class RedisQueue(RedisProtocol):
     def __init__(self, redis_client: redis_aio.Redis) -> None:
         # we use this to hold connections to redis in a pool, this way we are
         # event loop safe and when creating the redis client for every call of
@@ -67,14 +85,14 @@ class RedisQueue:
     ):
         duration = time.time() - start_time
         ts = datetime.datetime.now().isoformat()
-        await pipeline.hset(f"job:{job_id}", self.job_status_key, status)
+        await pipeline.hset(self.job_key(job_id), self.job_status_key, status)
         await pipeline.hset(
-            f"job:{job_id}",
+            self.job_key(job_id),
             f"{self.job_timestamp_key}.{status}",
             ts,
         )
-        await pipeline.hset(f"job:{job_id}", self.job_last_update_key, ts)
-        await pipeline.hset(f"job:{job_id}", self.job_duration_key, str(duration))
+        await pipeline.hset(self.job_key(job_id), self.job_last_update_key, ts)
+        await pipeline.hset(self.job_key(job_id), self.job_duration_key, str(duration))
         if execute:
             await pipeline.execute()
 
@@ -85,6 +103,7 @@ class RedisQueue:
             | QslJobParameterFeatureInfo
             | QslJobParameterLegend
             | QslJobParameterFeature
+            | QslJobParameterCrs
         ),
         to: float = 10.0,
     ) -> tuple[JobResult, str]:
@@ -99,50 +118,31 @@ class RedisQueue:
         """
         job_id = str(uuid4())
         start_time = time.time()
-        if isinstance(job_parameter, QslJobParameterRender):
-            job_info = QslJobInfoRender(
-                id=job_id, type=QslJobInfoRender.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterFeatureInfo):
-            job_info = QslJobInfoFeatureInfo(
-                id=job_id, type=QslJobInfoFeatureInfo.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterLegend):
-            job_info = QslJobInfoLegend(
-                id=job_id, type=QslJobInfoLegend.__name__, job=job_parameter
-            )
-        elif isinstance(job_parameter, QslJobParameterFeature):
-            job_info = QslJobInfoFeature(
-                id=job_id, type=QslJobInfoFeature.__name__, job=job_parameter
-            )
-        else:
+        try:
+            job_info = derive_job_info(job_id, job_parameter)
+        except TypeError as e:
             return (
                 JobResult(
                     id=job_id,
-                    data=f"Unsupported runner type: {type(job_parameter)}",
+                    data=str(e),
                     content_type="application/text",
                 ),
                 Status.FAILURE.value,
             )
-        channel = f"{self.job_channel_name}:{job_id}"
         try:
             async with self.client.pubsub() as ps:
                 # We subscribe to `notifications:{job_id}` *before* the job is
                 # queued. Redis pub/sub does not buffer messages, so a fast job
                 # (e.g. a legend) could otherwise be published by the worker
                 # before we listen, and its result would be lost.
-                await ps.subscribe(channel)
+                await ps.subscribe(self.channel(job_id))
                 async with self.client.pipeline() as p:
                     # Putting job info into redis
                     await p.hset(
-                        f"job:{job_id}",
-                        self.job_info_key,
-                        JsonSerializer().render(job_info),
+                        self.job_key(job_id), self.job_info_key, JsonSerializer().render(job_info)
                     )
                     await p.hset(
-                        f"job:{job_id}",
-                        self.job_info_type_key,
-                        job_info.__class__.__name__,
+                        self.job_key(job_id), self.job_info_type_key, job_info.__class__.__name__
                     )
                     # we inform, that the job was queued. This happens in the same
                     # transaction as the queuing, so it can not overwrite a status
@@ -167,15 +167,14 @@ class RedisQueue:
                             if not message:
                                 continue  # https://github.com/redis/redis-py/issues/733
                             status_binary = await self.client.hget(
-                                f"job:{job_id}", "status"
+                                self.job_key(job_id), self.job_status_key
                             )
                             status = status_binary.decode()
                             result: JobResult = pickle.loads(message["data"])
                             duration = time.time() - start_time
                             if status == Status.SUCCESS.value:
                                 logging.info(
-                                    f"Job id: {job_id}, status: {status}, "
-                                    f"duration: {duration}"
+                                    f"Job id: {job_id}, status: {status}, duration: {duration}"
                                 )
                             elif status == Status.FAILURE.value:
                                 logging.info(
@@ -183,14 +182,13 @@ class RedisQueue:
                                     f"duration: {duration}, error: {result.data}"
                                 )
                             return result, status
-                except (asyncio.TimeoutError, asyncio.exceptions.CancelledError):
+                except (TimeoutError, asyncio.exceptions.CancelledError):
                     logging.info(f"{job_id} timeout")
                     raise
         except Exception as e:
             duration = time.time() - start_time
             logging.info(
-                f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: "
-                f"{duration}",
+                f"Job id: {job_id}, status: {Status.FAILURE.value}, duration: {duration}",
                 exc_info=True,
             )
             return (
@@ -203,7 +201,7 @@ class RedisQueue:
             )
         finally:
             try:
-                await self.client.delete(f"job:{job_id}")
+                await self.client.delete(self.job_key(job_id))
             except Exception:
                 logging.warning(
                     f"Cleanup failed for {job_id}",

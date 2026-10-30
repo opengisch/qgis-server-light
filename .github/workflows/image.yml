@@ -1,13 +1,35 @@
 name: Build Docker Images
 
 on:
-  push:
+  pull_request:
     branches:
       - master
+      - main
+      - refactoring
+    types: [ opened, reopened, synchronize, closed ]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: image-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  docker-image-latest:
+  docker-image-pr:
     runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    strategy:
+      matrix:
+        include:
+          - target: worker
+            suffix: "-worker"
+          - target: exporter
+            suffix: "-exporter"
+    env:
+      # fork PRs have no access to secrets, they are built but not pushed
+      PUSH: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -15,40 +37,59 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Login to GitHub Container Registry
+      - name: Login to Docker Hub
+        if: env.PUSH == 'true'
         uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build release
+      - name: Build ${{ matrix.target }}
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          target: release
+          push: ${{ env.PUSH == 'true' }}
+          target: ${{ matrix.target }}
           cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light:latest
-  docker-image-latest-dev:
+          tags: opengisch/qgis-server-light:pr-${{ github.event.pull_request.number }}${{ matrix.suffix }}
+
+      - name: Scan ${{ matrix.target }} with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: opengisch/qgis-server-light:pr-${{ github.event.pull_request.number }}${{ matrix.suffix }}
+          format: sarif
+          output: trivy-${{ matrix.target }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.target }}.sarif
+          category: trivy-${{ matrix.target }}
+
+  docker-image-pr-cleanup:
     runs-on: ubuntu-latest
+    if: >-
+      github.event.action == 'closed'
+      && github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          username: ${{ vars.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Build release
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          target: dev
-          cache-from: type=local,src=cache
-          tags: opengisch/qgis-server-light-dev:latest
+      - name: Delete PR tags on Docker Hub
+        env:
+          DOCKER_HUB_USERNAME: ${{ vars.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_DELETE_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          TOKEN=$(curl -sSf -X POST https://hub.docker.com/v2/auth/token \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\": \"${DOCKER_HUB_USERNAME}\", \"secret\": \"${DOCKER_HUB_DELETE_TOKEN}\"}" \
+            | jq -r .access_token)
+          for TAG in "pr-${PR_NUMBER}-worker" "pr-${PR_NUMBER}-exporter"; do
+            STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "https://hub.docker.com/v2/repositories/opengisch/qgis-server-light/tags/${TAG}/")
+            echo "${TAG}: ${STATUS}"
+            # 404: tag was never pushed (e.g. build failed), nothing to clean up
+            [ "${STATUS}" = "204" ] || [ "${STATUS}" = "404" ] || exit 1
+          done

@@ -9,13 +9,11 @@ import pytest
 from qgis_server_light.interface.common import (
     BaseInterface,
     BBox,
-    PgServiceConf,
+    Crs,
     RedactedString,
-    SslMode,
     Style,
 )
 from tests.base.dataclass_test import DataclassTest
-from tests.base.enum_test import EnumTest
 
 
 class TestBaseInterface:
@@ -53,9 +51,7 @@ class TestBaseInterface:
                 "Test(long_field=10.11...111111)",
             ),
             (
-                bytes(
-                    b"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod"
-                ),
+                b"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod",
                 "Test(long_field=b'Lor...irmod')",
             ),
             (
@@ -153,73 +149,6 @@ class TestRedactedString:
         assert output == "[<RedactedString **REDACTED**>]"
 
 
-class TestSslMode(EnumTest):
-    enum_names = {
-        "DISABLE",
-        "ALLOW",
-        "PREFER",
-        "REQUIRE",
-        "VERIFY_CA",
-        "VERIFY_FULL",
-    }
-    enum_values = {
-        "disable",
-        "allow",
-        "prefer",
-        "require",
-        "verify-ca",
-        "verify-full",
-    }
-    enum_class_to_test = SslMode
-
-
-class TestPgServiceConf(DataclassTest):
-    field_defs = [
-        ("name", str),
-        ("host", str | None),
-        ("port", int | None),
-        ("user", str | None),
-        ("dbname", str | None),
-        ("password", str | None),
-        ("sslmode", SslMode),
-        ("application_name", str | None),
-        ("client_encoding", str),
-        ("service", str | None),
-    ]
-    field_defaults = [
-        ("host", None),
-        ("port", None),
-        ("user", None),
-        ("dbname", None),
-        ("password", None),
-        ("sslmode", SslMode.PREFER),
-        ("application_name", None),
-        ("client_encoding", "UTF8"),
-        ("service", None),
-    ]
-    dataclass_to_test = PgServiceConf
-
-    def test_instantiation(self):
-        """Check that we can instantiate with some values"""
-        conf = PgServiceConf(
-            name="myservice",
-            host="localhost",
-            port=5432,
-            user="postgres",
-            dbname="testdb",
-            password="secret",  # NOSONAR
-        )
-
-        assert conf.name == "myservice"
-        assert conf.host == "localhost"
-        assert conf.port == 5432
-        assert conf.user == "postgres"
-        assert conf.dbname == "testdb"
-        assert conf.password == "secret"
-        assert conf.sslmode == SslMode.PREFER.value
-        assert conf.client_encoding == "UTF8"
-
-
 class TestBBox(DataclassTest):
     field_defs = [
         ("x_min", float),
@@ -286,6 +215,38 @@ class TestBBox(DataclassTest):
     def test_from_list_invalid(self):
         with pytest.raises(ValueError):
             BBox.from_list([1, 2, 3])
+
+
+class TestCrs(DataclassTest):
+    field_defs = [
+        ("auth_id", str),
+        ("postgis_srid", int),
+        ("ogc_uri", str),
+        ("ogc_urn", str),
+        ("axis_inverted", bool),
+    ]
+    field_defaults = [
+        ("auth_id", None),
+        ("postgis_srid", None),
+        ("ogc_uri", None),
+        ("ogc_urn", None),
+        ("axis_inverted", False),
+    ]
+    dataclass_to_test = Crs
+
+    def test_instantiation(self):
+        crs = Crs(
+            auth_id="EPSG:4326",
+            postgis_srid=4326,
+            ogc_uri="http://www.opengis.net/def/crs/EPSG/0/4326",
+            ogc_urn="urn:ogc:def:crs:EPSG::4326",
+            axis_inverted=True,
+        )
+        assert crs.auth_id == "EPSG:4326"
+        assert crs.axis_inverted is True
+
+    def test_axis_inverted_default(self):
+        assert Crs(auth_id="EPSG:2056").axis_inverted is False
 
 
 class TestStyle(DataclassTest):

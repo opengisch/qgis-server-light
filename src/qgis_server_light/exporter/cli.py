@@ -6,7 +6,6 @@ from qgis.core import QgsApplication
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
-from qgis_server_light.exporter.common import create_full_pg_service_conf
 from qgis_server_light.exporter.extract import Exporter
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -19,7 +18,7 @@ allowed_extensions = ("qgz", "qgs")
 
 
 @click.group
-def cli() -> None:
+def main() -> None:
     """
     Just the central cli entry command. Currently, we don't use it, but its here
     for future content.
@@ -39,30 +38,23 @@ def cli() -> None:
     default="json",
     help=f"The desired output format. Allowed are {'|'.join(allowed_output_formats)}.",
 )
-@click.option(
-    "--pg_service_conf",
-    default=None,
-    help="Absolute path to a pg_service.conf file to take connection information from.",
-)
-@cli.command(
+@main.command(
     "export",
     context_settings={"max_content_width": 120},
     help=f"""
-    Export a QGIS project ({"|".join(allowed_extensions)}) (1st argument) file to {"|".join(allowed_output_formats)} format.
+    Export a QGIS project ({"|".join(allowed_extensions)}) (1st argument) file
+    to {"|".join(allowed_output_formats)} format.
 
-    It takes into account the PGSERVICEFILE environment variable. The cli might be called with:
+    Layers referencing a pg_service need the PGSERVICEFILE environment variable so
+    that QGIS can open them during the export. The cli might be called with:
 
       PGSERVICEFILE=<absolute-path-to-pg_service.conf> python -m qgis_server_light.exporter.cli ...
-
-    The pg_service.conf absolute path can be passed with parameter too. If this is done, the one out of
-    environment will be joined with the passed one. The passed one overwrites values of the environment one.
     """,
 )
 def export(
     project: str,
     unify_layer_names_by_group: bool = False,
     output_format: str | None = None,
-    pg_service_conf: str | None = None,
 ) -> None:
     logging.getLogger().setLevel(logging.DEBUG)
     serializer_config = SerializerConfig(indent="  ")
@@ -70,18 +62,17 @@ def export(
         output_format = "json"
     if not project.lower().endswith(allowed_extensions):
         raise NotImplementedError(
-            f"Allowed qgis project file extensions are: {'|'.join(allowed_extensions)} not => {project}"
+            f"Allowed qgis project file extensions "
+            f"are: {'|'.join(allowed_extensions)} not => {project}"
         )
     if output_format.lower() not in allowed_output_formats:
         raise NotImplementedError(
             f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {output_format}"
         )
-    full_pg_service_config = create_full_pg_service_conf(pg_service_conf)
     if os.path.isfile(project):
         exporter = Exporter(
             project,
             unify_layer_names_by_group=bool(unify_layer_names_by_group),
-            pg_service_configs=full_pg_service_config,
         )
         config = exporter.run()
         if output_format == "json":
@@ -94,4 +85,4 @@ def export(
 
 
 if __name__ == "__main__":
-    export()
+    main()

@@ -1,11 +1,9 @@
-from typing import Tuple
-
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from PyQt5.QtCore import QBuffer, QByteArray, QIODevice
 from PyQt5.QtGui import QImage
 
 
-def _encode_image(image: QImage, fmt: str) -> Tuple:
+def _encode_image(image: QImage, fmt: str) -> tuple:
     """Encodes an image in a specific mime type
     Args:
         image (QImage): The image to encode

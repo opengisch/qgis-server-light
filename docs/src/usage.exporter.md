@@ -14,17 +14,20 @@ However, this comes with a downside:
   for rendering our requested layers.
 
 QGIS-Server-Light gives you a typed way
-([python lib](src/qgis_server_light/interface)) to store extracted information of a QGIS project. This is
+([python lib](https://github.com/opengisch/qgis-server-light/tree/master/src/qgis_server_light/interface)) to store extracted information of a QGIS project. This is
 what you can use programmatically in your 3rd party application. In addition, it offers a
-[CLI](src/qgis_server_light/exporter/cli.py) to just do a command line call to extract the information.
+[CLI](https://github.com/opengisch/qgis-server-light/blob/master/src/qgis_server_light/exporter/cli.py) to just do a command line call to extract the information.
 
 ### Using the CLI
 
-You can extract information of a QGIS-Project like this:
+You can extract information of a QGIS-Project inside the container (see [Docker-DEV](usage.worker.docker.md))
+like this:
 
 ```shell
-.venv/bin/python3 -m qgis_server_light.exporter.cli --project [path-to-your-project]
+docker compose run --rm -T --entrypoint bash worker -c "uv run python -m qgis_server_light.exporter.cli export --project /io/data/[path-to-your-project]"
 ```
+
+The project has to be located in `LOCAL_PROJECTS` which is mounted to `/io/data`.
 
 This uses the default output format `json` and does not `unify layer names` in the project.
 
@@ -34,7 +37,7 @@ This uses the default output format `json` and does not `unify layer names` in t
 If you want to save the output to a file, you can do by:
 
 ```shell
-.venv/bin/python3 -m qgis_server_light.exporter.cli --project [path-to-your-project] > project_config.json
+docker compose run --rm -T --entrypoint bash worker -c "uv run python -m qgis_server_light.exporter.cli export --project /io/data/[path-to-your-project]" > project_config.json
 ```
 
 #### Supported QGIS project extensions

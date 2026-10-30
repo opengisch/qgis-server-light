@@ -1,37 +1,31 @@
-![Image build](https://github.com/opengisch/qgis-server-light/actions/workflows/image.yml/badge.svg)
-![Docs build](https://github.com/opengisch/qgis-server-light/actions/workflows/docs.yml/badge.svg)
-
-# QGIS-Server-Light
-
-QGIS-Server-Light is a python worker process which uses pyqgis
-to:
-
-- render a map from a set of layers
-- extract vector features
-
-All configuration happens at runtime through a lean interface at runtime.
-
-It is backed by Redis as a queue system.
-
-## Quick start
+# Commands
 
 ```shell
-docker run --rm -d -p 1234:6379 --name qsl-redis redis
+cp .env.dev.example .env
 ```
 
 ```shell
-docker run -ti --rm --net host --name qsl opengisch/qgis-server-light:latest
+docker compose up --watch --remove-orphans
 ```
-
-In case you have local geodata which is used in your QGIS projects, you need to make it
-available to
-QGIS-Server-Light through a volume mount:
 
 ```shell
-docker run -ti --rm --net host --name qsl -v <local-path-to-your-qgis-projects>:/io/data opengisch/qgis-server-light:latest
+docker compose run --rm --entrypoint bash worker -c "uv run pytest"
 ```
 
-## Documentation
+```shell
+docker compose run --rm --entrypoint bash worker -c "uv run mkdocs build -f docs/mkdocs.yml -d site"
+```
 
-The complete documentation is available at the
-[documentation](https://opengisch.github.io/qgis-server-light).
+## DEV
+
+The provided compose does offer a virtual environment inside the
+worker service container. You may want to use this with your IDE for
+code completion. It's located inside the container at `/home/appuser/.venv`.
+
+Either you use the container directly or the provided [devcontainer](.devcontainer/devcontainer.json)
+which attaches your IDE to the worker service. Inside the devcontainer the worker is not started
+automatically (`DEV_AUTOSTART=0`), you start it yourself:
+
+```shell
+/usr/local/bin/dev.start.worker.sh
+```

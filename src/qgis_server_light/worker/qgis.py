@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import List, Optional
 
 from qgis.core import Qgis as Qgis_
 from qgis.core import QgsApplication, QgsCredentials
@@ -19,7 +18,7 @@ class CredentialsHelper(QgsCredentials):
         logging.warning("Master password requested")
 
 
-def Qgis(svg_paths: Optional[List[str]], log_level):
+def Qgis(svg_paths: list[str] | None, log_level):
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     qgs = QgsApplication([], False)
     qgs.initQgis()

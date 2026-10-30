@@ -1,117 +1,69 @@
 ## Prepare to run an instance of QGIS-Server-Light
 
-### Run it with python and with QGIS installed locally
-
-You can choose this solution if you have QGIS and Python in the correct versions installed on your system.
-
-#### Preparation
-
-The following command installs all dependencies in a local virtual environment in the project root
-folder to `.venv`:
-
-```shell
-make install-dev
-```
-
-It tries to find the correct path to the `pyqgis` of your local QGIS desktop installation.
-
-#### Run QGIS-Server-Light worker
-
-Spin up a redis instance:
-
-```shell
-docker run --rm -d -p 1234:6379 --name georama-redis redis
-```
-
-Spin up QGIS-Server-Light worker:
-
-```shell
-make run
-```
-
-You may want start QGIS-Server-Light worker in a reloading mode so that everytime you change the source
-code, the worker gets reloaded. You can do so with:
-
-```shell
-make run-reload
-```
-
-Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
-
-### Run it within a Docker container
-
-If you don't have QGIS installed or some versions are not matching on you machine
-the recommended way of running this stack is Docker (docker need to be installed in a recent version).
-
-#### Preparation
-
-First you need to build the image:
-```shell
-docker build -t opengisch/qgis-server-light-dev:latest --target dev .
-```
-
-#### Run QGIS-Server-Light worker
-
-Spin up a redis instance:
-
-```shell
-docker run --rm -d -p 1234:6379 --name georama-redis redis
-```
-
-Then run:
-```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
-```
-
-Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
-
+QGIS-Server-Light is developed and run in docker only (docker need to be installed in a recent version). See
+[why docker only](usage.worker.docker.md#why-docker-only).
 
 ### Run it with Docker Compose
 
-Create an .env file and put the content of [.env.example](.env.example) into it. Adapt as needed.
+Create an .env file and put the content of [.env.dev.example](https://github.com/opengisch/qgis-server-light/blob/master/.env.dev.example)
+into it. Adapt as needed.
 
 ```shell
-docker compose up -d
+cp .env.dev.example .env
+docker compose up --watch --remove-orphans
 ```
 
-- `QSL_DATA_MOUNT` has to be the valid local absolute path where your qgis projects (and their data) are stored
+- `LOCAL_PROJECTS` has to be the valid local path where your qgis projects (and their data) are stored
+- `LOCAL_SVGS` has to be the valid local path where your additional svg files are stored
 - Optional: `QSL_LOG_LEVEL` log levels as they are defined by pythons
   [logging](https://docs.python.org/3/library/logging.html#logging-levels) library
-- Optional: `QSL_REPLICAS` can be 1 up to * (note, that this has to be balanced with your system resources)
-- Optional: `QSL_REDIS_URL`=redis://redis (since we are inside our composition, this is optional)
+- Optional: `REPLICAS` can be 1 up to * (note, that this has to be balanced with your system resources)
+- Optional: `DEV_AUTOSTART` start the worker on container start (1) or just idle (0)
+
+Congratulations... Your QGIS-Server-Light is running and waits for jobs in the redis queue.
+
+See [Docker-DEV](usage.worker.docker.md) for details and the devcontainer.
 
 
 ## DEV Details
 
 ### Running things
 
-All deps are transparent. The biggest one is QGIS and its relatives of course. If you want to develop
-this package further you can use the local way described above.
+All deps are transparent. The biggest one is QGIS and its relatives of course. The source code is mounted
+to the running container, that way the current changes you make are transparently available in the container.
 
-If you have issues with matching QGIS version on your system and the one used by QGIS-Server-Light
-you should prefer the docker way with the source code mounted to the running container.
+Tests, linting and docs are run inside the container too:
 
 ```shell
-docker run --rm -e QSL_REDIS_URL=redis://localhost:1234 -e QSL_LOG_LEVEL=debug -v $(pwd):/app --net host opengisch/qgis-server-light:dev
+docker compose run --rm --entrypoint bash worker -c "uv run pytest"
+docker compose run --rm --entrypoint bash worker -c "uv run ruff check"
+docker compose run --rm --entrypoint bash worker -c "uv run mkdocs build -f docs/mkdocs.yml -d site"
 ```
 
-That way the current changes you make are transparently available in the container.
-
 For better IDE support it is to be mentioned that the python interpreter inside the container with access
-to all the necessary python libs is available at `opt/qgis-server-light/venv/bin/python3`
+to all the necessary python libs is available at `/home/appuser/.venv/bin/python`. The provided
+devcontainer is already configured to use it.
 
 ### PyPi Dependencies
 
 If you decide to add new requirements to this project, please consider for which part of the project
-you need them. Remember, it's split into 3 parts:
-- exporter ([requirements.exporter.txt](requirements.exporter.txt))
-- interface ([requirements.interface.txt](requirements.interface.txt))
-- worker ([requirements.worker.txt](requirements.worker.txt))
+you need them. Remember, it's split into 3 parts, each one has its own dependency group in
+[pyproject.toml](https://github.com/opengisch/qgis-server-light/blob/master/pyproject.toml):
+- exporter (`exporter`)
+- interface (`interface`)
+- worker (`worker`)
+
+```shell
+docker compose run --rm --entrypoint bash worker -c "uv add --group worker <package>"
+```
 
 In general its save to add dependencies to **exporter** and **worker** since they are used only in this project.
 The **interface** should have as fewer dependencies as possible and should implement only the minimal
 understanding of items to be passed around with third party applications through redis. The main goal of all
 this is to keep the 3rd party application clean of heavy deps.
+
+Dependencies of the **interface** and the **dispatcher** have to be added to the extras in
+`[project.optional-dependencies]` too, since these are the ones 3rd party applications install.
 
 ### PyPy Package
 
@@ -130,3 +82,40 @@ GitHub link.
 ```requirements
 git+ssh://git@github.com/opengisch/qgis-server-light.git@master#egg=qgis_server_light
 ```
+
+If your application posts jobs to the redis queue with the dispatcher (`qgis_server_light.dispatcher`),
+install it with the extra `dispatcher`. It adds the dependencies of the dispatcher (`redis`, `xsdata`).
+The interface alone has no dependencies.
+
+```requirements
+qgis_server_light[dispatcher] @ git+ssh://git@github.com/opengisch/qgis-server-light.git@master
+```
+
+### Release
+
+Releases are cut from `master` only and go forward only, there are no maintenance branches.
+A fix, also a security fix, is a regular PR and goes out with the next release.
+
+Versions are calendar style `vYY.N`, `N` counting up within the year from `0` (`v26.1`, `v26.2`, …,
+`v27.0`). The number carries no compatibility promise.
+
+To release, tag the `master` commit and push the tag:
+
+```shell
+git switch master
+git pull
+git tag v26.1
+git push origin v26.1
+```
+
+The tag triggers the workflow [release.yml](https://github.com/opengisch/qgis-server-light/blob/master/.github/workflows/release.yml):
+
+- fails if the tagged commit is not reachable from `master`
+- sets the package version from the tag (`26.1`), not committed
+- builds and pushes `opengisch/qgis-server-light:26.1-worker` / `26.1-exporter` and moves
+  `latest-worker` / `latest-exporter`
+- creates the GitHub release, the notes list the PRs merged since the previous tag, grouped by label
+  (see [release.yml](https://github.com/opengisch/qgis-server-light/blob/master/.github/release.yml))
+
+The `version` in `pyproject.toml` is a placeholder (`0.0.0`). Only images built by the workflow carry
+the real version, an install from git reports `0.0.0`.

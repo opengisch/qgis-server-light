@@ -1,0 +1,39 @@
+{
+  "name": "QSL Devcontainer",
+  "dockerComposeFile": [
+    "../compose.yml",
+    "../compose.dev.yml"
+  ],
+  "service": "worker",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
+  "remoteUser": "appuser",
+  "containerEnv": {
+    "DEV_AUTOSTART": "0",
+    "QSL_LOG_LEVEL": "debug"
+  },
+  "mounts": [
+    {
+      "source": "cache-${devcontainerId}",
+      "target": "/home/appuser/.cache",
+      "type": "volume"
+    }
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "astral-sh.ty",
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.vscode-pylance",
+        "ms-python.vscode-python-envs",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/appuser/.venv/bin/python"
+      }
+    }
+  }
+}
