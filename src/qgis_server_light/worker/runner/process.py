@@ -1,7 +1,4 @@
-import logging
-import sys
 from collections.abc import MutableMapping
-
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
     Qgis,

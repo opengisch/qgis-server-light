@@ -106,7 +106,7 @@ def export(
         click.echo(serializer.render(config))
 
 
-@cli.command("export-processes")
+@main.command("export-processes")
 def export_processes():
     registry = qgs.processingRegistry()
     qgs.setTranslation("en")

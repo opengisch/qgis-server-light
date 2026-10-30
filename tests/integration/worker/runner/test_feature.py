@@ -7,7 +7,7 @@ from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.common import Crs
 from qgis_server_light.interface.exporter.extract import OgrSource
-from qgis_server_light.interface.job.common.input import OgcFilterFES20, QslJobLayer
+from qgis_server_light.interface.job.common.input import ExecutionMode, OgcFilterFES20, QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.feature.input import (
     FeatureQuery,
@@ -46,6 +46,7 @@ class TestFeatureRunnerIntegration:
             job=QslJobParameterFeature(
                 queries=[FeatureQuery(layers=[job_layer])],
             ),
+            execution_mode=ExecutionMode.SYNC,
         )
 
         runner = GetFeatureRunner(
@@ -97,6 +98,7 @@ class TestFeatureRunnerIntegration:
             job=QslJobParameterFeature(
                 queries=[FeatureQuery(layers=[job_layer], crs=crs)],
             ),
+            execution_mode=ExecutionMode.SYNC,
         )
 
         result = GetFeatureRunner(qgis_app, JobContext(base_path=data_path), job_info, {}).run()
@@ -126,6 +128,7 @@ class TestFeatureRunnerIntegration:
             job=QslJobParameterFeature(
                 queries=[FeatureQuery(layers=[job_layer], crs=Crs(auth_id="EPSG:999999"))],
             ),
+            execution_mode=ExecutionMode.SYNC,
         )
 
         with pytest.raises(RuntimeError):
@@ -170,6 +173,7 @@ class TestFeatureRunnerIntegration:
                     FeatureQuery(layers=[job_layer], filter=OgcFilterFES20(definition=definition))
                 ],
             ),
+            execution_mode=ExecutionMode.SYNC,
         )
 
         result = GetFeatureRunner(qgis_app, JobContext(base_path=data_path), job_info, {}).run()
