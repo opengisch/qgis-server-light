@@ -1,6 +1,7 @@
 from qgis_server_light.interface.common import BaseInterface, Style
 from qgis_server_light.interface.job.common.input import (
     AbstractFilter,
+    ExecutionMode,
     OgcFilter110,
     OgcFilterFES20,
     QslJobInfoParameter,
@@ -16,6 +17,7 @@ class TestQslJobInfoParameter(DataclassTest):
         ("id", str),
         ("type", str),
         ("job", QslJobParameter),
+        ("execution_mode", ExecutionMode),
     ]
     dataclass_to_test = QslJobInfoParameter
 
@@ -24,7 +26,10 @@ class TestQslJobInfoParameter(DataclassTest):
     ):
         QslJobInfoParameter.__abstractmethods__ = set()
         instance = QslJobInfoParameter(
-            id="abc", type=QslJobInfoParameter.__name__, job=QslJobParameter()
+            id="abc",
+            type=QslJobInfoParameter.__name__,
+            job=QslJobParameter(),
+            execution_mode=ExecutionMode.SYNC,
         )
         assert instance.id == "abc"
         assert instance.type == "QslJobInfoParameter"

@@ -1,11 +1,13 @@
+# ruff: noqa
+
 available = {
     "algorithms": [
         {
             "id": "native:buffer",
             "name": "buffer",
             "display_name": "Buffer",
-            "short_help_string": "This algorithm computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.\n\nThe segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded offsets.\n\nThe end cap style parameter controls how line endings are handled in the buffer.\n\nThe join style parameter specifies whether round, miter or beveled joins should be used when offsetting corners in a line.\n\nThe miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the offset curve to use when creating a mitered join.",
-            "short_description": "",
+            "short_help_string": "This algorithm computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.\n\nThe segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded offsets.\n\nThe end cap style parameter controls how line endings are handled in the buffer.\n\nThe join style parameter specifies whether round, miter orbeveled joins should be used when offsetting corners in a line.\n\nThe miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the offset curve to use when creating a mitered join.",
+            "short_description": "Computes a buffer area for all the features in an input layer, using a fixed ordynamic distance.",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -89,19 +91,15 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "vector_layer"},
-                    "description": "Buffered",
-                }
+                {"name": "OUTPUT", "type": {"name": "vector_layer"}, "description": "Buffered"}
             ],
         },
         {
             "id": "native:centroids",
             "name": "centroids",
             "display_name": "Centroids",
-            "short_help_string": "This algorithm creates a new point layer, with points representing the centroid of the geometries in an input layer.\n\nThe attributes associated to each point in the output layer are the same ones associated to the original features.",
-            "short_description": "",
+            "short_help_string": "This algorithm creates a new point layer with points representing the centroid of the geometries in an input layer.\n\nThe attributes associated to each point in the output layer are the same ones associated to the original features.",
+            "short_description": "Creates a new point layer with points representing the centroid of the geometries in an input layer.",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -129,19 +127,15 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "vector_layer"},
-                    "description": "Centroids",
-                }
+                {"name": "OUTPUT", "type": {"name": "vector_layer"}, "description": "Centroids"}
             ],
         },
         {
             "id": "native:concavehull",
             "name": "concavehull",
-            "display_name": "Concave hull",
-            "short_help_string": "This algorithm computes the concave hull of the features from an input layer.",
-            "short_description": "",
+            "display_name": "Concave hull (by layer)",
+            "short_help_string": "This algorithm computes the concave hull covering all features from an input point layer.\n\nSee the 'Concave hull (by feature)' algorithm for a concave hull calculation which covers individual features from a layer.",
+            "short_description": "Computes the concave hull of all features from an input point layer.",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -185,11 +179,7 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "vector_layer"},
-                    "description": "Concave hull",
-                }
+                {"name": "OUTPUT", "type": {"name": "vector_layer"}, "description": "Concave hull"}
             ],
         },
         {
@@ -197,7 +187,7 @@ available = {
             "name": "rasterlayerproperties",
             "display_name": "Raster layer properties",
             "short_help_string": "This algorithm returns basic properties of the given raster layer, including the extent, size in pixels and dimensions of pixels (in map units).\n\nIf an optional band number is specified then the NoData value for the selected band will also be returned.",
-            "short_description": "",
+            "short_description": "Returns basic properties of a given raster layer, including the extent, size in pixels and dimensions of pixels (in map units).",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -288,8 +278,8 @@ available = {
             "id": "native:rescaleraster",
             "name": "rescaleraster",
             "display_name": "Rescale raster",
-            "short_help_string": "Rescales raster layer to a new value range, while preserving the shape (distribution) of the raster's histogram (pixel values). Input values are mapped using a linear interpolation from the source raster's minimum and maximum pixel values to the destination minimum and maximum pixel range.\n\nBy default the algorithm preserves the original NoData value, but there is an option to override it.",
-            "short_description": "",
+            "short_help_string": "This algorithm rescales a raster layer to a new value range, while preserving the shape (distribution) of the raster's histogram (pixel values). Input values are mapped using a linear interpolation from the source raster's minimum and maximum pixel values to the destination minimum and maximum pixel range.\n\nBy default the algorithm preserves the original NoData value, but there is an option to override it.",
+            "short_description": "Rescales a raster layer to a new value range, while preserving the shape (distribution) of the raster's histogram (pixel values).",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -340,6 +330,14 @@ available = {
                     "is_destination": False,
                 },
                 {
+                    "name": "CREATION_OPTIONS",
+                    "type": {"name": "str", "length": None},
+                    "optional": True,
+                    "default": None,
+                    "description": "Creation options",
+                    "is_destination": False,
+                },
+                {
                     "name": "OUTPUT",
                     "type": {"name": "raster_layer"},
                     "optional": False,
@@ -349,11 +347,7 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "raster_layer"},
-                    "description": "Rescaled",
-                }
+                {"name": "OUTPUT", "type": {"name": "raster_layer"}, "description": "Rescaled"}
             ],
         },
         {
@@ -361,7 +355,7 @@ available = {
             "name": "collect",
             "display_name": "Collect geometries",
             "short_help_string": "This algorithm takes a vector layer and collects its geometries into new multipart geometries. One or more attributes can be specified to collect only geometries belonging to the same class (having the same value for the specified attributes), alternatively all geometries can be collected.\n\nAll output geometries will be converted to multi geometries, even those with just a single part. This algorithm does not dissolve overlapping geometries - they will be collected together without modifying the shape of each geometry part.\n\nSee the 'Promote to multipart' or 'Aggregate' algorithms for alternative options.",
-            "short_description": "",
+            "short_description": "Collects geometries of a vector layer into new multipart geometries, optionally grouped by common attributes.",
             "parameters": [
                 {
                     "name": "INPUT",
@@ -389,18 +383,14 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "vector_layer"},
-                    "description": "Collected",
-                }
+                {"name": "OUTPUT", "type": {"name": "vector_layer"}, "description": "Collected"}
             ],
         },
         {
             "id": "native:rasterize",
             "name": "rasterize",
             "display_name": "Convert map to raster",
-            "short_help_string": "This algorithm rasterizes map canvas content.\n\nA map theme can be selected to render a predetermined set of layers with a defined style for each layer. Alternatively, a set of layers can be selected if no map theme is set. If neither map theme nor layer is set, all the visible layers in the set extent will be rendered.\n\nThe minimum extent entered will internally be extended to a multiple of the tile size.",
+            "short_help_string": "This algorithm rasterizes map canvas content.\n\nA map theme can be selected to render a predetermined set of layers with a defined style for each layer. Alternatively, a set of layers can be selected if no map theme isset. If neither map theme nor layer is set, all the visible layers in the set extent will be rendered.\n\nThe minimum extent entered will internally be extended to amultiple of the tile size.",
             "short_description": "Renders the map canvas to a raster file.",
             "parameters": [
                 {
@@ -473,18 +463,14 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "raster_layer"},
-                    "description": "Output layer",
-                }
+                {"name": "OUTPUT", "type": {"name": "raster_layer"}, "description": "Output layer"}
             ],
         },
         {
             "id": "native:affinetransform",
             "name": "affinetransform",
             "display_name": "Affine transform",
-            "short_help_string": "Applies an affine transformation to the geometries from a layer. Affine transformations can include translation, scaling and rotation. The operations are performed in a scale, rotation, translation order.\n\nZ and M values present in the geometry can also be translated and scaled independently.",
+            "short_help_string": "This algorithm applies an affine transformation to the geometries from a layer. Affine transformations can include translation, scaling and rotation. The operations are performed in a scale, rotation, translation order.\n\nZ and M values present in the geometry can also be translated and scaled independently.",
             "short_description": "Applies an affine transformation to geometries.",
             "parameters": [
                 {
@@ -577,11 +563,7 @@ available = {
                 },
             ],
             "outputs": [
-                {
-                    "name": "OUTPUT",
-                    "type": {"name": "vector_layer"},
-                    "description": "Transformed",
-                }
+                {"name": "OUTPUT", "type": {"name": "vector_layer"}, "description": "Transformed"}
             ],
         },
     ]

@@ -23,6 +23,4 @@ class QslJobParameterExecuteProcess(QslJobParameter):
 
 @dataclass
 class QslJobInfoExecuteProcess(QslJobInfoParameter):
-    job: QslJobParameterExecuteProcess = field(
-        metadata={"type": "Element", "required": True}
-    )
+    job: QslJobParameterExecuteProcess = field(metadata={"type": "Element", "required": True})

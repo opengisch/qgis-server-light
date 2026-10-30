@@ -1,6 +1,3 @@
-import logging
-import sys
-
 from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
     Qgis,

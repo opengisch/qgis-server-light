@@ -1,6 +1,7 @@
 import pytest
 
 from qgis_server_light.interface.job.common.input import (
+    ExecutionMode,
     QslJobInfoParameter,
     QslJobLayer,
 )
@@ -80,6 +81,7 @@ class TestQslJobInfoLegend(DataclassTest):
             id="lsadjlajs",
             type=QslJobInfoLegend.__name__,
             job=QslJobParameterLegend(layers=[]),
+            execution_mode=ExecutionMode.SYNC,
         )
         assert isinstance(job_info.job, QslJobParameterLegend)
 

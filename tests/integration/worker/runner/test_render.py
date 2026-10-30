@@ -9,7 +9,7 @@ from pixelmatch.contrib.PIL import pixelmatch
 
 from qgis_server_light.interface.common import BBox, Style
 from qgis_server_light.interface.exporter.extract import GdalSource, OgrSource
-from qgis_server_light.interface.job.common.input import QslJobLayer
+from qgis_server_light.interface.job.common.input import ExecutionMode, QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
@@ -83,6 +83,7 @@ class TestRenderRunnerIntegration:
         job_info = QslJobInfoRender(
             id=str(uuid.uuid4()),
             type=QslJobInfoRender.__name__,
+            execution_mode=ExecutionMode.SYNC,
             job=QslJobParameterRender(
                 layers=[job_layer],
                 bbox=bbox,
