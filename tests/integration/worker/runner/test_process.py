@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from qgis_server_light.interface.exporter.extract import OgrSource
-from qgis_server_light.interface.job.common.input import ExecutionMode, QslJobLayer
+from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.input import (
     ParameterInput,
@@ -39,7 +39,6 @@ class TestProcessRunnerIntegration:
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
             type=QslJobInfoExecuteProcess.__name__,
-            execution_mode=ExecutionMode.SYNC,
             job=QslJobParameterExecuteProcess(
                 process_id="native:buffer",
                 parameters=[
@@ -89,7 +88,6 @@ class TestProcessRunnerIntegration:
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
             type=QslJobInfoExecuteProcess.__name__,
-            execution_mode=ExecutionMode.SYNC,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
                 parameters=[
