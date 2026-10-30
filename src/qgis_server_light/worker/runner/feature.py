@@ -117,7 +117,10 @@ class GetFeatureRunner(MapRunner):
                         # filter expressions are still evaluated in the layer crs, only
                         # the returned geometries are transformed
                         feature_request.setDestinationCrs(destination_crs, layer.transformContext())
-                    layer_features = list(layer.getFeatures(feature_request))
+                    feature_iterator = layer.getFeatures(feature_request)
+                    if not feature_iterator.isValid():
+                        self._raise_on_layer_errors({layer.id(): "Data source invalid"})
+                    layer_features = list(feature_iterator)
                     numbers_matched += len(layer_features)
                     logging.info(f" Found {len(layer_features)} features")
                     if self.job_info.job.count:

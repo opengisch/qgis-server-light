@@ -65,7 +65,10 @@ class GetFeatureInfoRunner(MapRunner):
                     .setFilterRect(layer_rect)
                     .setFlags(QgsFeatureRequest.ExactIntersect)
                 )
-                for feature in layer.getFeatures(request):
+                feature_iterator = layer.getFeatures(request)
+                if not feature_iterator.isValid():
+                    self._raise_on_layer_errors({layer.id(): "Data source invalid"})
+                for feature in feature_iterator:
                     if renderer.willRenderFeature(feature, render_context):
                         properties = OrderedDict(
                             zip(
