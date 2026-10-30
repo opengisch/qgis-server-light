@@ -14,7 +14,10 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
-from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
+from qgis_server_light.interface.job.common.input import (
+    QslJobInfoParameter,
+    QslJobParameter,
+)
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.crs.input import (
     QslJobInfoCrs,
@@ -32,6 +35,10 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
+from qgis_server_light.interface.job.process.input import (
+    QslJobInfoExecuteProcess,
+    QslJobParameterExecuteProcess,
+)
 from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
@@ -43,6 +50,7 @@ job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
     QslJobParameterLegend: QslJobInfoLegend,
     QslJobParameterFeature: QslJobInfoFeature,
     QslJobParameterCrs: QslJobInfoCrs,
+    QslJobParameterExecuteProcess: QslJobInfoExecuteProcess,
 }
 
 
@@ -59,7 +67,11 @@ def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoPa
     job_info_class = job_info_classes.get(type(job_parameter))
     if job_info_class is None:
         raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
-    return job_info_class(id=job_id, type=job_info_class.__name__, job=job_parameter)
+    return job_info_class(
+        id=job_id,
+        type=job_info_class.__name__,
+        job=job_parameter,
+    )
 
 
 class RedisQueue(RedisProtocol):
@@ -104,6 +116,7 @@ class RedisQueue(RedisProtocol):
             | QslJobParameterLegend
             | QslJobParameterFeature
             | QslJobParameterCrs
+            | QslJobParameterExecuteProcess
         ),
         to: float = 10.0,
     ) -> tuple[JobResult, str]:

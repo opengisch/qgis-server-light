@@ -21,13 +21,11 @@ def create_job_info(identifiers: list[str]) -> QslJobInfoCrs:
 
 class TestCrsRunnerIntegration:
     def test_crs_resolved_in_order(self, qgis_app, data_path):
-        job_info = create_job_info(
-            [
-                "EPSG:3857",
-                "urn:ogc:def:crs:EPSG::4326",
-                "http://www.opengis.net/def/crs/EPSG/0/2056",
-            ]
-        )
+        job_info = create_job_info([
+            "EPSG:3857",
+            "urn:ogc:def:crs:EPSG::4326",
+            "http://www.opengis.net/def/crs/EPSG/0/2056",
+        ])
 
         result = CrsRunner(qgis_app, JobContext(base_path=data_path), job_info).run()
 

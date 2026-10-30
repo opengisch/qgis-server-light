@@ -1,4 +1,7 @@
-from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
+from qgis_server_light.interface.job.common.input import (
+    QslJobInfoParameter,
+    QslJobParameter,
+)
 from qgis_server_light.interface.job.crs.input import QslJobInfoCrs, QslJobParameterCrs
 from tests.base.dataclass_test import DataclassTest
 

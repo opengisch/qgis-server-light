@@ -1,5 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
+from enum import Enum
 
 from qgis_server_light.interface.common import BaseInterface, Style
 
@@ -11,6 +12,11 @@ class QslJobParameter(ABC):  # noqa: B024
     """
 
     pass
+
+
+class ExecutionMode(Enum):
+    SYNC = "sync"
+    ASYNC = "async"
 
 
 @dataclass
@@ -31,6 +37,11 @@ class QslJobInfoParameter(ABC):  # noqa: B024
     id: str = field(metadata={"type": "Element"})
     type: str = field(metadata={"type": "Element"})
     job: QslJobParameter = field(metadata={"type": "Element"})
+    execution_mode: ExecutionMode = field(metadata={"type": "Element"}, default=ExecutionMode.SYNC)
+
+    @property
+    def channel_name(self) -> str:
+        return f"notification_{self.execution_mode}"
 
 
 @dataclass
