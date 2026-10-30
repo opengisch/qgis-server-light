@@ -78,7 +78,7 @@ lint-format = [
     "ruff>=0.15.20",
 ]
 test = [
-    "pillow>=12.3.0",
+    "pillow>=13.0.0",
     "pixelmatch>=0.4.0",
     "pytest>=9.1.1",
 ]
