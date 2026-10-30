@@ -91,7 +91,7 @@ def export(
         raise AttributeError(f"Project file '{project}' does not exist")
 
 
-@cli.command("export-processes")
+@main.command("export-processes")
 def export_processes():
     registry = qgs.processingRegistry()
     qgs.setTranslation("en")

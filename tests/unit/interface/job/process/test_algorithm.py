@@ -42,7 +42,8 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
         id="native:buffer",
         name="buffer",
         display_name="Buffer",
-        help_string="",
+        short_description="Computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.",  # noqa: E501
+        short_help_string="This algorithm computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.\n\nThe segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded offsets.\n\nThe end cap style parameter controls how line endings are handled in the buffer.\n\nThe join style parameter specifies whether round, miter or beveled joins should be used when offsetting corners in a line.\n\nThe miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the offset curve to use when creating a mitered join.",  # noqa: E501
         parameters=[
             Parameter(
                 name="INPUT",
