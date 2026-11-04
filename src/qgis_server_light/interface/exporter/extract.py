@@ -285,6 +285,76 @@ class WmtsSource(WmsSource):
 
 
 @dataclass(repr=False)
+class WcsSource(Source):
+    """
+    Source of a layer of the QGIS `wcs` provider. The attributes are the uri
+    parameters read by the provider (`QgsWcsProvider::parseUri` and
+    `QgsWcsCapabilities` in QGIS `src/providers/wcs`). Credentials (`username`,
+    `password`, `authcfg`) and http headers are intentionally not exported.
+    """
+
+    url: str = field(metadata={"type": "Element"})
+    identifier: str = field(metadata={"type": "Element"})
+    crs: str | None = field(default=None, metadata={"type": "Element"})
+    format: str | None = field(default=None, metadata={"type": "Element"})
+    time: str | None = field(default=None, metadata={"type": "Element"})
+    bbox: str | None = field(default=None, metadata={"type": "Element"})
+    version: str | None = field(default=None, metadata={"type": "Element"})
+    cache: str | None = field(default=None, metadata={"type": "Element"})
+    # workarounds for misconfigured servers, set from the checkboxes of the QGIS WCS
+    # connection. The provider enables them when the parameter is present in the
+    # uri, whatever its value.
+    ignore_get_map_url: bool = field(default=False, metadata={"type": "Element"})
+    ignore_axis_orientation: bool = field(default=False, metadata={"type": "Element"})
+    invert_axis_orientation: bool = field(default=False, metadata={"type": "Element"})
+
+    @property
+    def to_qgis_decoded_uri(self) -> dict:
+        connection_dict = {
+            "url": self.url,
+            "identifier": self.identifier,
+            "crs": self.crs,
+            "format": self.format,
+            "time": self.time,
+            "bbox": self.bbox,
+            "version": self.version,
+            "cache": self.cache,
+        }
+        # the WCS provider applies its own defaults to the missing keys
+        connection_dict = {
+            key: value for key, value in connection_dict.items() if value is not None
+        }
+        # "1" is the value QGIS writes for these parameters
+        if self.ignore_get_map_url:
+            connection_dict["IgnoreGetMapUrl"] = "1"
+        if self.ignore_axis_orientation:
+            connection_dict["IgnoreAxisOrientation"] = "1"
+        if self.invert_axis_orientation:
+            connection_dict["InvertAxisOrientation"] = "1"
+        return connection_dict
+
+    @classmethod
+    def from_qgis_decoded_uri(cls, decoded_uri: dict):
+        return cls(
+            url=decoded_uri["url"],
+            identifier=decoded_uri["identifier"],
+            crs=decoded_uri.get("crs"),
+            format=decoded_uri.get("format"),
+            time=decoded_uri.get("time"),
+            bbox=decoded_uri.get("bbox"),
+            version=decoded_uri.get("version"),
+            cache=decoded_uri.get("cache"),
+            ignore_get_map_url="IgnoreGetMapUrl" in decoded_uri,
+            ignore_axis_orientation="IgnoreAxisOrientation" in decoded_uri,
+            invert_axis_orientation="InvertAxisOrientation" in decoded_uri,
+        )
+
+    @property
+    def remote(self):
+        return True
+
+
+@dataclass(repr=False)
 class PostgresSource(Source):
     key: str = field(metadata={"type": "Element"})
     table: str = field(metadata={"type": "Element"})
@@ -409,6 +479,7 @@ class DataSource(BaseInterface):
     wfs: WfsSource | None = field(default=None, metadata={"type": "Element"})
     vector_tile: VectorTileSource | None = field(default=None, metadata={"type": "Element"})
     xyz: XYZSource | None = field(default=None, metadata={"type": "Element"})
+    wcs: WcsSource | None = field(default=None, metadata={"type": "Element"})
 
     @property
     def definition(
@@ -422,6 +493,7 @@ class DataSource(BaseInterface):
         | WfsSource
         | VectorTileSource
         | XYZSource
+        | WcsSource
         | None
     ):
         for dataclass_field in fields(self):
