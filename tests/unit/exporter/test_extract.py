@@ -5,12 +5,14 @@ from qgis.core import (
     QgsField,
     QgsFieldConstraints,
     QgsProject,
+    QgsProviderRegistry,
     QgsRasterLayer,
     QgsVectorLayer,
 )
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
+from qgis_server_light.interface.exporter.extract import WcsSource
 
 
 class TestCreateQslSourcePostgresql:
@@ -157,6 +159,55 @@ class TestQgis4DatasourceDecoding:
     def test_qgis3_project_values_are_not_unquoted_twice(self, qgis3_config):
         source = qgis3_config.datasets.raster[0].source.wms
         assert source.url.startswith("https%3A%2F%2F")
+
+
+class TestWcsExport:
+    """
+    Exports a project with a layer of the QGIS `wcs` provider and checks that it is
+    exported as a raster whose source gives back the uri read by the provider. The
+    service url is unreachable, the export must not depend on the remote service.
+    """
+
+    wcs_url = "http://127.0.0.1:1/wcs"
+    # dpiMode and tilePixelRatio are written by QGIS in projects but are not read by
+    # the wcs provider, they are not exported
+    ignored_keys = ("dpiMode", "tilePixelRatio")
+    wcs_uri = (
+        "IgnoreGetMapUrl=1&bbox=2668500,1223000,2717500,1284000&cache=PreferNetwork"
+        "&crs=EPSG:2056&dpiMode=7&format=image/tiff&identifier=vegetationshoehe"
+        f"&tilePixelRatio=0&url={wcs_url}&version=1.0.0"
+    )
+
+    @pytest.fixture
+    def config(self, qgis_app, tmp_path):
+        project = QgsProject()
+        project.addMapLayer(QgsRasterLayer(self.wcs_uri, "my_wcs", "wcs"))
+        path = tmp_path / "project.qgs"
+        assert project.write(str(path))
+        yield Exporter(str(path)).run()
+        QgsProject.instance().clear()
+
+    def test_wcs_layer_is_exported_as_raster(self, config):
+        assert len(config.datasets.raster) == 1
+        raster = config.datasets.raster[0]
+        assert raster.driver == "wcs"
+        assert raster.source.definition is raster.source.wcs
+
+    def test_workaround_is_enabled_by_the_presence_of_the_parameter(self):
+        # QgsWcsProvider::parseUri only checks the presence of the parameter, "0"
+        # enables the workaround as well
+        source = WcsSource.from_qgis_decoded_uri(
+            {"url": self.wcs_url, "identifier": "vegetationshoehe", "IgnoreGetMapUrl": "0"}
+        )
+        assert source.ignore_get_map_url is True
+        assert source.to_qgis_decoded_uri["IgnoreGetMapUrl"] == "1"
+
+    def test_wcs_source_round_trips_to_the_qgis_uri(self, config):
+        source = config.datasets.raster[0].source.wcs
+        decoded = QgsProviderRegistry.instance().decodeUri("wcs", self.wcs_uri)
+        for key in self.ignored_keys:
+            del decoded[key]
+        assert source.to_qgis_decoded_uri == decoded
 
 
 NOT_NULL = QgsFieldConstraints.Constraint.ConstraintNotNull
