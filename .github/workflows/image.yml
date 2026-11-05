@@ -28,8 +28,8 @@ jobs:
           - target: exporter
             suffix: "-exporter"
     env:
-      # fork PRs have no access to secrets, they are built but not pushed
-      PUSH: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      # fork and dependabot PRs have no access to secrets, they are built but not pushed
+      PUSH: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -49,6 +49,8 @@ jobs:
         with:
           context: .
           push: ${{ env.PUSH == 'true' }}
+          # not pushed images are loaded so trivy can scan them locally
+          load: ${{ env.PUSH != 'true' }}
           target: ${{ matrix.target }}
           cache-from: type=local,src=cache
           tags: opengisch/qgis-server-light:pr-${{ github.event.pull_request.number }}${{ matrix.suffix }}
@@ -63,8 +65,8 @@ jobs:
           exit-code: 0
 
       - name: Upload Trivy results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.target)) != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-${{ matrix.target }}.sarif
           category: trivy-${{ matrix.target }}
@@ -74,6 +76,7 @@ jobs:
     if: >-
       github.event.action == 'closed'
       && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Delete PR tags on Docker Hub
         env:

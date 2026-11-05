@@ -2,9 +2,9 @@ name: TestSuite
 on:
   push:
     branches:
-      - "*"
-    tags:
-      - v*
+      - "**"
+  # release.yml calls the suite before images are published
+  workflow_call:
 
 jobs:
   test-py:
