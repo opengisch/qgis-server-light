@@ -5,6 +5,10 @@ on:
       - master
       - main
 
+permissions:
+  # gh-deploy pushes the built site to the gh-pages branch
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
