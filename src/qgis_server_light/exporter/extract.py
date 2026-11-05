@@ -52,6 +52,7 @@ from qgis_server_light.interface.exporter.extract import (
     TreeGroup,
     Vector,
     VectorTileSource,
+    WcsSource,
     WfsSource,
     WmsSource,
     WmtsSource,
@@ -258,6 +259,8 @@ class Exporter:
                         source = DataSource(xyz=self.create_qsl_source_xyz(decoded))
                     else:
                         source = DataSource(wms=self.create_qsl_source_wms(decoded))
+            elif layer.providerType() == "wcs":
+                source = DataSource(wcs=self.create_qsl_source_wcs(decoded))
             else:
                 logging.error(f"Unknown provider type: {layer.providerType().lower()}")
                 return
@@ -664,6 +667,10 @@ class Exporter:
     @staticmethod
     def create_qsl_source_wmts(datasource: dict) -> WmtsSource:
         return WmtsSource.from_qgis_decoded_uri(datasource)
+
+    @staticmethod
+    def create_qsl_source_wcs(datasource: dict) -> WcsSource:
+        return WcsSource.from_qgis_decoded_uri(datasource)
 
     @staticmethod
     def create_qsl_source_gdal(datasource: dict) -> GdalSource:
