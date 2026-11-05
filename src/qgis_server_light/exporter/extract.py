@@ -10,6 +10,7 @@ from urllib.parse import unquote
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsDataSourceUri,
@@ -196,7 +197,9 @@ class Exporter:
         layer_type = self.get_layer_type(layer)
         if layer_type is None:
             return
-        decoded = self.decode_datasource(layer)
+
+        self.rewrite_datasource_with_qgis3_compatible_uri(layer)
+        decoded = self.extract_datasource_dict(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
         if layer.isSpatial():
             crs = self.create_qsl_crs_from_qgs_layer(layer)
@@ -360,7 +363,33 @@ class Exporter:
         short_name_parts = path + [short_name]
         return self.unify_layer_names_by_group_separator.join(short_name_parts)
 
-    def decode_datasource(self, layer: QgsMapLayer) -> dict:
+    def rewrite_datasource_with_qgis3_compatible_uri(self, layer: QgsMapLayer):
+        # QGIS 3 is inconsistent in how it encodes/decodes source URIs, whereas
+        # QGIS 4 systematically percent-encodes reserved characters inside datasource values.
+        # A project saved by QGIS >= 4 and read by a QGIS 3 build (QSL is based on
+        # QGIS 3) therefore needs an unquote() pass to get clean values.
+        if not Qgis.version().startswith("3."):
+            return
+
+        if self.version.majorVersion() >= 4:
+            registry = QgsProviderRegistry.instance()
+            original_uri = layer.source()
+            qgis3_compatible_uri = registry.encodeUri(
+                layer.providerType(),
+                {
+                    key: unquote(str(value))
+                    for (key, value) in registry.decodeUri(
+                        layer.providerType(), original_uri
+                    ).items()
+                },
+            )
+            logging.debug(
+                f"Layer {layer.id()} datasource URI from QGIS 4 project is rewritten: "
+                f"original={original_uri!r}, QGIS 3 compatible={qgis3_compatible_uri!r}"
+            )
+            layer.setDataSource(qgis3_compatible_uri)
+
+    def extract_datasource_dict(self, layer: QgsMapLayer) -> dict:
         """
         Decodes a QGIS map job_layer_definition datasource into a dict and ensures that
         types are pythonic and pathes are
@@ -380,18 +409,18 @@ class Exporter:
             if str(decoded[key]) in ("None", "NULL"):
                 decoded[key] = None
                 continue
-            decoded[key] = str(decoded[key])
             if key == "path":
-                # QGIS returns url encoded paths, which leads to incorrect operations,
+                # QGIS 3 returns url encoded paths, which leads to incorrect operations,
                 # eg: ".%2Fdata%2Fhiroshima.mbtiles" instead of "./data/hiroshima.mbtiles"
-                decoded[key] = unquote(decoded[key]).replace(
-                    f"{self.qgis_project.readPath('./')}/", ""
-                )
-            elif self.version.majorVersion() >= 4:
-                # QGIS >= 4 percent-encodes reserved characters inside datasource query values.
-                # A project saved by QGIS >= 4 and read by a QGIS 3 build (QSL is based on
-                # QGIS 3) therefore needs an extra unquote() pass to get clean values.
-                decoded[key] = unquote(decoded[key])
+                # For QGIS 4 projects, the value is expected to be decoded already.
+                if self.version.majorVersion() <= 3:
+                    decoded_path = unquote(decoded[key])
+                else:
+                    decoded_path = decoded[key]
+                # Make path relative to the qgis_project
+                decoded[key] = decoded_path.replace(f"{self.qgis_project.readPath('./')}/", "")
+            else:
+                decoded[key] = str(decoded[key])
         return decoded
 
     @staticmethod

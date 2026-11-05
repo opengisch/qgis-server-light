@@ -2,6 +2,7 @@ import re
 
 import pytest
 from qgis.core import (
+    Qgis,
     QgsField,
     QgsFieldConstraints,
     QgsProject,
@@ -17,7 +18,7 @@ from qgis_server_light.interface.exporter.extract import WcsSource
 
 class TestCreateQslSourcePostgresql:
     def test_explicit_sslmode_is_kept(self):
-        # decoded datasources are stringified by Exporter.decode_datasource
+        # decoded datasources are stringified by Exporter.extract_datasource_dict()
         datasource = {"service": "my_service", "table": "my_table", "key": "id", "sslmode": "3"}
         source = Exporter.create_qsl_source_postgresql(datasource)
         assert source.sslmode == 3
@@ -118,18 +119,14 @@ class TestQgis4DatasourceDecoding:
     to 4 afterwards, as if it was saved by QGIS 4.
     """
 
-    encoded_url = "https%3A%2F%2Fwms.example.com%2Fwms%3Fmap%3Dbase"
-
-    def write_project(self, tmp_path, version: str | None = None) -> str:
+    @staticmethod
+    def write_project(
+        tmp_path,
+        layer_uri: str,
+        version: str | None = None,
+    ) -> str:
         project = QgsProject()
-        project.addMapLayer(
-            QgsRasterLayer(
-                "contextualWMSLegend=0&crs=EPSG:2056&format=image/png&layers=base"
-                f"&styles&url={self.encoded_url}",
-                "my_background",
-                "wms",
-            )
-        )
+        project.addMapLayer(QgsRasterLayer(layer_uri, "my_background", "wms"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))
         if version:
@@ -139,12 +136,23 @@ class TestQgis4DatasourceDecoding:
 
     @pytest.fixture
     def qgis3_config(self, qgis_app, tmp_path):
-        yield Exporter(self.write_project(tmp_path)).run()
+        qgis3_encoded_url = "https://wms.example.com/wms?map%3Dbase"
+        layer_uri = (
+            "contextualWMSLegend=0&crs=EPSG:2056&format=image/png&layers=base%2525"
+            f"&styles&url={qgis3_encoded_url}"
+        )
+        assert Qgis.version().startswith("3.")
+        yield Exporter(self.write_project(tmp_path, layer_uri)).run()
         QgsProject.instance().clear()
 
     @pytest.fixture
     def qgis4_config(self, qgis_app, tmp_path):
-        yield Exporter(self.write_project(tmp_path, "4.0.0-Norrköping")).run()
+        qgis4_encoded_url = "https%3A%2F%2Fwms.example.com%2Fwms%3Fmap%3Dbase"
+        layer_uri = (
+            "contextualWMSLegend=0&crs=EPSG%3A2056&format=image%2Fpng&layers=base%2525"
+            f"&styles&url={qgis4_encoded_url}"
+        )
+        yield Exporter(self.write_project(tmp_path, layer_uri, version="4.0.0-Norrköping")).run()
         QgsProject.instance().clear()
 
     def test_qgis4_project_values_are_unquoted(self, qgis4_config):
@@ -152,13 +160,15 @@ class TestQgis4DatasourceDecoding:
         source = qgis4_config.datasets.raster[0].source.wms
         assert source.url == "https://wms.example.com/wms?map=base"
         assert source.crs == "EPSG:2056"
+        assert source.layers == "base%25"
 
     def test_qgis4_project_null_values_are_none(self, qgis4_config):
         assert qgis4_config.datasets.raster[0].source.wms.styles is None
 
-    def test_qgis3_project_values_are_not_unquoted_twice(self, qgis3_config):
+    def test_qgis3_project_preserves_percent_encoded_url_values(self, qgis3_config):
         source = qgis3_config.datasets.raster[0].source.wms
-        assert source.url.startswith("https%3A%2F%2F")
+        assert source.url == "https://wms.example.com/wms?map=base"
+        assert source.layers == "base%2525"
 
 
 class TestWcsExport:
