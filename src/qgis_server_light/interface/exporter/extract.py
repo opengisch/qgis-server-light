@@ -31,6 +31,132 @@ class TreeGroup(TreeLayer):
 
 
 @dataclass(repr=False)
+class ValueMapEntry(BaseInterface):
+    """
+    One entry of a QGIS `ValueMap` editor widget.
+
+    Attributes:
+        key: The value which is stored in the field.
+        description: The human readable representation of the value.
+    """
+
+    key: str = field(metadata={"type": "Element"})
+    description: str = field(metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class ValueMap(BaseInterface):
+    """
+    Configuration of the QGIS `ValueMap` editor widget.
+
+    Attributes:
+        entries: The key / description pairs in the order defined in QGIS. The entry
+            representing NULL is not part of it.
+        null_representation: The description QGIS shows for NULL, if the widget
+            defines one.
+    """
+
+    entries: list[ValueMapEntry] = field(
+        default_factory=list,
+        metadata={"type": "Element"},
+    )
+    null_representation: str | None = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class ValueRelation(BaseInterface):
+    """
+    Configuration of the QGIS `ValueRelation` editor widget. The referenced layer is
+    exported as QGIS layer id, it is not resolved.
+
+    Attributes:
+        layer_id: The QGIS layer id of the layer the values are taken from.
+        key_field: The field of the referenced layer which is stored.
+        value_field: The field of the referenced layer which is shown.
+        filter_expression: The QGIS expression to filter the referenced layer. It may
+            use form context functions like `current_value()`.
+        allow_multi: If more than one value can be selected.
+        order_by_value: If the values are ordered by the value field instead of the
+            key field.
+    """
+
+    layer_id: str = field(metadata={"type": "Element"})
+    key_field: str = field(metadata={"type": "Element"})
+    value_field: str = field(metadata={"type": "Element"})
+    filter_expression: str | None = field(default=None, metadata={"type": "Element"})
+    allow_multi: bool = field(default=False, metadata={"type": "Element"})
+    order_by_value: bool = field(default=False, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class RelationReference(BaseInterface):
+    """
+    Configuration of the QGIS `RelationReference` editor widget.
+
+    Attributes:
+        relation_id: The id of the project relation, see `Relation.id`.
+    """
+
+    relation_id: str = field(metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class Range(BaseInterface):
+    """
+    Configuration of the QGIS `Range` editor widget.
+
+    Attributes:
+        minimum: The smallest allowed value.
+        maximum: The biggest allowed value.
+        step: The step of the widget.
+    """
+
+    minimum: float | None = field(default=None, metadata={"type": "Element"})
+    maximum: float | None = field(default=None, metadata={"type": "Element"})
+    step: float | None = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class EditorWidget(BaseInterface):
+    """
+    Holds the configuration of the editor widget of a field. Only one of the
+    attributes is set, matching `Field.editor_widget_type`.
+    """
+
+    value_map: ValueMap | None = field(default=None, metadata={"type": "Element"})
+    value_relation: ValueRelation | None = field(default=None, metadata={"type": "Element"})
+    relation_reference: RelationReference | None = field(default=None, metadata={"type": "Element"})
+    range: Range | None = field(default=None, metadata={"type": "Element"})
+
+    @property
+    def definition(self) -> ValueMap | ValueRelation | RelationReference | Range | None:
+        for dataclass_field in fields(self):
+            value = getattr(self, dataclass_field.name)
+            if value:
+                return value
+        logging.error(
+            f"No configuration was defined at {self.__class__.__name__}, this is not expected"
+        )
+        return None
+
+
+@dataclass(repr=False)
+class FieldConstraints(BaseInterface):
+    """
+    The constraints of a field as defined in QGIS (provider or layer).
+
+    Attributes:
+        not_null: If the field must not be NULL.
+        unique: If the field value must be unique.
+        expression: The QGIS expression the field value has to fulfill.
+    """
+
+    not_null: bool = field(default=False, metadata={"type": "Element"})
+    unique: bool = field(default=False, metadata={"type": "Element"})
+    expression: str | None = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
 class Field(BaseInterface):
     """
     Transportable (serializable) form of a QGIS vector job_layer_definition fiel (attribute).
@@ -59,6 +185,10 @@ class Field(BaseInterface):
             [OpenAPI Spec](https://spec.openapis.org/oas/latest.html#data-types)
         editor_widget_type_oapif_format: Format of the above-mentioned type based on the
             [OpenAPI Spec](https://spec.openapis.org/oas/latest.html#data-types)
+        editor_widget: The configuration of the editor widget. None if the widget type
+            is not one of the exported ones.
+        constraints: The constraints of the field. None for exports which did not
+            contain constraints yet.
     """
 
     name: str = field(metadata={"type": "Element"})
@@ -79,6 +209,8 @@ class Field(BaseInterface):
     editor_widget_type_wfs: str | None = field(default=None, metadata={"type": "Element"})
     editor_widget_type_oapif: str | None = field(default=None, metadata={"type": "Element"})
     editor_widget_type_oapif_format: str | None = field(default=None, metadata={"type": "Element"})
+    editor_widget: EditorWidget | None = field(default=None, metadata={"type": "Element"})
+    constraints: FieldConstraints | None = field(default=None, metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -713,8 +845,52 @@ class Datasets(BaseInterface):
 
 
 @dataclass(repr=False)
+class RelationFieldPair(BaseInterface):
+    """
+    One field pair of a QGIS project relation.
+
+    Attributes:
+        referencing_field: The field of the referencing (child) layer.
+        referenced_field: The field of the referenced (parent) layer.
+    """
+
+    referencing_field: str = field(metadata={"type": "Element"})
+    referenced_field: str = field(metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class Relation(BaseInterface):
+    """
+    Transportable form of a QGIS project relation (`QgsRelation`). The layers are
+    exported as QGIS layer ids, they are not resolved.
+
+    Attributes:
+        id: The id of the relation, referenced by `RelationReference.relation_id`.
+        name: The human readable name of the relation.
+        referencing_layer_id: The QGIS layer id of the referencing (child) layer.
+        referenced_layer_id: The QGIS layer id of the referenced (parent) layer.
+        field_pairs: The field pairs, more than one for composite keys.
+        strength: The strength as named by QGIS, `Association` or `Composition`.
+    """
+
+    id: str = field(metadata={"type": "Element"})
+    name: str = field(metadata={"type": "Element"})
+    referencing_layer_id: str = field(metadata={"type": "Element"})
+    referenced_layer_id: str = field(metadata={"type": "Element"})
+    field_pairs: list[RelationFieldPair] = field(
+        default_factory=list,
+        metadata={"type": "Element"},
+    )
+    strength: str = field(default="Association", metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
 class Config(BaseInterface):
     project: Project = field(metadata={"type": "Element"})
     meta_data: MetaData = field(metadata={"type": "Element"})
     tree: Tree = field(metadata={"type": "Element"})
     datasets: Datasets = field(metadata={"type": "Element"})
+    relations: list[Relation] = field(
+        default_factory=list,
+        metadata={"type": "Element"},
+    )
