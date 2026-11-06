@@ -407,7 +407,9 @@ class Exporter:
         return decoded
 
     @staticmethod
-    def create_qsl_field_from_qgis_field(field: QgsField, is_primary_key: bool) -> Field:
+    def create_qsl_field_from_qgis_field(
+        field: QgsField, is_primary_key: bool, is_generated: bool = False
+    ) -> Field:
         attribute_type_xml = Exporter.obtain_simple_types_from_qgis_field_xml(field)
         (
             editor_widget_type,
@@ -421,6 +423,7 @@ class Exporter:
         ) = Exporter.obtain_simple_types_from_qgis_field_json(field)
         return Field(
             is_primary_key=is_primary_key,
+            is_generated=is_generated,
             name=field.name(),
             type=field.typeName(),
             type_wfs=attribute_type_xml,
@@ -595,12 +598,27 @@ class Exporter:
     @staticmethod
     def create_qsl_fields_from_qgis_field(layer: QgsVectorLayer) -> list[Field]:
         fields = []
-        pk_indexes = layer.dataProvider().pkAttributeIndexes()
+        provider = layer.dataProvider()
+        pk_indexes = provider.pkAttributeIndexes()
         for field_index, field in enumerate(layer.fields().toList()):
+            is_primary_key = field_index in pk_indexes
             fields.append(
-                Exporter.create_qsl_field_from_qgis_field(field, (field_index in pk_indexes))
+                Exporter.create_qsl_field_from_qgis_field(
+                    field,
+                    is_primary_key,
+                    is_generated=is_primary_key
+                    and Exporter.obtain_is_generated(provider, field_index),
+                )
             )
         return fields
+
+    @staticmethod
+    def obtain_is_generated(provider, field_index: int) -> bool:
+        # the OGR provider (GeoPackage fid, ...) lets GDAL assign the identifier on insert,
+        # other providers tell it with a default value, e.g. a sequence
+        if provider.name() == "ogr":
+            return True
+        return bool(provider.defaultValueClause(field_index))
 
     @staticmethod
     def obtain_simple_types_from_qgis_field_xml(field: QgsField) -> str:
