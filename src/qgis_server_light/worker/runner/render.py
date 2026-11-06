@@ -3,7 +3,7 @@ import logging
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from PyQt5.QtCore import QBuffer, QByteArray, QEventLoop, QIODevice
 from PyQt5.QtGui import QImage
-from qgis.core import QgsApplication, QgsMapRendererParallelJob
+from qgis.core import Qgis, QgsApplication, QgsMapRendererParallelJob
 from qgis.server import QgsFeatureFilter, QgsFeatureFilterProviderGroup
 
 from qgis_server_light.interface.job.common.output import JobResult
@@ -39,6 +39,9 @@ class RenderRunner(MapRunner):
         for job_layer_definition in self.job_info.job.layers:
             self._provide_layer(job_layer_definition)
         map_settings = self._get_map_settings(self.map_layers)
+        # same as QGIS Server GetMap, enables the simplification on rendering
+        # which is defined in the layer styles
+        map_settings.setFlag(Qgis.MapSettingsFlag.UseRenderingOptimization)
         filter_providers = QgsFeatureFilterProviderGroup()
         filter_providers.addProvider(feature_filter)
         renderer = QgsMapRendererParallelJob(map_settings)
