@@ -90,6 +90,23 @@ def feature_job_info(placenames_layer):
 
 
 @pytest.fixture
+def placenames_render_job_info(placenames_layer):
+    yield QslJobInfoRender(
+        id=str(uuid.uuid4()),
+        type=QslJobInfoRender.__name__,
+        job=QslJobParameterRender(
+            layers=[placenames_layer],
+            bbox=BBox(2485675.21, 2833675.21, 1075128.16, 1295628.16),
+            crs="EPSG:2056",
+            width=100,
+            height=100,
+            dpi=75,
+            format="image/png",
+        ),
+    )
+
+
+@pytest.fixture
 def render_job_info(geotiff_layer):
     yield QslJobInfoRender(
         id=str(uuid.uuid4()),
@@ -276,3 +293,53 @@ class TestLayerCacheIntegration:
         GetFeatureRunner(qgis_app, context, feature_job_info, layer_cache).run()
 
         assert next(iter(layer_cache.values())) is cached_layer
+
+    @pytest.mark.parametrize(
+        "second_style,expected_opacity",
+        [
+            # changed style is imported
+            (
+                Style(
+                    name="default",
+                    definition=urlsafe_b64encode(
+                        zlib.compress(b"<qgis><layerOpacity>1</layerOpacity></qgis>")
+                    ).decode(),
+                ),
+                1.0,
+            ),
+        ],
+    )
+    def test_style_is_imported_only_when_changed(
+        self,
+        qgis_app,
+        base_path,
+        layer_cache,
+        placenames_layer,
+        placenames_render_job_info,
+        second_style,
+        expected_opacity,
+    ):
+        # we set a style to the layer for the testjob
+        placenames_layer.style = Style(
+            name="default",
+            definition=urlsafe_b64encode(
+                zlib.compress(b"<qgis><layerOpacity>0.3</layerOpacity></qgis>")
+            ).decode(),
+        )
+        context = JobContext(base_path=base_path)
+        runner = RenderRunner(qgis_app, context, placenames_render_job_info, layer_cache)
+        runner.run()
+        cached_layer = layer_cache[runner.get_cache_name(placenames_layer)]
+        # we expect the cached QgsMapLayer has the opacity
+        assert cached_layer.opacity() == pytest.approx(0.3)
+
+        # we set a new style and expect the
+        placenames_layer.style = Style(
+            name="default",
+            definition=urlsafe_b64encode(
+                zlib.compress(b"<qgis><layerOpacity>1</layerOpacity></qgis>")
+            ).decode(),
+        )
+        RenderRunner(qgis_app, context, placenames_render_job_info, layer_cache).run()
+        # we check the cached QgsMapLayer has the new Opacity
+        assert cached_layer.opacity() == pytest.approx(1.0)
