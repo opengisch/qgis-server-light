@@ -84,7 +84,9 @@ class TestPostgresServiceExport:
         QgsProject.instance().clear()
 
     @pytest.fixture
-    def config(self, project_path):
+    def config(self, project_path, monkeypatch):
+        # The fake PG source is expected to be invalid, exporting it is the test's purpose.
+        monkeypatch.setattr(Exporter, "is_layer_valid", staticmethod(lambda _layer: True))
         yield Exporter(project_path).run()
 
     def test_postgres_layer_is_exported(self, config):
@@ -118,6 +120,16 @@ class TestQgis4DatasourceDecoding:
     project is written by the QGIS 3 build of the test run and its save version is set
     to 4 afterwards, as if it was saved by QGIS 4.
     """
+
+    @pytest.fixture(autouse=True)
+    def mock_layer_validity(self, monkeypatch):
+        # The example URL fails provider validation.
+        # Here we only check is url part is properly decoded.
+        monkeypatch.setattr(
+            Exporter,
+            "is_layer_valid",
+            staticmethod(lambda layer: "url=https://" in layer.dataProvider().dataSourceUri()),
+        )
 
     @staticmethod
     def write_project(
@@ -189,11 +201,13 @@ class TestWcsExport:
     )
 
     @pytest.fixture
-    def config(self, qgis_app, tmp_path):
+    def config(self, qgis_app, tmp_path, monkeypatch):
         project = QgsProject()
         project.addMapLayer(QgsRasterLayer(self.wcs_uri, "my_wcs", "wcs"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))
+        # The fake provider is expected to be invalid, but we still want to export it.
+        monkeypatch.setattr(Exporter, "is_layer_valid", staticmethod(lambda _layer: True))
         yield Exporter(str(path)).run()
         QgsProject.instance().clear()
 

@@ -199,6 +199,10 @@ class Exporter:
             return
 
         self.rewrite_datasource_with_qgis3_compatible_uri(layer)
+        if not self.is_layer_valid(layer):
+            logging.error(f"Layer with name {layer.title() or layer.name()!r} is not valid.")
+            return
+
         decoded = self.extract_datasource_dict(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
         if layer.isSpatial():
@@ -847,6 +851,16 @@ class Exporter:
         else:
             logging.error(f"Not implemented: {layer.type()}")
         return None
+
+    @staticmethod
+    def is_layer_valid(layer: QgsMapLayer) -> bool:
+        if not layer.isValid():
+            logging.debug(f"Layer error: {layer.error().summary()}")
+            return False
+        if not layer.dataProvider().isValid():
+            logging.debug(f"Data provider error: {layer.dataProvider().error().summary()}")
+            return False
+        return True
 
     @staticmethod
     def open_qgis_project(path_to_project: str) -> QgsProject:
