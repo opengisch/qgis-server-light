@@ -882,7 +882,12 @@ class Exporter:
         Returns:
             The instance of the QSL interface Crs.
         """
-        return create_qsl_crs(layer.dataProvider().crs())
+        crs = layer.dataProvider().crs()
+        if not crs.isValid():
+            # some providers (e.g. PostGIS geometry columns without SRID) report no CRS,
+            # the project CRS of the layer is the one the data is shown in
+            crs = layer.crs()
+        return create_qsl_crs(crs)
 
     @staticmethod
     def get_layer_short_name(layer: QgsLayerTreeLayer) -> str:
