@@ -6,7 +6,6 @@ from qgis.core import (
     QgsProcessingFeedback,
 )
 
-from qgis_server_light.exporter.extract import algorithm_from_qgs_definition
 from qgis_server_light.interface.exporter.extract import (
     Process,
 )
@@ -16,6 +15,7 @@ from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
+from qgis_server_light.processing import algorithm_from_qgs_definition
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
@@ -46,11 +46,7 @@ class ProcessRunner(MapRunner):
         job: QslJobParameterExecuteProcess = self.job_info.job
         algorithm = self.registry.algorithmById(job.process_id)
         if algorithm is None:
-            return JobResult(
-                id=self.job_info.id,
-                data={"result": {}, "ok": False, "log": "Algorithm not found"},
-                content_type="application/json",
-            )
+            raise RuntimeError(f"Algorithm `{job.process_id}` not found")
 
         parameters = {}
         for param in job.parameters:
@@ -64,6 +60,8 @@ class ProcessRunner(MapRunner):
         context = QgsProcessingContext()
         feedback = QgsProcessingFeedback()
         result, ok = algorithm.run(parameters, context, feedback)
+        if not ok:
+            raise RuntimeError(f"Algorithm `{job.process_id}` failed: {feedback.textLog()}")
 
         return JobResult(
             id=self.job_info.id,
