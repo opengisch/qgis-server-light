@@ -6,4 +6,5 @@ set -e
   --redis-url "$QSL_REDIS_URL" \
   --svg-path /io/svg:/io/data \
   --data-root /io/data \
-  --log-level "$QSL_LOG_LEVEL"
+  --log-level "$QSL_LOG_LEVEL" \
+  ${QSL_RUNNER_PLUGINS:+--runner-plugins "$QSL_RUNNER_PLUGINS"}
