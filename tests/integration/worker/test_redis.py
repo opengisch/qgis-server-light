@@ -7,6 +7,9 @@ from xsdata.formats.dataclass.parsers import JsonParser
 from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as EngineStatus
 from qgis_server_light.worker.redis import RedisEngine
+from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.worker.engine import Engine
+from qgis_server_light.worker.redis import DEFAULT_RUNNER_PLUGINS
 
 
 class WithoutQgis:
@@ -104,6 +107,8 @@ class TestRedisEngineWaitForConnection:
         client.ping.side_effect = [RedisConnectionError("Connection refused."), True]
         engine.wait_for_connection(client, "redis://qsl-redis:6379")
 
+
+
         # the second outage counts from the beginning, the outages don't add up until
         # the worker gives up
         assert retry_connection.call_args_list == [
@@ -151,3 +156,28 @@ class TestRedisEngineCrash:
         engine.report_crash(client)
         assert engine.info.status == EngineStatus.CRASHED
         assert "Crash could not be reported to Redis" in caplog.text
+
+
+class TestRunnerPluginQueues:
+    """The queues a worker listens on follow from the runner plugins it boots with."""
+
+    @pytest.mark.parametrize(
+        "runner_plugins,expected",
+        [
+            (DEFAULT_RUNNER_PLUGINS, ["jobs"]),
+            ("qgis_server_light.worker.runner.process.ProcessRunner", ["jobs:process"]),
+            (
+                f"{DEFAULT_RUNNER_PLUGINS}:qgis_server_light.worker.runner.process.ProcessRunner",
+                ["jobs", "jobs:process"],
+            ),
+        ],
+    )
+    def test_queue_names(self, runner_plugins, expected):
+        job_info_types = [
+            Engine._load_runner_class(path).job_info_class.__name__
+            for path in runner_plugins.split(":")
+        ]
+        assert RedisProtocol.queue_names(job_info_types) == expected
+
+    def test_default_runner_plugins_without_process(self):
+        assert "ProcessRunner" not in DEFAULT_RUNNER_PLUGINS
