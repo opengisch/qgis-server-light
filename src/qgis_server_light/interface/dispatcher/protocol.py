@@ -10,7 +10,11 @@ class RedisProtocol:
     channel a job is exchanged with.
 
     A job is put into redis as hash under `job:{id}` (see `job_key`) and its
-    id is pushed onto the list `job_queue_name`. The hash holds the fields:
+    id is pushed onto the list returned by `queue_name` for its job info type.
+    Process jobs are queued on `job_process_queue_name`, all other jobs on
+    `job_queue_name`, so long-running processes never block map related jobs.
+    A worker listens on the queues of the job info types of its runner plugins
+    (see `queue_names`). The hash holds the fields:
 
     - `info`: The job info serialized as JSON.
     - `info_type`: The class name of the job info, used to parse `info`.
@@ -23,7 +27,12 @@ class RedisProtocol:
     `channel`).
 
     Attributes:
-        job_queue_name: The name of the redis list the job ids are queued on.
+        job_queue_name: The name of the redis list the ids of map related jobs
+            are queued on.
+        job_process_queue_name: The name of the redis list the ids of process
+            jobs are queued on.
+        job_queue_name_by_info_type: The queue name per job info type (class
+            name of the job info).
         job_info_key: The hash field holding the serialized job info.
         job_info_type_key: The hash field holding the class name of the job info.
         job_channel_name: The prefix of the channel the job result is published to.
@@ -34,6 +43,15 @@ class RedisProtocol:
     """
 
     job_queue_name: str = "jobs"
+    job_process_queue_name: str = "jobs:process"
+    job_queue_name_by_info_type: dict[str, str] = {
+        "QslJobInfoRender": "jobs",
+        "QslJobInfoFeatureInfo": "jobs",
+        "QslJobInfoLegend": "jobs",
+        "QslJobInfoFeature": "jobs",
+        "QslJobInfoCrs": "jobs",
+        "QslJobInfoExecuteProcess": "jobs:process",
+    }
     job_info_key: str = "info"
     job_info_type_key: str = "info_type"
     job_channel_name: str = "notifications"
@@ -50,6 +68,30 @@ class RedisProtocol:
             job_id: The unique identifier of the job.
         """
         return f"job:{job_id}"
+
+    @classmethod
+    def queue_name(cls, job_info_type: str) -> str:
+        """The name of the queue a job of this type is queued on.
+
+        Args:
+            job_info_type: The class name of the job info.
+        """
+        return cls.job_queue_name_by_info_type[job_info_type]
+
+    @classmethod
+    def queue_names(cls, job_info_types: list[str]) -> list[str]:
+        """The names of the queues a worker serving these job types listens on.
+        Each name is contained once, in the order of its first job info type.
+
+        Args:
+            job_info_types: The class names of the job infos the worker serves.
+        """
+        queue_names = []
+        for job_info_type in job_info_types:
+            queue_name = cls.queue_name(job_info_type)
+            if queue_name not in queue_names:
+                queue_names.append(queue_name)
+        return queue_names
 
     @classmethod
     def channel(cls, job_id: str) -> str:

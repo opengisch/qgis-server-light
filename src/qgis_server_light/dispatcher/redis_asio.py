@@ -163,8 +163,8 @@ class RedisQueue(RedisProtocol):
                     await self.set_job_runtime_status(
                         job_id, p, Status.QUEUED.value, start_time, execute=False
                     )
-                    # Queuing the job onto the list/queue
-                    await p.rpush(self.job_queue_name, job_id)
+                    # Queuing the job onto the list/queue of its type
+                    await p.rpush(self.queue_name(job_info.type), job_id)
                     await p.execute()
 
                 logging.info(f"{job_id} queued")

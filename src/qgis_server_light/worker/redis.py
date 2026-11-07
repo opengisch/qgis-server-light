@@ -23,6 +23,16 @@ from qgis_server_light.worker.engine import Engine, EngineContext
 
 DEFAULT_DATA_ROOT = "/io/data"
 DEFAULT_SVG_PATH = "/io/svg"
+DEFAULT_RUNNER_PLUGINS = ":".join(
+    [
+        "qgis_server_light.worker.runner.render.RenderRunner",
+        "qgis_server_light.worker.runner.legend.GetLegendRunner",
+        "qgis_server_light.worker.runner.feature.GetFeatureRunner",
+        "qgis_server_light.worker.runner.crs.CrsRunner",
+        # Not fully functional yet
+        # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
+    ]
+)
 
 
 class RedisEngine(Engine):
@@ -34,6 +44,8 @@ class RedisEngine(Engine):
     ) -> None:
         self.boot_start = time.time()
         super().__init__(context, runner_plugins, svg_paths)
+        # the worker only listens on the queues of the jobs its runner plugins can solve
+        self.queue_names = RedisProtocol.queue_names(list(self.available_job_info_classes))
         self.shutdown = False
         self.retry_wait = 0.01
         self.max_retries = 11
@@ -140,11 +152,11 @@ class RedisEngine(Engine):
         retry_count = 0
         while not self.shutdown:
             try:
-                logging.debug("Waiting for jobs")
+                logging.debug(f"Waiting for jobs on {self.queue_names}")
                 self.set_waiting()
                 # this is blocking the loop until a job is found in the redis
                 # list/queue, if there is one we take it
-                result = r.blpop([RedisProtocol.job_queue_name], timeout=0)
+                result = r.blpop(self.queue_names, timeout=0)
                 if result is not None:
                     _, job_id = result
                     start_time = time.time()
@@ -223,6 +235,16 @@ def main() -> None:
         default=DEFAULT_SVG_PATH,
     )
 
+    parser.add_argument(
+        "--runner-plugins",
+        type=str,
+        help="Runner classes the worker boots with, as dotted paths. Multiple plugins "
+        "can be separated by `:`. The worker listens on the queues of their jobs only, "
+        "e.g. `qgis_server_light.worker.runner.process.ProcessRunner` for a worker "
+        "serving processes. Defaults to the map related runners.",
+        default=DEFAULT_RUNNER_PLUGINS,
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -235,17 +257,10 @@ def main() -> None:
         )
 
     svg_paths = args.svg_path.split(":")
+    runner_plugins = args.runner_plugins.split(":")
     engine = RedisEngine(
         EngineContext(args.data_root),
-        [
-            "qgis_server_light.worker.runner.render.RenderRunner",
-            "qgis_server_light.worker.runner.legend.GetLegendRunner",
-            "qgis_server_light.worker.runner.feature.GetFeatureRunner",
-            "qgis_server_light.worker.runner.crs.CrsRunner",
-            "qgis_server_light.worker.runner.process.ProcessRunner",
-            # Not fully functional yet
-            # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
-        ],
+        runner_plugins,
         svg_paths=svg_paths,
     )
     engine.run(

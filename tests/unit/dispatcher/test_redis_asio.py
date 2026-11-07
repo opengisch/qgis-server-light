@@ -3,7 +3,7 @@ import pickle
 
 import pytest
 
-from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info
+from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info, job_info_classes
 from qgis_server_light.interface.common import BBox
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.job.common.input import QslJobParameter
@@ -19,6 +19,10 @@ from qgis_server_light.interface.job.feature_info.input import (
 from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
+)
+from qgis_server_light.interface.job.process.input import (
+    ParameterInput,
+    QslJobParameterExecuteProcess,
 )
 from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
@@ -140,3 +144,26 @@ class TestRedisQueue:
         execute_indexes = [index for index, call in enumerate(client.calls) if call[0] == "execute"]
         assert execute_indexes == [rpush_index + 1]
         assert status_index < rpush_index
+
+    @pytest.mark.parametrize("job_info_class", job_info_classes.values())
+    def test_queue_for_every_job_info(self, job_info_class):
+        assert RedisQueue.queue_name(job_info_class.__name__)
+
+    @pytest.mark.parametrize(
+        "job_parameter,expected_queue_name",
+        [
+            (QslJobParameterLegend(layers=[]), "jobs"),
+            (
+                QslJobParameterExecuteProcess(
+                    process_id="native:centroids",
+                    parameters=[ParameterInput("ALL_PARTS", False)],
+                ),
+                "jobs:process",
+            ),
+        ],
+    )
+    def test_post_routes_to_queue_of_job_type(self, job_parameter, expected_queue_name):
+        client = FakeRedisClient()
+        asyncio.run(RedisQueue(client).post(job_parameter))
+        queue_names = [call[1] for call in client.calls if call[0] == "rpush"]
+        assert queue_names == [expected_queue_name]
