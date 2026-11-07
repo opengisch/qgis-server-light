@@ -1,5 +1,4 @@
 from collections.abc import MutableMapping
-from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import (
     Qgis,
     QgsApplication,
@@ -32,7 +31,6 @@ class ProcessRunner(MapRunner):
     ):
         super().__init__(qgis, context, job_info, layer_cache)
         self.registry = self.qgis.processingRegistry()
-        self.registry.addProvider(QgsNativeAlgorithms())
 
     @classmethod
     def info(cls, qgis: Qgis) -> Process:
