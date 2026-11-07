@@ -50,6 +50,8 @@ class GetLegendRunner(MapRunner):
 
         model = QgsLayerTreeModel(root)
         settings = QgsLegendSettings()
+        # Wait for external legend requests to finish before rendering
+        settings.setSynchronousLegendRequests(True)
 
         if (scale := self.job_info.job.scale) is not None:
             settings.setMapScale(scale)
