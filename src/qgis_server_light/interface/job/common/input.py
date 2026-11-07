@@ -41,7 +41,7 @@ class QslJobInfoParameter(ABC):  # noqa: B024
 
     @property
     def channel_name(self) -> str:
-        return f"notification_{self.execution_mode}"
+        return f"notification_{self.execution_mode.value}"
 
 
 @dataclass
