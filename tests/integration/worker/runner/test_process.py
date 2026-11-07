@@ -108,3 +108,47 @@ class TestProcessRunnerIntegration:
         assert result.id == job_id
         assert result.data["ok"]
         assert result.data["result"]["OUTPUT"] == output_layer_path
+
+    def test_execute_unknown_algorithm(self, qgis_app, data_path):
+        job_info = QslJobInfoExecuteProcess(
+            id=str(uuid.uuid4()),
+            type=QslJobInfoExecuteProcess.__name__,
+            job=QslJobParameterExecuteProcess(
+                process_id="native:does_not_exist",
+                parameters=[],
+            ),
+        )
+
+        runner = ProcessRunner(
+            qgis_app,
+            JobContext(base_path=data_path),
+            job_info,
+            {},
+        )
+        with pytest.raises(RuntimeError, match="native:does_not_exist` not found"):
+            runner.run()
+
+    def test_execute_failing_algorithm(self, qgis_app, data_path):
+        job_id = str(uuid.uuid4())
+        job_info = QslJobInfoExecuteProcess(
+            id=job_id,
+            type=QslJobInfoExecuteProcess.__name__,
+            job=QslJobParameterExecuteProcess(
+                process_id="native:centroids",
+                parameters=[
+                    ParameterInput("INPUT", f"{data_path}/does_not_exist.gpkg"),
+                    ParameterInput(
+                        "OUTPUT", f"{data_path}/.process_output/{job_id}/Centroids.geojson"
+                    ),
+                ],
+            ),
+        )
+
+        runner = ProcessRunner(
+            qgis_app,
+            JobContext(base_path=data_path),
+            job_info,
+            {},
+        )
+        with pytest.raises(RuntimeError, match="native:centroids` failed"):
+            runner.run()

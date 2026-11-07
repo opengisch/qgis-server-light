@@ -1,4 +1,5 @@
-from qgis.analysis import QgsNativeAlgorithms
+import pytest
+from qgis.core import Qgis, QgsProcessingParameterNumber
 
 from qgis_server_light.interface.exporter.extract import (
     Algorithm,
@@ -10,12 +11,14 @@ from qgis_server_light.interface.exporter.extract import (
     ProcessingParameterTypeInt,
     ProcessingParameterTypeVectorLayer,
 )
-from qgis_server_light.worker.runner.process import algorithm_from_qgs_definition
+from qgis_server_light.processing import (
+    algorithm_from_qgs_definition,
+    parameter_type_from_qgs_definition,
+)
 
 
 def test_some_algorithms(qgis_app):
     registry = qgis_app.processingRegistry()
-    registry.addProvider(QgsNativeAlgorithms())
     for alg_name in [
         "native:buffer",
         "native:centroids",
@@ -33,7 +36,6 @@ def test_some_algorithms(qgis_app):
 
 def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
     registry = qgis_app.processingRegistry()
-    registry.addProvider(QgsNativeAlgorithms())
     buffer = registry.algorithmById("native:buffer")
     assert buffer is not None
 
@@ -149,3 +151,42 @@ def test_algorithm_from_qgs_definition_native_buffer(qgis_app):
     assert len(mapped.parameters) == len(expected_parameters)
     assert all(isinstance(param, Parameter) for param in mapped.parameters)
     assert len(mapped.outputs) == len(buffer.outputDefinitions())
+
+
+@pytest.mark.parametrize(
+    "param,expected",
+    [
+        (
+            QgsProcessingParameterNumber(
+                "NO_BOUNDS", type=Qgis.ProcessingNumberParameterType.Double
+            ),
+            ProcessingParameterTypeFloat(),
+        ),
+        (
+            QgsProcessingParameterNumber(
+                "ZERO_MINIMUM", type=Qgis.ProcessingNumberParameterType.Double, minValue=0.0
+            ),
+            ProcessingParameterTypeFloat(minimum=0.0),
+        ),
+        (
+            QgsProcessingParameterNumber(
+                "NEGATIVE_MINIMUM", type=Qgis.ProcessingNumberParameterType.Double, minValue=-5.0
+            ),
+            ProcessingParameterTypeFloat(minimum=-5.0),
+        ),
+        (
+            QgsProcessingParameterNumber(
+                "NO_BOUNDS", type=Qgis.ProcessingNumberParameterType.Integer
+            ),
+            ProcessingParameterTypeInt(),
+        ),
+        (
+            QgsProcessingParameterNumber(
+                "ZERO_MINIMUM", type=Qgis.ProcessingNumberParameterType.Integer, minValue=0
+            ),
+            ProcessingParameterTypeInt(minimum=0),
+        ),
+    ],
+)
+def test_parameter_type_from_qgs_definition_number_bounds(qgis_app, param, expected):
+    assert parameter_type_from_qgs_definition(param) == expected
