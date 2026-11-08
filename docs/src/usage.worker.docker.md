@@ -31,7 +31,9 @@ This tells compose to use [compose.yml](https://github.com/opengisch/qgis-server
 extended by [compose.dev.yml](https://github.com/opengisch/qgis-server-light/blob/master/compose.dev.yml). The
 composition contains the services `worker`, `process-worker`, `exporter` and `redis`. `worker` and `process-worker`
 run the same image, the `process-worker` is booted with the state engine (`QSL_ENGINE`) and the process runner only
-(`QSL_RUNNER_PLUGINS`) and therefore serves the process jobs (see [CLI](usage.worker.cli.md)).
+(`QSL_RUNNER_PLUGINS`) and therefore serves the process jobs (see [CLI](usage.worker.cli.md)). It writes the
+file outputs of the processes into the named volume `process-output`, mounted at `/io/process_output`. An
+application which serves these files has to mount the same volume.
 
 !!! info
     The `dev` stage is not published, it is always built locally. Published on Docker Hub

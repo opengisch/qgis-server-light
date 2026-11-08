@@ -58,3 +58,7 @@ from qgis_server_light.interface.job.process.output import ProcessResult
 
 process_result = JsonParser().from_bytes(job_state.result.data, ProcessResult)
 ```
+
+The value of an output is either a literal (e.g. a number or a string) or a `FileOutput`. A `FileOutput` holds the
+path of the file relative to the process output dir of the worker (`{job_id}/{output_name}.{extension}`) and its
+media type. To read the file, your application needs access to the same dir (see [CLI](usage.worker.cli.md)).
