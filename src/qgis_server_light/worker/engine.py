@@ -3,10 +3,9 @@ import importlib
 import inspect
 import json
 import logging
-import pathlib
 import uuid
 from abc import ABC
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -21,18 +20,10 @@ from qgis_server_light.worker.runner.common import JobContext, Runner
 
 
 @dataclass
-class EngineContext:
+class EngineContext(JobContext):
+    """The engine hands its context on to every job, so it carries exactly the
+    attributes of `JobContext`. A new attribute is therefore added in one place only.
     """
-    Attributes:
-        base_path: The absolute path to the data dir.
-        process_allowlist: The ids of the QGIS algorithms the worker serves as processes.
-        process_output_dir: The absolute path to the dir the processes write their
-            outputs to.
-    """
-
-    base_path: str | pathlib.Path
-    process_allowlist: list[str] = field(default_factory=list)
-    process_output_dir: str | pathlib.Path | None = None
 
 
 class Engine(ABC):  # noqa: B024
@@ -130,11 +121,7 @@ class Engine(ABC):  # noqa: B024
         runner_class = self.runner_plugin_by_job_info(job_info)
         runner = runner_class(
             self.qgis,
-            JobContext(
-                self.context.base_path,
-                self.context.process_allowlist,
-                self.context.process_output_dir,
-            ),
+            JobContext(**asdict(self.context)),
             job_info,
             layer_cache=self.layer_cache,
         )
