@@ -117,6 +117,17 @@ class Engine(ABC):  # noqa: B024
             raise RuntimeError(f"Type {type(job_info)} not supported") from e
 
     def process(self, job_info: QslJobInfoParameter) -> JobResult:
+        """Hands the job to the runner which is responsible for it.
+
+        Every runner gets its own copy of the context, so a runner can't change
+        what the next job sees.
+
+        Args:
+            job_info: The job to solve.
+
+        Returns:
+            The result the runner produced.
+        """
         self.layer_cache.evict_expired()
         runner_class = self.runner_plugin_by_job_info(job_info)
         runner = runner_class(
