@@ -51,6 +51,16 @@ DEFAULT_PROCESS_ALLOWLIST = ",".join(
 
 
 class RedisEngine(Engine):
+    """The common part of the redis workers: connecting, registering, the
+    heartbeat and the loop taking jobs from the queue. How a finished job is
+    delivered is decided by the subclasses, so the loop does not need to know
+    about it.
+
+    Attributes:
+        protocol: The protocol the engine is built on, it defines the queue the
+            engine listens on.
+    """
+
     protocol: type[RedisProtocol]
 
     def __init__(
@@ -246,6 +256,15 @@ class RedisEngine(Engine):
         pipeline: Pipeline,
         start_time: float,
     ):
+        """Delivers the result of a job which was solved.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job.
+            result: The result the runner returned.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was taken from the queue.
+        """
         pass
 
     @abstractmethod
@@ -257,15 +276,40 @@ class RedisEngine(Engine):
         pipeline: Pipeline,
         start_time: float,
     ):
+        """Delivers the error of a job which failed.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job, `None` if it failed before the
+                job info could be read.
+            error: The error the job failed with.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was taken from the queue.
+        """
         pass
 
 
 class RedisPublishEngine(RedisEngine):
+    """The engine publishing the result to the waiting dispatcher (see
+    `RedisPublishProtocol`). This is the default, map related jobs are served
+    by it.
+    """
+
     protocol = RedisPublishProtocol
 
     def publish_result(
         self, job_id: str, result: JobResult, pipeline: Pipeline, status: str, start_time: float
     ):
+        """Sets the final status and publishes the pickled result. Success and
+        failure only differ in the result and the status, so both end here.
+
+        Args:
+            job_id: The unique identifier of the job.
+            result: The result to publish, the worker information is added.
+            pipeline: The pipeline holding the transaction.
+            status: The final status of the job.
+            start_time: The time the job was taken from the queue.
+        """
         result.worker_id = self.info.id
         result.worker_host_name = socket.gethostname()
         data = pickle.dumps(result)
@@ -300,6 +344,10 @@ class RedisPublishEngine(RedisEngine):
 
 
 class RedisStateEngine(RedisEngine):
+    """The engine keeping the result in the job hash (see `RedisStateProtocol`).
+    Process-workers are started with it.
+    """
+
     protocol = RedisStateProtocol
 
     def finish_job(
@@ -310,6 +358,18 @@ class RedisStateEngine(RedisEngine):
         status: str,
         start_time: float,
     ):
+        """Renews the expiry, sets the final status and notifies a waiting
+        dispatcher. Success and failure only differ in the fields written
+        before, so both end here.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job, `None` if it could not be read. A
+                waiting dispatcher can not be ruled out then, so it is notified.
+            pipeline: The pipeline holding the transaction.
+            status: The final status of the job.
+            start_time: The time the job was taken from the queue.
+        """
         # the fields written before are executed in the same transaction as the
         # final status
         pipeline.expire(self.protocol.job_key(job_id), self.protocol.job_expire)
