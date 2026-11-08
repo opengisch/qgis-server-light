@@ -22,14 +22,16 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-  # same worker image, booted with the process runner only, it listens on the
-  # process queue so long-running processes never block the map related jobs
+  # same worker image, booted with the state engine and the process runner only,
+  # it listens on the process queue so long-running processes never block the map
+  # related jobs
   process-worker:
     environment:
       - "QSL_REDIS_URL=redis://redis:6379"
       - "QSL_SVG_PATH=/io/svg"
       - "QSL_DATA_ROOT=/io/data"
       - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
+      - "QSL_ENGINE=state"
       - "QSL_RUNNER_PLUGINS=qgis_server_light.worker.runner.process.ProcessRunner"
     platform: "${PLATFORM:-linux/amd64}"
     build:
