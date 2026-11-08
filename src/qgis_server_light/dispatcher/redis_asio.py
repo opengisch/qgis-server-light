@@ -55,6 +55,15 @@ from qgis_server_light.interface.job.render.input import (
 
 
 class RedisDispatcher(RedisProtocol):
+    """The common part of the dispatchers: the connection to redis and how a job
+    is put into it. How the result comes back is up to the subclasses, they are
+    combined with the matching protocol.
+
+    Attributes:
+        job_info_classes: The job info class per job parameter class, used to
+            wrap a job parameter into its job info.
+    """
+
     job_info_classes: ClassVar[dict[type[QslJobParameter], type[QslJobInfoParameter]]] = {
         QslJobParameterRender: QslJobInfoRender,
         QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
@@ -120,6 +129,16 @@ class RedisDispatcher(RedisProtocol):
     async def queue_job(
         self, job_info: QslJobInfoParameter, pipeline: Pipeline, start_time: float
     ) -> None:
+        """Puts the job info into the job hash, sets the queued status and pushes
+        the job id onto the queue of the protocol. Nothing is executed here, the
+        caller adds what belongs to its protocol to the same transaction and
+        executes it.
+
+        Args:
+            job_info: The job info of the job which should be queued.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was posted, used for the duration.
+        """
         # Putting job info into redis
         await pipeline.hset(
             self.job_key(job_info.id), self.job_info_key, JsonSerializer().render(job_info)
@@ -138,6 +157,11 @@ class RedisDispatcher(RedisProtocol):
 
 
 class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
+    """The dispatcher for jobs which keep their state. A job is submitted and
+    its state can be read at any time later, until the job hash expires. A
+    caller who wants to wait for the result uses `wait`.
+    """
+
     async def process_descriptions(self) -> ProcessDescriptions:
         """The descriptions of the processes the process-workers serve, read from the
         process registry. Empty as long as no process-worker has booted."""
@@ -152,6 +176,17 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
         job_parameter: QslJobParameterExecuteProcess,
         execution_mode: ExecutionMode = ExecutionMode.ASYNC,
     ) -> None:
+        """Queues a process job and returns right away. The expiry is set in the
+        same transaction, so a job which is never picked up does not stay in
+        redis forever.
+
+        Args:
+            job_id: The unique identifier of the job, given by the caller so it
+                can refer to the job later.
+            job_parameter: The parameter for the process which should be executed.
+            execution_mode: `ExecutionMode.SYNC` if the caller is going to
+                `wait` for the job, the worker only notifies then.
+        """
         job_info = self.derive_job_info(job_id, job_parameter)
         job_info.execution_mode = execution_mode
         async with self.client.pipeline() as p:
@@ -161,6 +196,14 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
         logging.info(f"{job_id} submitted")
 
     async def state(self, job_id: str) -> JobState | None:
+        """Reads the current state of the job from its job hash.
+
+        Args:
+            job_id: The unique identifier of the job.
+
+        Returns:
+            The state of the job, `None` if the job does not exist (anymore).
+        """
         job_hash = await self.client.hgetall(self.job_key(job_id))
         if not job_hash:
             return None
@@ -175,9 +218,20 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
 
     @staticmethod
     def decode_optional(value: bytes | None) -> str | None:
+        """Decodes a hash field which might not be set."""
         return value.decode() if value is not None else None
 
     def job_result(self, job_id: str, job_hash: dict[str, bytes]) -> JobResult | None:
+        """Assembles the result of the job from its decoded job hash. The data
+        stays bytes, the content type tells the caller how to read it.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_hash: The job hash with decoded field names.
+
+        Returns:
+            The result, `None` as long as the job has not succeeded.
+        """
         if self.job_result_key not in job_hash:
             return None
         return JobResult(
@@ -187,6 +241,19 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
         )
 
     async def wait(self, job_id: str, to: float = 10.0) -> JobState | None:
+        """Waits maximum `to` seconds for the job to finish. This is what makes a
+        synchronous execution possible on top of a job which keeps its state.
+        It only gets notified if the job was submitted with
+        `ExecutionMode.SYNC`, otherwise it runs into the timeout.
+
+        Args:
+            job_id: The unique identifier of the job.
+            to: The timeout in seconds.
+
+        Returns:
+            The state of the job after it finished or the timeout passed, `None`
+            if the job does not exist (anymore).
+        """
         async with self.client.pubsub() as ps:
             # We subscribe before reading the state, so a notification published in
             # between is not lost.
@@ -199,6 +266,15 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
 
     @staticmethod
     async def wait_for_notification(ps: PubSub, job_id: str, to: float) -> None:
+        """Blocks until a message arrives on the subscribed channel or the timeout
+        passes. The message itself is not of interest, the state is read from
+        the job hash afterwards.
+
+        Args:
+            ps: The pubsub which is subscribed to the channel of the job.
+            job_id: The unique identifier of the job, used for logging.
+            to: The timeout in seconds.
+        """
         try:
             async with timeout(to):
                 while True:
@@ -210,6 +286,10 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
 
 
 class RedisQueue(RedisDispatcher, RedisPublishProtocol):
+    """The dispatcher for short living jobs a caller waits for. The result is
+    received over the channel and nothing is kept in redis afterwards.
+    """
+
     async def post(
         self,
         job_parameter: (
