@@ -1,12 +1,14 @@
 import pytest
 
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.interface.dispatcher.protocol import (
+    RedisProtocol,
+    RedisPublishProtocol,
+    RedisStateProtocol,
+)
 
 
 class TestRedisProtocol:
     def test_names(self):
-        assert RedisProtocol.job_queue_name == "jobs"
-        assert RedisProtocol.job_process_queue_name == "jobs:process"
         assert RedisProtocol.job_info_key == "info"
         assert RedisProtocol.job_info_type_key == "info_type"
         assert RedisProtocol.job_channel_name == "notifications"
@@ -17,6 +19,7 @@ class TestRedisProtocol:
         assert RedisProtocol.worker_list_name == "workers"
         assert RedisProtocol.worker_info_key == "info"
         assert RedisProtocol.worker_last_seen_key == "last_seen"
+        assert RedisProtocol.process_registry_key == "processes"
 
     def test_worker_timing(self):
         # a worker has to miss several heartbeats before it is not counted as alive anymore
@@ -32,33 +35,31 @@ class TestRedisProtocol:
     def test_worker_key(self):
         assert RedisProtocol.worker_key("ididid") == "worker:ididid"
 
-    @pytest.mark.parametrize(
-        "job_info_type,expected",
-        [
-            ("QslJobInfoRender", "jobs"),
-            ("QslJobInfoFeatureInfo", "jobs"),
-            ("QslJobInfoLegend", "jobs"),
-            ("QslJobInfoFeature", "jobs"),
-            ("QslJobInfoCrs", "jobs"),
-            ("QslJobInfoExecuteProcess", "jobs:process"),
-        ],
-    )
-    def test_queue_name(self, job_info_type, expected):
-        assert RedisProtocol.queue_name(job_info_type) == expected
 
-    def test_queue_name_unknown(self):
-        with pytest.raises(KeyError, match="QslJobInfoUnknown"):
-            RedisProtocol.queue_name("QslJobInfoUnknown")
+class TestRedisPublishProtocol:
+    def test_super(self):
+        assert issubclass(RedisPublishProtocol, RedisProtocol)
+
+    def test_queue_name(self):
+        assert RedisPublishProtocol.queue_name() == "jobs"
 
     @pytest.mark.parametrize(
-        "job_info_types,expected",
-        [
-            (["QslJobInfoRender", "QslJobInfoLegend", "QslJobInfoCrs"], ["jobs"]),
-            (["QslJobInfoExecuteProcess"], ["jobs:process"]),
-            (["QslJobInfoRender", "QslJobInfoExecuteProcess"], ["jobs", "jobs:process"]),
-            (["QslJobInfoExecuteProcess", "QslJobInfoRender"], ["jobs:process", "jobs"]),
-            ([], []),
-        ],
+        "result_field",
+        ["job_result_key", "job_result_content_type_key", "job_message_key", "job_expire"],
     )
-    def test_queue_names(self, job_info_types, expected):
-        assert RedisProtocol.queue_names(job_info_types) == expected
+    def test_keeps_no_state(self, result_field):
+        assert not hasattr(RedisPublishProtocol, result_field)
+
+
+class TestRedisStateProtocol:
+    def test_super(self):
+        assert issubclass(RedisStateProtocol, RedisProtocol)
+
+    def test_queue_name(self):
+        assert RedisStateProtocol.queue_name() == "jobs:process"
+
+    def test_names(self):
+        assert RedisStateProtocol.job_result_key == "result"
+        assert RedisStateProtocol.job_result_content_type_key == "result_content_type"
+        assert RedisStateProtocol.job_message_key == "message"
+        assert RedisStateProtocol.job_expire == 86400

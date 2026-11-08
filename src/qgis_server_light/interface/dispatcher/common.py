@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -33,11 +33,11 @@ class Worker:
 
 @dataclass
 class JobState:
-    id: str
-    status: Status
-    last_update: str | None = None
-    result: JobResult | None = None
-    message: str | None = None
+    id: str = field(metadata={"type": "Element"})
+    status: Status = field(metadata={"type": "Element"})
+    last_update: str | None = field(default=None, metadata={"type": "Element"})
+    result: JobResult | None = field(default=None, metadata={"type": "Element"})
+    message: str | None = field(default=None, metadata={"type": "Element"})
 
     @property
     def finished(self) -> bool:
