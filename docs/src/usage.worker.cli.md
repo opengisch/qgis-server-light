@@ -27,6 +27,13 @@ env `QSL_PROCESS_ALLOWLIST` in the docker boot scripts). On boot the worker writ
 processes into the process registry in redis (key `processes`), unless the key exists already. Since the key is
 not overwritten, it has to be deleted after the allowlist was changed.
 
+The file outputs of the processes are written by the worker itself, the client can't choose where they go. Every
+job writes into its own dir `{process-output-dir}/{job_id}`, each file is named after its output
+(e.g. `OUTPUT.gpkg`), the format is the default one QGIS uses for this output. The dir is set by
+`--process-output-dir` (env `QSL_PROCESS_OUTPUT_DIR` in the docker boot scripts, default `/io/process_output`).
+If a job fails, its dir is removed, so only succeeded jobs leave files behind. Outputs which are not written to a
+file (e.g. numbers or strings) are part of the result directly.
+
 To get details on the parameters use:
 
 ```shell
