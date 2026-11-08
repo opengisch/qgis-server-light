@@ -76,26 +76,14 @@ class ProcessRunner(MapRunner):
         if self.context.process_output_dir is None:
             raise RuntimeError("No process output dir configured")
 
-        parameters = {}
-        for param in job.parameters:
-            definition = algorithm.parameterDefinition(param.name)
-            if definition is not None and definition.isDestination():
-                raise ValueError(f"Destination `{param.name}` is set by the worker")
-            if isinstance(param.value, QslJobLayer):
-                parameters[param.name] = self._handle_layer_cache(param.value)
-            elif isinstance(param.value, (str, int, float, bool)):
-                parameters[param.name] = param.value
-            else:
-                raise ValueError(f"Unexpected value: {param.value}")
-
-        file_outputs = self._file_outputs(algorithm)
-        for name, file_output in file_outputs.items():
-            parameters[name] = str(Path(self.context.process_output_dir, file_output.path))
-
+        parameters = self._parameters(algorithm, job)
         job_output_dir = Path(self.context.process_output_dir, self.job_info.id)
-        job_output_dir.mkdir(parents=True, exist_ok=True)
+        destinations = self._destinations(algorithm, job_output_dir)
+        parameters.update({name: str(path) for name, path in destinations.items()})
+
+        job_output_dir.mkdir(parents=True)
         try:
-            process_result = self._run_algorithm(algorithm, parameters, file_outputs)
+            process_result = self._run_algorithm(algorithm, parameters, destinations)
         except Exception:
             # only successful jobs leave files behind (we avoid half created corpse)
             shutil.rmtree(job_output_dir, ignore_errors=True)
@@ -107,7 +95,32 @@ class ProcessRunner(MapRunner):
             content_type="application/qgis-server-light.interface.job.process.ProcessResult",
         )
 
-    def _file_outputs(self, algorithm: QgsProcessingAlgorithm) -> dict[str, FileOutput]:
+    def _parameters(
+        self, algorithm: QgsProcessingAlgorithm, job: QslJobParameterExecuteProcess
+    ) -> dict:
+        """The parameters the client sent, mapped to what the algorithm expects.
+        Destinations are left out, the worker sets them on its own.
+
+        Raises:
+            ValueError: If the client sent a destination or a value of an
+                unexpected type.
+        """
+        parameters = {}
+        for param in job.parameters:
+            definition = algorithm.parameterDefinition(param.name)
+            if definition is not None and definition.isDestination():
+                raise ValueError(f"Destination `{param.name}` is set by the worker")
+            if isinstance(param.value, QslJobLayer):
+                parameters[param.name] = self._handle_layer_cache(param.value)
+            elif isinstance(param.value, (str, int, float, bool)):
+                parameters[param.name] = param.value
+            else:
+                raise ValueError(f"Unexpected value: {param.value}")
+        return parameters
+
+    def _destinations(
+        self, algorithm: QgsProcessingAlgorithm, job_output_dir: Path
+    ) -> dict[str, Path]:
         """The files the destinations of the algorithm are written to, by
         destination name. The worker sets them, so concurrent jobs never collide.
 
@@ -115,26 +128,30 @@ class ProcessRunner(MapRunner):
             ValueError: If there is no media type for the file extension of a
                 destination.
         """
-        file_outputs = {}
+        destinations = {}
         for definition in algorithm.destinationParameterDefinitions():
             extension = definition.defaultFileExtension()
-            media_type = self.media_type_by_extension.get(extension)
-            if media_type is None:
+            if extension not in self.media_type_by_extension:
                 raise ValueError(
                     f"No media type for extension `{extension}` of destination "
                     f"`{definition.name()}`"
                 )
-            file_outputs[definition.name()] = FileOutput(
-                path=f"{self.job_info.id}/{definition.name()}.{extension}",
-                media_type=media_type,
-            )
-        return file_outputs
+            destinations[definition.name()] = job_output_dir / f"{definition.name()}.{extension}"
+        return destinations
+
+    def _file_output(self, destination: Path) -> FileOutput:
+        """The destination as the client sees it, relative to the process output
+        dir, so the worker does not leak its own file system layout."""
+        return FileOutput(
+            path=destination.relative_to(self.context.process_output_dir).as_posix(),
+            media_type=self.media_type_by_extension[destination.suffix.removeprefix(".")],
+        )
 
     def _run_algorithm(
         self,
         algorithm: QgsProcessingAlgorithm,
         parameters: dict,
-        file_outputs: dict[str, FileOutput],
+        destinations: dict[str, Path],
     ) -> ProcessResult:
         """Runs the algorithm and collects its outputs. Outputs written to a
         file are referenced, all others are returned inline.
@@ -151,8 +168,10 @@ class ProcessRunner(MapRunner):
 
         process_result = ProcessResult(log=feedback.textLog())
         for name, value in result.items():
-            if name in file_outputs:
-                process_result.outputs.append(ParameterOutput(name, file_outputs[name]))
+            if name in destinations:
+                process_result.outputs.append(
+                    ParameterOutput(name, self._file_output(destinations[name]))
+                )
             elif isinstance(value, (str, int, float, bool)):
                 process_result.outputs.append(ParameterOutput(name, value))
             else:
