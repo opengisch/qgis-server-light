@@ -48,16 +48,7 @@ class RedisProtocol:
             process-workers serve.
     """
 
-    job_queue_name: str = "jobs"
-    job_process_queue_name: str = "jobs:process"
-    job_queue_name_by_info_type: dict[str, str] = {
-        "QslJobInfoRender": "jobs",
-        "QslJobInfoFeatureInfo": "jobs",
-        "QslJobInfoLegend": "jobs",
-        "QslJobInfoFeature": "jobs",
-        "QslJobInfoCrs": "jobs",
-        "QslJobInfoExecuteProcess": "jobs:process",
-    }
+    job_queue_name: str
     job_info_key: str = "info"
     job_info_type_key: str = "info_type"
     job_channel_name: str = "notifications"
@@ -65,16 +56,7 @@ class RedisProtocol:
     job_duration_key: str = "duration"
     job_timestamp_key: str = "timestamp"
     job_last_update_key: str = f"{job_timestamp_key}.last_update"
-    job_result_key: str = "result"
-    job_result_content_type_key: str = "result_content_type"
-    job_message_key: str = "message"
-    job_expire: int = 86400
-    job_info_types_keeping_state: set[str] = {"QslJobInfoExecuteProcess"}
     process_registry_key: str = "processes"
-
-    @classmethod
-    def keeps_state(cls, job_info_type: str) -> bool:
-        return job_info_type in cls.job_info_types_keeping_state
 
     @staticmethod
     def job_key(job_id: str) -> str:
@@ -86,28 +68,8 @@ class RedisProtocol:
         return f"job:{job_id}"
 
     @classmethod
-    def queue_name(cls, job_info_type: str) -> str:
-        """The name of the queue a job of this type is queued on.
-
-        Args:
-            job_info_type: The class name of the job info.
-        """
-        return cls.job_queue_name_by_info_type[job_info_type]
-
-    @classmethod
-    def queue_names(cls, job_info_types: list[str]) -> list[str]:
-        """The names of the queues a worker serving these job types listens on.
-        Each name is contained once, in the order of its first job info type.
-
-        Args:
-            job_info_types: The class names of the job infos the worker serves.
-        """
-        queue_names = []
-        for job_info_type in job_info_types:
-            queue_name = cls.queue_name(job_info_type)
-            if queue_name not in queue_names:
-                queue_names.append(queue_name)
-        return queue_names
+    def queue_name(cls) -> str:
+        return cls.job_queue_name
 
     @classmethod
     def channel(cls, job_id: str) -> str:
@@ -117,3 +79,15 @@ class RedisProtocol:
             job_id: The unique identifier of the job.
         """
         return f"{cls.job_channel_name}:{job_id}"
+
+
+class RedisPublishProtocol(RedisProtocol):
+    job_queue_name: str = "jobs"
+
+
+class RedisStateProtocol(RedisProtocol):
+    job_queue_name: str = "jobs:process"
+    job_result_key: str = "result"
+    job_result_content_type_key: str = "result_content_type"
+    job_message_key: str = "message"
+    job_expire: int = 86400

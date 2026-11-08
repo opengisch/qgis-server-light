@@ -9,12 +9,17 @@ from asyncio import timeout
 from uuid import uuid4
 
 from redis import asyncio as redis_aio
+from redis.asyncio.client import PubSub
 from redis.client import Pipeline
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import JobState, Status
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.interface.dispatcher.protocol import (
+    RedisProtocol,
+    RedisPublishProtocol,
+    RedisStateProtocol,
+)
 from qgis_server_light.interface.job.common.input import (
     ExecutionMode,
     QslJobInfoParameter,
@@ -77,7 +82,11 @@ def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoPa
     )
 
 
-class RedisQueue(RedisProtocol):
+def decode_optional(value: bytes | None) -> str | None:
+    return value.decode() if value is not None else None
+
+
+class RedisDispatcher(RedisProtocol):
     def __init__(self, redis_client: redis_aio.Redis) -> None:
         # we use this to hold connections to redis in a pool, this way we are
         # event loop safe and when creating the redis client for every call of
@@ -89,14 +98,6 @@ class RedisQueue(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
-
-    async def process_descriptions(self) -> ProcessDescriptions:
-        """The descriptions of the processes the process-workers serve, read from the
-        process registry. Empty as long as no process-worker has booted."""
-        registry_json = await self.client.get(self.process_registry_key)
-        if registry_json is None:
-            return ProcessDescriptions()
-        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
 
     async def set_job_runtime_status(
         self,
@@ -119,6 +120,35 @@ class RedisQueue(RedisProtocol):
         if execute:
             await pipeline.execute()
 
+    async def queue_job(
+        self, job_info: QslJobInfoParameter, pipeline: Pipeline, start_time: float
+    ) -> None:
+        # Putting job info into redis
+        await pipeline.hset(
+            self.job_key(job_info.id), self.job_info_key, JsonSerializer().render(job_info)
+        )
+        await pipeline.hset(
+            self.job_key(job_info.id), self.job_info_type_key, job_info.__class__.__name__
+        )
+        # we inform, that the job was queued. This happens in the same
+        # transaction as the queuing, so it can not overwrite a status
+        # already set by the worker.
+        await self.set_job_runtime_status(
+            job_info.id, pipeline, Status.QUEUED.value, start_time, execute=False
+        )
+        # Queuing the job onto the list/queue of the protocol
+        await pipeline.rpush(self.queue_name(), job_info.id)
+
+
+class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
+    async def process_descriptions(self) -> ProcessDescriptions:
+        """The descriptions of the processes the process-workers serve, read from the
+        process registry. Empty as long as no process-worker has booted."""
+        registry_json = await self.client.get(self.process_registry_key)
+        if registry_json is None:
+            return ProcessDescriptions()
+        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
+
     async def submit(
         self,
         job_id: str,
@@ -126,18 +156,10 @@ class RedisQueue(RedisProtocol):
         execution_mode: ExecutionMode = ExecutionMode.ASYNC,
     ) -> None:
         job_info = derive_job_info(job_id, job_parameter)
-        if not self.keeps_state(job_info.type):
-            raise TypeError(f"Job type {job_info.type} has to be posted")
         job_info.execution_mode = execution_mode
-        start_time = time.time()
         async with self.client.pipeline() as p:
-            await p.hset(self.job_key(job_id), self.job_info_key, JsonSerializer().render(job_info))
-            await p.hset(self.job_key(job_id), self.job_info_type_key, job_info.type)
-            await self.set_job_runtime_status(
-                job_id, p, Status.QUEUED.value, start_time, execute=False
-            )
+            await self.queue_job(job_info, p, time.time())
             await p.expire(self.job_key(job_id), self.job_expire)
-            await p.rpush(self.queue_name(job_info.type), job_id)
             await p.execute()
         logging.info(f"{job_id} submitted")
 
@@ -146,21 +168,21 @@ class RedisQueue(RedisProtocol):
         if not job_hash:
             return None
         job_hash = {key.decode(): value for key, value in job_hash.items()}
-        result = None
-        if self.job_result_key in job_hash:
-            result = JobResult(
-                id=job_id,
-                data=job_hash[self.job_result_key],
-                content_type=job_hash[self.job_result_content_type_key].decode(),
-            )
-        message = job_hash.get(self.job_message_key)
-        last_update = job_hash.get(self.job_last_update_key)
         return JobState(
             id=job_id,
             status=Status(job_hash[self.job_status_key].decode()),
-            last_update=last_update.decode() if last_update is not None else None,
-            result=result,
-            message=message.decode() if message is not None else None,
+            last_update=decode_optional(job_hash.get(self.job_last_update_key)),
+            result=self.job_result(job_id, job_hash),
+            message=decode_optional(job_hash.get(self.job_message_key)),
+        )
+
+    def job_result(self, job_id: str, job_hash: dict[str, bytes]) -> JobResult | None:
+        if self.job_result_key not in job_hash:
+            return None
+        return JobResult(
+            id=job_id,
+            data=job_hash[self.job_result_key],
+            content_type=job_hash[self.job_result_content_type_key].decode(),
         )
 
     async def wait(self, job_id: str, to: float = 10.0) -> JobState | None:
@@ -171,16 +193,22 @@ class RedisQueue(RedisProtocol):
             job_state = await self.state(job_id)
             if job_state is None or job_state.finished:
                 return job_state
-            try:
-                async with timeout(to):
-                    while True:
-                        message = await ps.get_message(timeout=to, ignore_subscribe_messages=True)
-                        if message:
-                            break
-            except (TimeoutError, asyncio.exceptions.CancelledError):
-                logging.info(f"{job_id} timeout")
+            await self.wait_for_notification(ps, job_id, to)
         return await self.state(job_id)
 
+    @staticmethod
+    async def wait_for_notification(ps: PubSub, job_id: str, to: float) -> None:
+        try:
+            async with timeout(to):
+                while True:
+                    message = await ps.get_message(timeout=to, ignore_subscribe_messages=True)
+                    if message:
+                        return
+        except (TimeoutError, asyncio.exceptions.CancelledError):
+            logging.info(f"{job_id} timeout")
+
+
+class RedisQueue(RedisDispatcher, RedisPublishProtocol):
     async def post(
         self,
         job_parameter: (
@@ -189,7 +217,6 @@ class RedisQueue(RedisProtocol):
             | QslJobParameterLegend
             | QslJobParameterFeature
             | QslJobParameterCrs
-            | QslJobParameterExecuteProcess
         ),
         to: float = 10.0,
     ) -> tuple[JobResult, str]:
@@ -206,8 +233,6 @@ class RedisQueue(RedisProtocol):
         start_time = time.time()
         try:
             job_info = derive_job_info(job_id, job_parameter)
-            if self.keeps_state(job_info.type):
-                raise TypeError(f"Job type {job_info.type} has to be submitted")
         except TypeError as e:
             return (
                 JobResult(
@@ -225,21 +250,7 @@ class RedisQueue(RedisProtocol):
                 # before we listen, and its result would be lost.
                 await ps.subscribe(self.channel(job_id))
                 async with self.client.pipeline() as p:
-                    # Putting job info into redis
-                    await p.hset(
-                        self.job_key(job_id), self.job_info_key, JsonSerializer().render(job_info)
-                    )
-                    await p.hset(
-                        self.job_key(job_id), self.job_info_type_key, job_info.__class__.__name__
-                    )
-                    # we inform, that the job was queued. This happens in the same
-                    # transaction as the queuing, so it can not overwrite a status
-                    # already set by the worker.
-                    await self.set_job_runtime_status(
-                        job_id, p, Status.QUEUED.value, start_time, execute=False
-                    )
-                    # Queuing the job onto the list/queue of its type
-                    await p.rpush(self.queue_name(job_info.type), job_id)
+                    await self.queue_job(job_info, p, start_time)
                     await p.execute()
 
                 logging.info(f"{job_id} queued")
