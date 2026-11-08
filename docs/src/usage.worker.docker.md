@@ -30,8 +30,8 @@ cp .env.dev.example .env
 This tells compose to use [compose.yml](https://github.com/opengisch/qgis-server-light/blob/master/compose.yml)
 extended by [compose.dev.yml](https://github.com/opengisch/qgis-server-light/blob/master/compose.dev.yml). The
 composition contains the services `worker`, `process-worker`, `exporter` and `redis`. `worker` and `process-worker`
-run the same image, the `process-worker` is booted with the process runner only (`QSL_RUNNER_PLUGINS`) and therefore
-serves the process jobs.
+run the same image, the `process-worker` is booted with the state engine (`QSL_ENGINE`) and the process runner only
+(`QSL_RUNNER_PLUGINS`) and therefore serves the process jobs (see [CLI](usage.worker.cli.md)).
 
 !!! info
     The `dev` stage is not published, it is always built locally. Published on Docker Hub
