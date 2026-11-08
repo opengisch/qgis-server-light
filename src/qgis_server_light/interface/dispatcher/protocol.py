@@ -32,6 +32,10 @@ class RedisProtocol:
     - `info`: The engine info serialized as JSON.
     - `last_seen`: ISO timestamp (UTC) of the last heartbeat.
 
+    A process-worker writes the descriptions of the processes it serves as JSON
+    (`ProcessDescriptions`) under `process_registry_key` on boot, unless the key
+    exists already.
+
     Attributes:
         job_queue_name: The name of the redis list the ids of map related jobs
             are queued on.
@@ -51,6 +55,8 @@ class RedisProtocol:
         worker_last_seen_key: The hash field holding the timestamp of the last heartbeat.
         worker_heartbeat_interval: Seconds between two heartbeats of a worker.
         worker_alive_age: Seconds a heartbeat may be old for the worker to count as alive.
+        process_registry_key: The key holding the descriptions of the processes the
+            process-workers serve.
     """
 
     job_queue_name: str = "jobs"
@@ -75,6 +81,7 @@ class RedisProtocol:
     worker_last_seen_key: str = "last_seen"
     worker_heartbeat_interval: int = 1
     worker_alive_age: int = 10 * worker_heartbeat_interval
+    process_registry_key: str = "processes"
 
     @staticmethod
     def job_key(job_id: str) -> str:

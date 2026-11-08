@@ -15,10 +15,13 @@ from redis.exceptions import RedisError, TimeoutError
 from redis.retry import Retry
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers.dict import DictFactory
 
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
+from qgis_server_light.interface.job.process.input import QslJobInfoExecuteProcess
 from qgis_server_light.worker.engine import Engine, EngineContext
 
 DEFAULT_DATA_ROOT = "/io/data"
@@ -31,6 +34,12 @@ DEFAULT_RUNNER_PLUGINS = ":".join(
         "qgis_server_light.worker.runner.crs.CrsRunner",
         # Not fully functional yet
         # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
+    ]
+)
+DEFAULT_PROCESS_ALLOWLIST = ",".join(
+    [
+        "native:buffer",
+        "native:centroids",
     ]
 )
 
@@ -170,6 +179,35 @@ class RedisEngine(Engine):
         else:
             logging.info("Worker was unregistered from Redis")
 
+    def write_process_registry(client: Redis, process_descriptions: ProcessDescriptions) -> bool:
+        """Writes the process descriptions into the process registry, unless it holds
+        descriptions already.
+
+        Returns:
+            If the descriptions were written.
+        """
+        return bool(
+            client.set(
+                RedisProtocol.process_registry_key,
+                JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(process_descriptions),
+                nx=True,
+            )
+        )
+
+    def register_processes(self, client: Redis):
+        """Registers the processes the worker serves. Workers without the process runner
+        don't serve processes and register nothing."""
+        process_runner_class = self.available_runner_classes_by_job_info.get(
+            QslJobInfoExecuteProcess.__name__
+        )
+        if process_runner_class is None:
+            return
+        process_descriptions = process_runner_class.info(self.qgis, self.context.process_allowlist)
+        if self.write_process_registry(client, process_descriptions):
+            logging.info(f"Processes {self.context.process_allowlist} were registered in Redis")
+        else:
+            logging.info("Processes were registered in Redis already")
+
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
         self.retry_handling_with_jitter(count)
@@ -239,6 +277,7 @@ class RedisEngine(Engine):
         # gets unregistered
         self.redis_client = r
         self.register_worker(r)
+        self.register_processes(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         try:
@@ -369,6 +408,15 @@ def main() -> None:
         default=DEFAULT_RUNNER_PLUGINS,
     )
 
+    parser.add_argument(
+        "--process-allowlist",
+        type=str,
+        help="Ids of the QGIS algorithms the worker serves as processes, separated by `,`. "
+        "Only used when the worker boots with the process runner. "
+        f"Defaults to {DEFAULT_PROCESS_ALLOWLIST}",
+        default=DEFAULT_PROCESS_ALLOWLIST,
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -382,8 +430,9 @@ def main() -> None:
 
     svg_paths = args.svg_path.split(":")
     runner_plugins = args.runner_plugins.split(":")
+    process_allowlist = args.process_allowlist.split(",")
     engine = RedisEngine(
-        EngineContext(args.data_root),
+        EngineContext(args.data_root, process_allowlist),
         runner_plugins,
         svg_paths=svg_paths,
     )

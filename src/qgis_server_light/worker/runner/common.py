@@ -6,7 +6,7 @@ import zlib
 from abc import ABC
 from base64 import urlsafe_b64decode
 from collections.abc import MutableMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
@@ -38,7 +38,14 @@ from qgis_server_light.interface.job.common.input import (
 
 @dataclass
 class JobContext:
+    """
+    Attributes:
+        base_path: The absolute path to the data dir.
+        process_allowlist: The ids of the QGIS algorithms the worker serves as processes.
+    """
+
     base_path: str | Path
+    process_allowlist: list[str] = field(default_factory=list)
 
 
 class Runner(ABC):
