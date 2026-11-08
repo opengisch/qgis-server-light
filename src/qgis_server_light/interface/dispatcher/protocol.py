@@ -76,12 +76,21 @@ class RedisProtocol:
     job_duration_key: str = "duration"
     job_timestamp_key: str = "timestamp"
     job_last_update_key: str = f"{job_timestamp_key}.last_update"
+    job_result_key: str = "result"
+    job_result_content_type_key: str = "result_content_type"
+    job_message_key: str = "message"
+    job_expire: int = 86400
+    job_info_types_keeping_state: set[str] = {"QslJobInfoExecuteProcess"}
     worker_list_name: str = "workers"
     worker_info_key: str = "info"
     worker_last_seen_key: str = "last_seen"
     worker_heartbeat_interval: int = 1
     worker_alive_age: int = 10 * worker_heartbeat_interval
     process_registry_key: str = "processes"
+
+    @classmethod
+    def keeps_state(cls, job_info_type: str) -> bool:
+        return job_info_type in cls.job_info_types_keeping_state
 
     @staticmethod
     def job_key(job_id: str) -> str:

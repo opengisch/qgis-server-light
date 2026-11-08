@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.worker.info import EngineInfo
 
 
@@ -28,3 +29,16 @@ class Worker:
     id: str
     last_seen: datetime
     info: EngineInfo
+
+
+@dataclass
+class JobState:
+    id: str
+    status: Status
+    last_update: str | None = None
+    result: JobResult | None = None
+    message: str | None = None
+
+    @property
+    def finished(self) -> bool:
+        return self.status in (Status.SUCCESS, Status.FAILURE)
