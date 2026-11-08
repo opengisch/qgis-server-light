@@ -43,5 +43,8 @@ services:
       - qsl-venv:/home/appuser/.venv
     command:
       - "/usr/local/bin/dev.start.exporter_api.sh"
+  redis:
+    ports:
+      - "127.0.0.1:1234:6379"
 volumes:
   qsl-venv:
