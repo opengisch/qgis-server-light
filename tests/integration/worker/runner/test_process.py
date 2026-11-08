@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.exporter.extract import OgrSource
 from qgis_server_light.interface.job.common.input import QslJobLayer
@@ -12,6 +13,7 @@ from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
+from qgis_server_light.interface.job.process.output import ParameterOutput, ProcessResult
 from qgis_server_light.worker.runner.common import JobContext
 from qgis_server_light.worker.runner.process import ProcessRunner
 
@@ -63,8 +65,11 @@ class TestProcessRunnerIntegration:
         result = runner.run()
         assert isinstance(result, JobResult)
         assert result.id == job_id
-        assert result.data["ok"]
-        assert result.data["result"]["OUTPUT"] == output_layer_path
+        assert result.content_type == (
+            "application/qgis-server-light.interface.job.process.ProcessResult"
+        )
+        process_result = JsonParser().from_bytes(result.data, ProcessResult)
+        assert ParameterOutput("OUTPUT", output_layer_path) in process_result.outputs
 
     @pytest.mark.parametrize(
         "job_layer",
@@ -106,8 +111,11 @@ class TestProcessRunnerIntegration:
         result = runner.run()
         assert isinstance(result, JobResult)
         assert result.id == job_id
-        assert result.data["ok"]
-        assert result.data["result"]["OUTPUT"] == output_layer_path
+        assert result.content_type == (
+            "application/qgis-server-light.interface.job.process.ProcessResult"
+        )
+        process_result = JsonParser().from_bytes(result.data, ProcessResult)
+        assert ParameterOutput("OUTPUT", output_layer_path) in process_result.outputs
 
     def test_execute_unknown_algorithm(self, qgis_app, data_path):
         job_info = QslJobInfoExecuteProcess(
