@@ -6,6 +6,7 @@ import logging
 import pickle
 import time
 from asyncio import timeout
+from typing import ClassVar
 from uuid import uuid4
 
 from redis import asyncio as redis_aio
@@ -52,41 +53,17 @@ from qgis_server_light.interface.job.render.input import (
     QslJobParameterRender,
 )
 
-job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
-    QslJobParameterRender: QslJobInfoRender,
-    QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
-    QslJobParameterLegend: QslJobInfoLegend,
-    QslJobParameterFeature: QslJobInfoFeature,
-    QslJobParameterCrs: QslJobInfoCrs,
-    QslJobParameterExecuteProcess: QslJobInfoExecuteProcess,
-}
-
-
-def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoParameter:
-    """Wraps the job parameter into the job info matching its type.
-
-    Args:
-        job_id: The unique identifier of the job.
-        job_parameter: The parameter for the job which should be executed.
-
-    Raises:
-        TypeError: If there is no job info for the type of the job parameter.
-    """
-    job_info_class = job_info_classes.get(type(job_parameter))
-    if job_info_class is None:
-        raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
-    return job_info_class(
-        id=job_id,
-        type=job_info_class.__name__,
-        job=job_parameter,
-    )
-
-
-def decode_optional(value: bytes | None) -> str | None:
-    return value.decode() if value is not None else None
-
 
 class RedisDispatcher(RedisProtocol):
+    job_info_classes: ClassVar[dict[type[QslJobParameter], type[QslJobInfoParameter]]] = {
+        QslJobParameterRender: QslJobInfoRender,
+        QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
+        QslJobParameterLegend: QslJobInfoLegend,
+        QslJobParameterFeature: QslJobInfoFeature,
+        QslJobParameterCrs: QslJobInfoCrs,
+        QslJobParameterExecuteProcess: QslJobInfoExecuteProcess,
+    }
+
     def __init__(self, redis_client: redis_aio.Redis) -> None:
         # we use this to hold connections to redis in a pool, this way we are
         # event loop safe and when creating the redis client for every call of
@@ -98,6 +75,26 @@ class RedisDispatcher(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
+
+    @classmethod
+    def derive_job_info(cls, job_id: str, job_parameter: QslJobParameter) -> QslJobInfoParameter:
+        """Wraps the job parameter into the job info matching its type.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_parameter: The parameter for the job which should be executed.
+
+        Raises:
+            TypeError: If there is no job info for the type of the job parameter.
+        """
+        job_info_class = cls.job_info_classes.get(type(job_parameter))
+        if job_info_class is None:
+            raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
+        return job_info_class(
+            id=job_id,
+            type=job_info_class.__name__,
+            job=job_parameter,
+        )
 
     async def set_job_runtime_status(
         self,
@@ -155,7 +152,7 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
         job_parameter: QslJobParameterExecuteProcess,
         execution_mode: ExecutionMode = ExecutionMode.ASYNC,
     ) -> None:
-        job_info = derive_job_info(job_id, job_parameter)
+        job_info = self.derive_job_info(job_id, job_parameter)
         job_info.execution_mode = execution_mode
         async with self.client.pipeline() as p:
             await self.queue_job(job_info, p, time.time())
@@ -171,10 +168,14 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
         return JobState(
             id=job_id,
             status=Status(job_hash[self.job_status_key].decode()),
-            last_update=decode_optional(job_hash.get(self.job_last_update_key)),
+            last_update=self.decode_optional(job_hash.get(self.job_last_update_key)),
             result=self.job_result(job_id, job_hash),
-            message=decode_optional(job_hash.get(self.job_message_key)),
+            message=self.decode_optional(job_hash.get(self.job_message_key)),
         )
+
+    @staticmethod
+    def decode_optional(value: bytes | None) -> str | None:
+        return value.decode() if value is not None else None
 
     def job_result(self, job_id: str, job_hash: dict[str, bytes]) -> JobResult | None:
         if self.job_result_key not in job_hash:
@@ -232,7 +233,7 @@ class RedisQueue(RedisDispatcher, RedisPublishProtocol):
         job_id = str(uuid4())
         start_time = time.time()
         try:
-            job_info = derive_job_info(job_id, job_parameter)
+            job_info = self.derive_job_info(job_id, job_parameter)
         except TypeError as e:
             return (
                 JobResult(
