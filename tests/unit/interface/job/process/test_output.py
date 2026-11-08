@@ -11,6 +11,21 @@ from qgis_server_light.interface.job.process.output import (
 from tests.base.dataclass_test import DataclassTest
 
 
+class TestFileOutput(DataclassTest):
+    field_defs = [
+        ("path", str),
+        ("media_type", str),
+    ]
+    dataclass_to_test = FileOutput
+
+    def test_instantiation(self):
+        file_output = FileOutput(
+            path="a1b2/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
+        )
+        assert file_output.path == "a1b2/OUTPUT.gpkg"
+        assert file_output.media_type == "application/geopackage+sqlite3"
+
+
 class TestParameterOutput(DataclassTest):
     field_defs = [
         ("name", str),
@@ -55,6 +70,17 @@ class TestProcessResult(DataclassTest):
                     ParameterOutput(name="OK", value=True),
                 ],
                 log="Processing finished",
+            ),
+            ProcessResult(
+                outputs=[
+                    ParameterOutput(
+                        name="OUTPUT",
+                        value=FileOutput(
+                            path="a1b2/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
+                        ),
+                    ),
+                    ParameterOutput(name="FEATURE_COUNT", value=42),
+                ],
             ),
         ],
     )
