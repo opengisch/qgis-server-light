@@ -3,14 +3,18 @@ from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.common import BaseInterface
-from qgis_server_light.interface.job.process.output import ParameterOutput, ProcessResult
+from qgis_server_light.interface.job.process.output import (
+    FileOutput,
+    ParameterOutput,
+    ProcessResult,
+)
 from tests.base.dataclass_test import DataclassTest
 
 
 class TestParameterOutput(DataclassTest):
     field_defs = [
         ("name", str),
-        ("value", str | int | float | bool),
+        ("value", FileOutput | str | int | float | bool),
     ]
     dataclass_to_test = ParameterOutput
 

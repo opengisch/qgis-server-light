@@ -1,6 +1,5 @@
 import json
 import uuid
-from pathlib import Path
 
 import pytest
 from xsdata.formats.dataclass.parsers import JsonParser
@@ -13,7 +12,11 @@ from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
-from qgis_server_light.interface.job.process.output import ParameterOutput, ProcessResult
+from qgis_server_light.interface.job.process.output import (
+    FileOutput,
+    ParameterOutput,
+    ProcessResult,
+)
 from qgis_server_light.worker.runner.common import JobContext
 from qgis_server_light.worker.runner.process import ProcessRunner
 
@@ -36,8 +39,6 @@ class TestProcessRunnerIntegration:
     )
     def test_execute_buffer(self, qgis_app, data_path, job_layer):
         job_id = str(uuid.uuid4())
-        output_layer_path = f"{data_path}/.process_output/{job_id}/Buffered.geojson"
-        Path(output_layer_path).parent.mkdir(parents=True)
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
             type=QslJobInfoExecuteProcess.__name__,
@@ -46,7 +47,6 @@ class TestProcessRunnerIntegration:
                 parameters=[
                     ParameterInput("INPUT", job_layer),
                     ParameterInput("DISTANCE", 1.0),
-                    ParameterInput("OUTPUT", str(output_layer_path)),
                     ParameterInput("END_CAP_STYLE", "Round"),
                     ParameterInput("JOIN_STYLE", "Round"),
                     ParameterInput("MITER_LIMIT", 2.0),
@@ -58,7 +58,11 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path, process_allowlist=["native:buffer"]),
+            JobContext(
+                base_path=data_path,
+                process_allowlist=["native:buffer"],
+                process_output_dir=f"{data_path}/.process_output",
+            ),
             job_info,
             {},
         )
@@ -69,7 +73,15 @@ class TestProcessRunnerIntegration:
             "application/qgis-server-light.interface.job.process.ProcessResult"
         )
         process_result = JsonParser().from_bytes(result.data, ProcessResult)
-        assert ParameterOutput("OUTPUT", output_layer_path) in process_result.outputs
+        assert (
+            ParameterOutput(
+                "OUTPUT",
+                FileOutput(
+                    path=f"{job_id}/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
+                ),
+            )
+            in process_result.outputs
+        )
 
     @pytest.mark.parametrize(
         "job_layer",
@@ -88,8 +100,6 @@ class TestProcessRunnerIntegration:
     )
     def test_execute_centroids(self, qgis_app, data_path, job_layer):
         job_id = str(uuid.uuid4())
-        output_layer_path = f"{data_path}/.process_output/{job_id}/Centroids.geojson"
-        Path(output_layer_path).parent.mkdir(parents=True)
         job_info = QslJobInfoExecuteProcess(
             id=job_id,
             type=QslJobInfoExecuteProcess.__name__,
@@ -97,14 +107,17 @@ class TestProcessRunnerIntegration:
                 process_id="native:centroids",
                 parameters=[
                     ParameterInput("INPUT", job_layer),
-                    ParameterInput("OUTPUT", output_layer_path),
                 ],
             ),
         )
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path, process_allowlist=["native:centroids"]),
+            JobContext(
+                base_path=data_path,
+                process_allowlist=["native:centroids"],
+                process_output_dir=f"{data_path}/.process_output",
+            ),
             job_info,
             {},
         )
@@ -115,7 +128,15 @@ class TestProcessRunnerIntegration:
             "application/qgis-server-light.interface.job.process.ProcessResult"
         )
         process_result = JsonParser().from_bytes(result.data, ProcessResult)
-        assert ParameterOutput("OUTPUT", output_layer_path) in process_result.outputs
+        assert (
+            ParameterOutput(
+                "OUTPUT",
+                FileOutput(
+                    path=f"{job_id}/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
+                ),
+            )
+            in process_result.outputs
+        )
 
     def test_execute_unknown_algorithm(self, qgis_app, data_path):
         job_info = QslJobInfoExecuteProcess(
@@ -129,7 +150,11 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path, process_allowlist=["native:does_not_exist"]),
+            JobContext(
+                base_path=data_path,
+                process_allowlist=["native:does_not_exist"],
+                process_output_dir=f"{data_path}/.process_output",
+            ),
             job_info,
             {},
         )
@@ -145,16 +170,17 @@ class TestProcessRunnerIntegration:
                 process_id="native:centroids",
                 parameters=[
                     ParameterInput("INPUT", f"{data_path}/does_not_exist.gpkg"),
-                    ParameterInput(
-                        "OUTPUT", f"{data_path}/.process_output/{job_id}/Centroids.geojson"
-                    ),
                 ],
             ),
         )
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path, process_allowlist=["native:centroids"]),
+            JobContext(
+                base_path=data_path,
+                process_allowlist=["native:centroids"],
+                process_output_dir=f"{data_path}/.process_output",
+            ),
             job_info,
             {},
         )
