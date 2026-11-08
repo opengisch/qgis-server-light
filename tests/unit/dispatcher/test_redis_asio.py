@@ -16,7 +16,7 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 from xsdata.formats.dataclass.serializers import JsonSerializer
 from xsdata.formats.dataclass.serializers.dict import DictFactory
 
-from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info, job_info_classes
+from qgis_server_light.dispatcher.redis_asio import RedisQueue
 from qgis_server_light.interface.common import BBox
 from qgis_server_light.interface.dispatcher.common import Status, Worker
 from qgis_server_light.interface.job.common.input import QslJobParameter
@@ -70,7 +70,7 @@ class TestDeriveJobInfo:
         ],
     )
     def test_supported(self, job_parameter, expected_class):
-        job_info = derive_job_info("my_cool_id", job_parameter)
+        job_info = RedisQueue.derive_job_info("my_cool_id", job_parameter)
         assert isinstance(job_info, expected_class)
         assert job_info.id == "my_cool_id"
         assert job_info.type == expected_class.__name__
@@ -78,7 +78,7 @@ class TestDeriveJobInfo:
 
     def test_unsupported(self):
         with pytest.raises(TypeError, match="Unsupported runner type"):
-            derive_job_info("blabla", QslJobParameter())
+            RedisQueue.derive_job_info("blabla", QslJobParameter())
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ class TestRedisQueue:
             call.execute(),
         ]
 
-    @pytest.mark.parametrize("job_info_class", job_info_classes.values())
+    @pytest.mark.parametrize("job_info_class", RedisQueue.job_info_classes.values())
     def test_queue_for_every_job_info(self, job_info_class):
         assert RedisQueue.queue_name(job_info_class.__name__)
 
