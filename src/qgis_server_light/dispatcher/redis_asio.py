@@ -37,6 +37,7 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
@@ -163,6 +164,14 @@ class RedisQueue(RedisProtocol):
             # containers this is UTC usually
             timestamp = timestamp.replace(tzinfo=datetime.UTC)
         return timestamp
+
+    async def process_descriptions(self) -> ProcessDescriptions:
+        """The descriptions of the processes the process-workers serve, read from the
+        process registry. Empty as long as no process-worker has booted."""
+        registry_json = await self.client.get(self.process_registry_key)
+        if registry_json is None:
+            return ProcessDescriptions()
+        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
 
     async def set_job_runtime_status(
         self,

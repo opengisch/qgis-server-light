@@ -13,7 +13,7 @@ from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.extract import Exporter
 from qgis_server_light.interface.exporter.extract import Process
-from qgis_server_light.processing import algorithm_from_qgs_definition
+from qgis_server_light.processing.algorithm import algorithm_from_qgs_definition
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 QgsApplication.setPrefixPath("/usr", True)
@@ -31,7 +31,6 @@ def main() -> None:
     for future content.
 
     """
-    pass
 
 
 @click.option("--project", help="Absolute path to the QGIS project.")

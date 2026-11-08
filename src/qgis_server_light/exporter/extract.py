@@ -10,6 +10,7 @@ from urllib.parse import unquote
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsDataSourceUri,

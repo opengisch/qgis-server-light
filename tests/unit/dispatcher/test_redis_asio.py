@@ -5,9 +5,16 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call
 
 import pytest
+from qgis_server_light.interface.job.process.description import (
+    InputDescription,
+    ProcessDescription,
+    ProcessDescriptions,
+    Schema,
+)
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers.dict import DictFactory
 
 from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info, job_info_classes
 from qgis_server_light.interface.common import BBox
@@ -143,6 +150,36 @@ class TestRedisQueue:
             call.rpush("jobs", "my_cool_id"),
             call.execute(),
         ]
+
+    @pytest.mark.parametrize("job_info_class", job_info_classes.values())
+    def test_queue_for_every_job_info(self, job_info_class):
+        assert RedisQueue.queue_name(job_info_class.__name__)
+
+    @pytest.mark.parametrize(
+        "job_parameter,expected_queue_name",
+        [
+            (QslJobParameterLegend(layers=[]), "jobs"),
+            (
+                QslJobParameterExecuteProcess(
+                    process_id="native:centroids",
+                    parameters=[ParameterInput("ALL_PARTS", False)],
+                ),
+                "jobs:process",
+            ),
+        ],
+    )
+    def test_post_routes_to_queue_of_job_type(
+        self, client, pipeline, pubsub, monkeypatch, job_parameter, expected_queue_name
+    ):
+        monkeypatch.setattr("qgis_server_light.dispatcher.redis_asio.uuid4", lambda: "my_cool_id")
+        pubsub.get_message.return_value = {
+            "data": pickle.dumps(JobResult(id="my_cool_id", data=b"", content_type="image/png"))
+        }
+        client.hget.return_value = Status.SUCCESS.value.encode()
+
+        asyncio.run(RedisQueue(client).post(job_parameter))
+        # the job is queued on the queue of its type only
+        pipeline.rpush.assert_called_once_with(expected_queue_name, "my_cool_id")
 
 
 @pytest.fixture
@@ -307,25 +344,41 @@ class TestParseLastSeen:
     def test_parse_last_seen(self, last_seen, expected):
         assert RedisQueue.parse_last_seen(last_seen) == expected
 
-    @pytest.mark.parametrize("job_info_class", job_info_classes.values())
-    def test_queue_for_every_job_info(self, job_info_class):
-        assert RedisQueue.queue_name(job_info_class.__name__)
+
+class TestProcessRegistry:
+    def test_protocol(self):
+        assert RedisQueue.process_registry_key == "processes"
+
+    def test_process_descriptions_empty_without_registry(self, client):
+        # no process-worker booted yet
+        client.get.return_value = None
+        assert asyncio.run(RedisQueue(client).process_descriptions()) == ProcessDescriptions()
 
     @pytest.mark.parametrize(
-        "job_parameter,expected_queue_name",
+        "process_descriptions",
         [
-            (QslJobParameterLegend(layers=[]), "jobs"),
-            (
-                QslJobParameterExecuteProcess(
-                    process_id="native:centroids",
-                    parameters=[ParameterInput("ALL_PARTS", False)],
-                ),
-                "jobs:process",
-            ),
+            ProcessDescriptions(
+                processes=[
+                    ProcessDescription(
+                        id="native:centroids",
+                        title="Centroids",
+                        inputs=[
+                            InputDescription(
+                                id="ALL_PARTS",
+                                title="Create centroid for each part",
+                                schema=Schema(type="boolean", default=False),
+                            )
+                        ],
+                    )
+                ]
+            )
         ],
     )
-    def test_post_routes_to_queue_of_job_type(self, job_parameter, expected_queue_name):
-        client = FakeRedisClient()
-        asyncio.run(RedisQueue(client).post(job_parameter))
-        queue_names = [call[1] for call in client.calls if call[0] == "rpush"]
-        assert queue_names == [expected_queue_name]
+    def test_process_descriptions(self, client, process_descriptions):
+        client.get.return_value = (
+            JsonSerializer(dict_factory=DictFactory.FILTER_NONE)
+            .render(process_descriptions)
+            .encode()
+        )
+        assert asyncio.run(RedisQueue(client).process_descriptions()) == process_descriptions
+        client.get.assert_called_once_with("processes")

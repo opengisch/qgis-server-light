@@ -6,7 +6,7 @@ import logging
 import pathlib
 import uuid
 from abc import ABC
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -22,7 +22,14 @@ from qgis_server_light.worker.runner.common import JobContext, Runner
 
 @dataclass
 class EngineContext:
+    """
+    Attributes:
+        base_path: The absolute path to the data dir.
+        process_allowlist: The ids of the QGIS algorithms the worker serves as processes.
+    """
+
     base_path: str | pathlib.Path
+    process_allowlist: list[str] = field(default_factory=list)
 
 
 class Engine(ABC):  # noqa: B024
@@ -120,7 +127,7 @@ class Engine(ABC):  # noqa: B024
         runner_class = self.runner_plugin_by_job_info(job_info)
         runner = runner_class(
             self.qgis,
-            JobContext(self.context.base_path),
+            JobContext(self.context.base_path, self.context.process_allowlist),
             job_info,
             layer_cache=self.layer_cache,
         )

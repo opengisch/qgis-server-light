@@ -1,15 +1,16 @@
 from unittest.mock import ANY, Mock, call
 
 import pytest
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from xsdata.formats.dataclass.parsers import JsonParser
 
+from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as EngineStatus
-from qgis_server_light.worker.redis import RedisEngine
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.worker.engine import Engine
-from qgis_server_light.worker.redis import DEFAULT_RUNNER_PLUGINS
+from qgis_server_light.worker.redis import DEFAULT_RUNNER_PLUGINS, RedisEngine
+from qgis_server_light.worker.runner.process import ProcessRunner
 
 
 class WithoutQgis:
@@ -107,8 +108,6 @@ class TestRedisEngineWaitForConnection:
         client.ping.side_effect = [RedisConnectionError("Connection refused."), True]
         engine.wait_for_connection(client, "redis://qsl-redis:6379")
 
-
-
         # the second outage counts from the beginning, the outages don't add up until
         # the worker gives up
         assert retry_connection.call_args_list == [
@@ -181,3 +180,25 @@ class TestRunnerPluginQueues:
 
     def test_default_runner_plugins_without_process(self):
         assert "ProcessRunner" not in DEFAULT_RUNNER_PLUGINS
+
+
+class TestWriteProcessRegistry:
+    """A process-worker writes the descriptions of its processes into the registry once."""
+
+    def test_write(self, qgis_app, client):
+        process_descriptions = ProcessRunner.info(qgis_app, ["native:centroids"])
+        # the registry is still empty
+        client.set.return_value = True
+        assert RedisEngine.write_process_registry(client, process_descriptions)
+        # the descriptions are written only if no other worker did it already
+        assert client.set.call_args.args[0] == RedisProtocol.process_registry_key
+        assert client.set.call_args.kwargs == {"nx": True}
+        registry_json = client.set.call_args.args[1]
+        assert JsonParser().from_string(registry_json, ProcessDescriptions) == process_descriptions
+
+    def test_second_write_keeps_entry(self, qgis_app, client):
+        # another worker wrote the registry already, redis refuses to set it again
+        client.set.return_value = None
+        assert not RedisEngine.write_process_registry(
+            client, ProcessRunner.info(qgis_app, ["native:buffer"])
+        )
