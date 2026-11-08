@@ -19,6 +19,7 @@ from xsdata.formats.dataclass.serializers.dict import DictFactory
 
 from qgis_server_light.interface.dispatcher.common import Status
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.interface.job.common.input import ExecutionMode
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import QslJobInfoExecuteProcess
@@ -200,6 +201,8 @@ class RedisEngine(Engine):
                 if result is not None:
                     _, job_id = result
                     start_time = time.time()
+                    job_info_class_name = None
+                    job_info = None
                     try:
                         # we inform, that the job is running.
                         self.set_job_runtime_status(job_id, p, Status.RUNNING.value, start_time)
@@ -213,28 +216,60 @@ class RedisEngine(Engine):
                         job_info_class = self.available_job_info_classes[job_info_class_name]
                         job_info = JsonParser().from_string(job_info_json, job_info_class)
                         result: JobResult = self.process(job_info)
-                        result.worker_id = self.info.id
-                        result.worker_host_name = socket.gethostname()
-                        data = pickle.dumps(result)
 
-                        # we inform, that the job was finished successful
-                        self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
+                        if RedisProtocol.keeps_state(job_info_class_name):
+                            # we keep the result in the job hash, written in the same
+                            # transaction as the final status
+                            p.hset(
+                                RedisProtocol.job_key(job_id),
+                                RedisProtocol.job_result_key,
+                                result.data,
+                            )
+                            p.hset(
+                                RedisProtocol.job_key(job_id),
+                                RedisProtocol.job_result_content_type_key,
+                                result.content_type,
+                            )
+                            p.expire(RedisProtocol.job_key(job_id), RedisProtocol.job_expire)
+                            self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
+                            # the notification only wakes a waiting dispatcher, the job
+                            # hash is written already
+                            if job_info.execution_mode == ExecutionMode.SYNC:
+                                p.publish(RedisProtocol.channel(job_id), Status.SUCCESS.value)
+                        else:
+                            result.worker_id = self.info.id
+                            result.worker_host_name = socket.gethostname()
+                            data = pickle.dumps(result)
 
-                        # we publish the result to any subscribers
-                        p.publish(RedisProtocol.channel(job_id), data)
+                            # we inform, that the job was finished successful
+                            self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
+
+                            # we publish the result to any subscribers
+                            p.publish(RedisProtocol.channel(job_id), data)
 
                     except Exception as e:
-                        # preparation of the result, containing error information
-                        result = JobResult(id=job_id, data=str(e), content_type="text")
-                        result.worker_id = self.info.id
-                        result.worker_host_name = socket.gethostname()
-                        data = pickle.dumps(result)
+                        if RedisProtocol.keeps_state(job_info_class_name):
+                            p.hset(
+                                RedisProtocol.job_key(job_id),
+                                RedisProtocol.job_message_key,
+                                str(e),
+                            )
+                            p.expire(RedisProtocol.job_key(job_id), RedisProtocol.job_expire)
+                            self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
+                            if job_info is None or job_info.execution_mode == ExecutionMode.SYNC:
+                                p.publish(RedisProtocol.channel(job_id), Status.FAILURE.value)
+                        else:
+                            # preparation of the result, containing error information
+                            result = JobResult(id=job_id, data=str(e), content_type="text")
+                            result.worker_id = self.info.id
+                            result.worker_host_name = socket.gethostname()
+                            data = pickle.dumps(result)
 
-                        # we inform, that the job has failed with errors
-                        self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
+                            # we inform, that the job has failed with errors
+                            self.set_job_runtime_status(job_id, p, Status.FAILURE.value, start_time)
 
-                        # we publish the result to any subscribers
-                        p.publish(RedisProtocol.channel(job_id), data)
+                            # we publish the result to any subscribers
+                            p.publish(RedisProtocol.channel(job_id), data)
 
                         # we provide error information to the logs
                         logging.error(e, exc_info=True)

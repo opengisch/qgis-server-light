@@ -4,6 +4,7 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
@@ -12,6 +13,7 @@ from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
+from qgis_server_light.interface.job.process.output import ParameterOutput, ProcessResult
 from qgis_server_light.processing.description import ProcessDescriptionMapper
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
@@ -73,8 +75,14 @@ class ProcessRunner(MapRunner):
         if not ok:
             raise RuntimeError(f"Algorithm `{job.process_id}` failed: {feedback.textLog()}")
 
+        process_result = ProcessResult(log=feedback.textLog())
+        for name, value in result.items():
+            if not isinstance(value, (str, int, float, bool)):
+                raise ValueError(f"Unexpected output value: {value}")
+            process_result.outputs.append(ParameterOutput(name, value))
+
         return JobResult(
             id=self.job_info.id,
-            data={"result": result, "ok": ok, "log": feedback.textLog()},
-            content_type="application/json",
+            data=JsonSerializer().render(process_result).encode(),
+            content_type="application/qgis-server-light.interface.job.process.ProcessResult",
         )

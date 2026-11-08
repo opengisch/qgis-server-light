@@ -13,9 +13,10 @@ from redis.client import Pipeline
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.interface.dispatcher.common import Status
+from qgis_server_light.interface.dispatcher.common import JobState, Status
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.input import (
+    ExecutionMode,
     QslJobInfoParameter,
     QslJobParameter,
 )
@@ -118,6 +119,68 @@ class RedisQueue(RedisProtocol):
         if execute:
             await pipeline.execute()
 
+    async def submit(
+        self,
+        job_id: str,
+        job_parameter: QslJobParameterExecuteProcess,
+        execution_mode: ExecutionMode = ExecutionMode.ASYNC,
+    ) -> None:
+        job_info = derive_job_info(job_id, job_parameter)
+        if not self.keeps_state(job_info.type):
+            raise TypeError(f"Job type {job_info.type} has to be posted")
+        job_info.execution_mode = execution_mode
+        start_time = time.time()
+        async with self.client.pipeline() as p:
+            await p.hset(self.job_key(job_id), self.job_info_key, JsonSerializer().render(job_info))
+            await p.hset(self.job_key(job_id), self.job_info_type_key, job_info.type)
+            await self.set_job_runtime_status(
+                job_id, p, Status.QUEUED.value, start_time, execute=False
+            )
+            await p.expire(self.job_key(job_id), self.job_expire)
+            await p.rpush(self.queue_name(job_info.type), job_id)
+            await p.execute()
+        logging.info(f"{job_id} submitted")
+
+    async def state(self, job_id: str) -> JobState | None:
+        job_hash = await self.client.hgetall(self.job_key(job_id))
+        if not job_hash:
+            return None
+        job_hash = {key.decode(): value for key, value in job_hash.items()}
+        result = None
+        if self.job_result_key in job_hash:
+            result = JobResult(
+                id=job_id,
+                data=job_hash[self.job_result_key],
+                content_type=job_hash[self.job_result_content_type_key].decode(),
+            )
+        message = job_hash.get(self.job_message_key)
+        last_update = job_hash.get(self.job_last_update_key)
+        return JobState(
+            id=job_id,
+            status=Status(job_hash[self.job_status_key].decode()),
+            last_update=last_update.decode() if last_update is not None else None,
+            result=result,
+            message=message.decode() if message is not None else None,
+        )
+
+    async def wait(self, job_id: str, to: float = 10.0) -> JobState | None:
+        async with self.client.pubsub() as ps:
+            # We subscribe before reading the state, so a notification published in
+            # between is not lost.
+            await ps.subscribe(self.channel(job_id))
+            job_state = await self.state(job_id)
+            if job_state is None or job_state.finished:
+                return job_state
+            try:
+                async with timeout(to):
+                    while True:
+                        message = await ps.get_message(timeout=to, ignore_subscribe_messages=True)
+                        if message:
+                            break
+            except (TimeoutError, asyncio.exceptions.CancelledError):
+                logging.info(f"{job_id} timeout")
+        return await self.state(job_id)
+
     async def post(
         self,
         job_parameter: (
@@ -143,6 +206,8 @@ class RedisQueue(RedisProtocol):
         start_time = time.time()
         try:
             job_info = derive_job_info(job_id, job_parameter)
+            if self.keeps_state(job_info.type):
+                raise TypeError(f"Job type {job_info.type} has to be submitted")
         except TypeError as e:
             return (
                 JobResult(
