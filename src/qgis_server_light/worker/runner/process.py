@@ -1,21 +1,18 @@
 from collections.abc import MutableMapping
 from qgis.core import (
-    Qgis,
     QgsApplication,
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
 
-from qgis_server_light.interface.exporter.extract import (
-    Process,
-)
 from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
-from qgis_server_light.processing import algorithm_from_qgs_definition
+from qgis_server_light.processing.description import ProcessDescriptionMapper
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
@@ -33,17 +30,30 @@ class ProcessRunner(MapRunner):
         self.registry = self.qgis.processingRegistry()
 
     @classmethod
-    def info(cls, qgis: Qgis) -> Process:
+    def info(cls, qgis: QgsApplication, process_allowlist: list[str]) -> ProcessDescriptions:
+        """The descriptions of the processes the worker serves.
+
+        Args:
+            qgis: The QGIS application holding the processing registry.
+            process_allowlist: The ids of the QGIS algorithms the worker serves.
+
+        Raises:
+            LookupError: If an algorithm of the allowlist is not in the processing registry.
+        """
         registry = qgis.processingRegistry()
-        algorithms = registry.algorithms()
-        process = Process()
-        for alg in algorithms:
-            algorithm = algorithm_from_qgs_definition(alg)
-            process.algorithms.append(algorithm)
-        return process
+        mapper = ProcessDescriptionMapper()
+        process_descriptions = ProcessDescriptions()
+        for process_id in process_allowlist:
+            algorithm = registry.algorithmById(process_id)
+            if algorithm is None:
+                raise LookupError(f"Algorithm `{process_id}` of the allowlist not found")
+            process_descriptions.processes.append(mapper.process_description(algorithm))
+        return process_descriptions
 
     def run(self):
         job: QslJobParameterExecuteProcess = self.job_info.job
+        if job.process_id not in self.context.process_allowlist:
+            raise RuntimeError(f"Algorithm `{job.process_id}` is not served by this worker")
         algorithm = self.registry.algorithmById(job.process_id)
         if algorithm is None:
             raise RuntimeError(f"Algorithm `{job.process_id}` not found")

@@ -26,6 +26,10 @@ class RedisProtocol:
     The result of a job is published to the channel `notifications:{id}` (see
     `channel`).
 
+    A process-worker writes the descriptions of the processes it serves as JSON
+    (`ProcessDescriptions`) under `process_registry_key` on boot, unless the key
+    exists already.
+
     Attributes:
         job_queue_name: The name of the redis list the ids of map related jobs
             are queued on.
@@ -40,6 +44,8 @@ class RedisProtocol:
         job_duration_key: The hash field holding the job duration.
         job_timestamp_key: The prefix of the hash fields holding the timestamps.
         job_last_update_key: The hash field holding the timestamp of the last update.
+        process_registry_key: The key holding the descriptions of the processes the
+            process-workers serve.
     """
 
     job_queue_name: str = "jobs"
@@ -59,6 +65,7 @@ class RedisProtocol:
     job_duration_key: str = "duration"
     job_timestamp_key: str = "timestamp"
     job_last_update_key: str = f"{job_timestamp_key}.last_update"
+    process_registry_key: str = "processes"
 
     @staticmethod
     def job_key(job_id: str) -> str:

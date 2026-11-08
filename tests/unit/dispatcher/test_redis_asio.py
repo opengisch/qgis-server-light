@@ -2,6 +2,8 @@ import asyncio
 import pickle
 
 import pytest
+from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers.dict import DictFactory
 
 from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info, job_info_classes
 from qgis_server_light.interface.common import BBox
@@ -19,6 +21,12 @@ from qgis_server_light.interface.job.feature_info.input import (
 from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
+)
+from qgis_server_light.interface.job.process.description import (
+    InputDescription,
+    ProcessDescription,
+    ProcessDescriptions,
+    Schema,
 )
 from qgis_server_light.interface.job.process.input import (
     ParameterInput,
@@ -107,6 +115,10 @@ class FakePubSub:
 class FakeRedisClient:
     def __init__(self):
         self.calls = []
+        self.values = {}
+
+    async def get(self, key):
+        return self.values.get(key)
 
     def pipeline(self):
         return FakePipeline(self.calls)
@@ -167,3 +179,41 @@ class TestRedisQueue:
         asyncio.run(RedisQueue(client).post(job_parameter))
         queue_names = [call[1] for call in client.calls if call[0] == "rpush"]
         assert queue_names == [expected_queue_name]
+
+
+class TestProcessRegistry:
+    def test_protocol(self):
+        assert RedisQueue.process_registry_key == "processes"
+
+    def test_process_descriptions_empty_without_registry(self):
+        client = FakeRedisClient()
+        assert asyncio.run(RedisQueue(client).process_descriptions()) == ProcessDescriptions()
+
+    @pytest.mark.parametrize(
+        "process_descriptions",
+        [
+            ProcessDescriptions(
+                processes=[
+                    ProcessDescription(
+                        id="native:centroids",
+                        title="Centroids",
+                        inputs=[
+                            InputDescription(
+                                id="ALL_PARTS",
+                                title="Create centroid for each part",
+                                schema=Schema(type="boolean", default=False),
+                            )
+                        ],
+                    )
+                ]
+            )
+        ],
+    )
+    def test_process_descriptions(self, process_descriptions):
+        client = FakeRedisClient()
+        client.values[RedisQueue.process_registry_key] = (
+            JsonSerializer(dict_factory=DictFactory.FILTER_NONE)
+            .render(process_descriptions)
+            .encode()
+        )
+        assert asyncio.run(RedisQueue(client).process_descriptions()) == process_descriptions

@@ -56,7 +56,7 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path),
+            JobContext(base_path=data_path, process_allowlist=["native:buffer"]),
             job_info,
             {},
         )
@@ -99,7 +99,7 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path),
+            JobContext(base_path=data_path, process_allowlist=["native:centroids"]),
             job_info,
             {},
         )
@@ -121,7 +121,7 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path),
+            JobContext(base_path=data_path, process_allowlist=["native:does_not_exist"]),
             job_info,
             {},
         )
@@ -146,9 +146,45 @@ class TestProcessRunnerIntegration:
 
         runner = ProcessRunner(
             qgis_app,
-            JobContext(base_path=data_path),
+            JobContext(base_path=data_path, process_allowlist=["native:centroids"]),
             job_info,
             {},
         )
         with pytest.raises(RuntimeError, match="native:centroids` failed"):
             runner.run()
+
+    def test_execute_algorithm_not_served(self, qgis_app, data_path):
+        job_info = QslJobInfoExecuteProcess(
+            id=str(uuid.uuid4()),
+            type=QslJobInfoExecuteProcess.__name__,
+            job=QslJobParameterExecuteProcess(
+                process_id="native:centroids",
+                parameters=[],
+            ),
+        )
+
+        runner = ProcessRunner(
+            qgis_app,
+            JobContext(base_path=data_path, process_allowlist=["native:buffer"]),
+            job_info,
+            {},
+        )
+        with pytest.raises(RuntimeError, match="native:centroids` is not served"):
+            runner.run()
+
+
+class TestProcessRunnerInfo:
+    @pytest.mark.parametrize(
+        "process_allowlist",
+        [
+            ["native:centroids"],
+            ["native:buffer", "native:centroids"],
+        ],
+    )
+    def test_info_follows_allowlist(self, qgis_app, process_allowlist):
+        process_descriptions = ProcessRunner.info(qgis_app, process_allowlist)
+        assert [process.id for process in process_descriptions.processes] == process_allowlist
+
+    def test_info_unknown_algorithm(self, qgis_app):
+        with pytest.raises(LookupError, match="native:does_not_exist` of the allowlist"):
+            ProcessRunner.info(qgis_app, ["native:does_not_exist"])

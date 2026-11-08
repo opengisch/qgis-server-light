@@ -11,7 +11,7 @@ from qgis_server_light.interface.exporter.extract import (
     ProcessingParameterTypeInt,
     ProcessingParameterTypeVectorLayer,
 )
-from qgis_server_light.processing import (
+from qgis_server_light.processing.algorithm import (
     algorithm_from_qgs_definition,
     parameter_type_from_qgs_definition,
 )

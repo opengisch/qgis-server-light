@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from redis import asyncio as redis_aio
 from redis.client import Pipeline
+from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status
@@ -35,6 +36,7 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
@@ -86,6 +88,14 @@ class RedisQueue(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
+
+    async def process_descriptions(self) -> ProcessDescriptions:
+        """The descriptions of the processes the process-workers serve, read from the
+        process registry. Empty as long as no process-worker has booted."""
+        registry_json = await self.client.get(self.process_registry_key)
+        if registry_json is None:
+            return ProcessDescriptions()
+        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
 
     async def set_job_runtime_status(
         self,
