@@ -26,6 +26,18 @@ from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
 class ProcessRunner(MapRunner):
+    """Responsible for executing a QGIS processing algorithm as a process.
+
+    The runner decides on its own where the outputs go, the client only sends
+    the inputs. This way concurrent jobs never write into the same file and a
+    client can't make the worker write anywhere on its file system.
+
+    Attributes:
+        media_type_by_extension: The media types of the file extensions a
+            destination may have. A destination with another extension is
+            refused, the runner does not guess what the client gets.
+    """
+
     job_info_class = QslJobInfoExecuteProcess
     media_type_by_extension = {
         "gpkg": "application/geopackage+sqlite3",
@@ -67,6 +79,19 @@ class ProcessRunner(MapRunner):
         return process_descriptions
 
     def run(self):
+        """Run this runner.
+
+        Every job writes into its own dir `{process_output_dir}/{job_id}`. If the
+        job fails, the dir is removed again, so only successful jobs leave files
+        behind.
+
+        Returns:
+            A JobResult with the ProcessResult as JSON.
+
+        Raises:
+            RuntimeError: If the algorithm is not served by this worker, is not
+                found or no process output dir is configured.
+        """
         job: QslJobParameterExecuteProcess = self.job_info.job
         if job.process_id not in self.context.process_allowlist:
             raise RuntimeError(f"Algorithm `{job.process_id}` is not served by this worker")
@@ -101,6 +126,13 @@ class ProcessRunner(MapRunner):
         """The parameters the client sent, mapped to what the algorithm expects.
         Destinations are left out, the worker sets them on its own.
 
+        Args:
+            algorithm: The algorithm the parameters are meant for.
+            job: The job holding the parameters of the client.
+
+        Returns:
+            The parameters by name, ready to be passed to the algorithm.
+
         Raises:
             ValueError: If the client sent a destination or a value of an
                 unexpected type.
@@ -123,6 +155,15 @@ class ProcessRunner(MapRunner):
     ) -> dict[str, Path]:
         """The files the destinations of the algorithm are written to, by
         destination name. The worker sets them, so concurrent jobs never collide.
+        The extension is checked here, before the algorithm runs, so a job
+        doesn't do all the work only to fail on an output nobody can read.
+
+        Args:
+            algorithm: The algorithm whose destinations are set.
+            job_output_dir: The dir of the job, the destination files go into.
+
+        Returns:
+            The absolute destination files by destination name.
 
         Raises:
             ValueError: If there is no media type for the file extension of a
@@ -141,7 +182,14 @@ class ProcessRunner(MapRunner):
 
     def _file_output(self, destination: Path) -> FileOutput:
         """The destination as the client sees it, relative to the process output
-        dir, so the worker does not leak its own file system layout."""
+        dir, so the worker does not leak its own file system layout.
+
+        Args:
+            destination: The absolute destination file as set by `_destinations`.
+
+        Returns:
+            The relative path and the media type of the file.
+        """
         return FileOutput(
             path=destination.relative_to(self.context.process_output_dir).as_posix(),
             media_type=self.media_type_by_extension[destination.suffix.removeprefix(".")],
@@ -154,7 +202,16 @@ class ProcessRunner(MapRunner):
         destinations: dict[str, Path],
     ) -> ProcessResult:
         """Runs the algorithm and collects its outputs. Outputs written to a
-        file are referenced, all others are returned inline.
+        file are referenced, all others are returned inline. For files the
+        destination the worker set counts, not the path QGIS returns.
+
+        Args:
+            algorithm: The algorithm to run.
+            parameters: The parameters by name, destinations included.
+            destinations: The destination files by destination name.
+
+        Returns:
+            The outputs and the log of the algorithm.
 
         Raises:
             RuntimeError: If the algorithm failed.
