@@ -4,16 +4,30 @@ from qgis_server_light.interface.common import BaseInterface
 
 
 @dataclass
+class FileOutput:
+    """A file a process wrote into the process output dir of the worker.
+
+    Attributes:
+        path: The path of the file relative to the process output dir.
+        media_type: The media type of the file.
+    """
+
+    path: str = field(metadata={"type": "Element"})
+    media_type: str = field(metadata={"type": "Element"})
+
+
+@dataclass
 class ParameterOutput:
     """A single output of a process, the counterpart of `ParameterInput`.
 
     Attributes:
         name: The name of the output as the QGIS algorithm defines it.
-        value: The literal value of the output.
+        value: The file the output was written to, or the literal value of the
+            output.
     """
 
     name: str = field(metadata={"type": "Element"})
-    value: str | int | float | bool = field(metadata={"type": "Element"})
+    value: FileOutput | str | int | float | bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -23,8 +37,7 @@ class ProcessResult(BaseInterface):
     anything about QGIS.
 
     Attributes:
-        outputs: The outputs of the process. Only literal values are supported
-            for now.
+        outputs: The outputs of the process.
         log: The log the QGIS algorithm wrote while it was running.
     """
 

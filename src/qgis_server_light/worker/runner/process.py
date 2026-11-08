@@ -1,6 +1,9 @@
 from collections.abc import MutableMapping
+import shutil
+from pathlib import Path
 from qgis.core import (
     QgsApplication,
+    QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
@@ -13,13 +16,24 @@ from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
-from qgis_server_light.interface.job.process.output import ParameterOutput, ProcessResult
+from qgis_server_light.interface.job.process.output import (
+    FileOutput,
+    ParameterOutput,
+    ProcessResult,
+)
 from qgis_server_light.processing.description import ProcessDescriptionMapper
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
 
 
 class ProcessRunner(MapRunner):
     job_info_class = QslJobInfoExecuteProcess
+    media_type_by_extension = {
+        "gpkg": "application/geopackage+sqlite3",
+        "geojson": "application/geo+json",
+        "tif": "image/tiff; application=geotiff",
+        "csv": "text/csv",
+        "html": "text/html",
+    }
 
     def __init__(
         self,
@@ -59,9 +73,14 @@ class ProcessRunner(MapRunner):
         algorithm = self.registry.algorithmById(job.process_id)
         if algorithm is None:
             raise RuntimeError(f"Algorithm `{job.process_id}` not found")
+        if self.context.process_output_dir is None:
+            raise RuntimeError("No process output dir configured")
 
         parameters = {}
         for param in job.parameters:
+            definition = algorithm.parameterDefinition(param.name)
+            if definition is not None and definition.isDestination():
+                raise ValueError(f"Destination `{param.name}` is set by the worker")
             if isinstance(param.value, QslJobLayer):
                 parameters[param.name] = self._handle_layer_cache(param.value)
             elif isinstance(param.value, (str, int, float, bool)):
@@ -69,20 +88,73 @@ class ProcessRunner(MapRunner):
             else:
                 raise ValueError(f"Unexpected value: {param.value}")
 
-        context = QgsProcessingContext()
-        feedback = QgsProcessingFeedback()
-        result, ok = algorithm.run(parameters, context, feedback)
-        if not ok:
-            raise RuntimeError(f"Algorithm `{job.process_id}` failed: {feedback.textLog()}")
+        file_outputs = self._file_outputs(algorithm)
+        for name, file_output in file_outputs.items():
+            parameters[name] = str(Path(self.context.process_output_dir, file_output.path))
 
-        process_result = ProcessResult(log=feedback.textLog())
-        for name, value in result.items():
-            if not isinstance(value, (str, int, float, bool)):
-                raise ValueError(f"Unexpected output value: {value}")
-            process_result.outputs.append(ParameterOutput(name, value))
+        job_output_dir = Path(self.context.process_output_dir, self.job_info.id)
+        job_output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            process_result = self._run_algorithm(algorithm, parameters, file_outputs)
+        except Exception:
+            # only successful jobs leave files behind (we avoid half created corpse)
+            shutil.rmtree(job_output_dir, ignore_errors=True)
+            raise
 
         return JobResult(
             id=self.job_info.id,
             data=JsonSerializer().render(process_result).encode(),
             content_type="application/qgis-server-light.interface.job.process.ProcessResult",
         )
+
+    def _file_outputs(self, algorithm: QgsProcessingAlgorithm) -> dict[str, FileOutput]:
+        """The files the destinations of the algorithm are written to, by
+        destination name. The worker sets them, so concurrent jobs never collide.
+
+        Raises:
+            ValueError: If there is no media type for the file extension of a
+                destination.
+        """
+        file_outputs = {}
+        for definition in algorithm.destinationParameterDefinitions():
+            extension = definition.defaultFileExtension()
+            media_type = self.media_type_by_extension.get(extension)
+            if media_type is None:
+                raise ValueError(
+                    f"No media type for extension `{extension}` of destination "
+                    f"`{definition.name()}`"
+                )
+            file_outputs[definition.name()] = FileOutput(
+                path=f"{self.job_info.id}/{definition.name()}.{extension}",
+                media_type=media_type,
+            )
+        return file_outputs
+
+    def _run_algorithm(
+        self,
+        algorithm: QgsProcessingAlgorithm,
+        parameters: dict,
+        file_outputs: dict[str, FileOutput],
+    ) -> ProcessResult:
+        """Runs the algorithm and collects its outputs. Outputs written to a
+        file are referenced, all others are returned inline.
+
+        Raises:
+            RuntimeError: If the algorithm failed.
+            ValueError: If an output is neither a file nor a literal value.
+        """
+        context = QgsProcessingContext()
+        feedback = QgsProcessingFeedback()
+        result, ok = algorithm.run(parameters, context, feedback)
+        if not ok:
+            raise RuntimeError(f"Algorithm `{algorithm.id()}` failed: {feedback.textLog()}")
+
+        process_result = ProcessResult(log=feedback.textLog())
+        for name, value in result.items():
+            if name in file_outputs:
+                process_result.outputs.append(ParameterOutput(name, file_outputs[name]))
+            elif isinstance(value, (str, int, float, bool)):
+                process_result.outputs.append(ParameterOutput(name, value))
+            else:
+                raise ValueError(f"Unexpected output value: {value}")
+        return process_result

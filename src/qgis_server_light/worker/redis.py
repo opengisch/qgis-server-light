@@ -32,6 +32,7 @@ from qgis_server_light.worker.engine import Engine, EngineContext
 
 DEFAULT_DATA_ROOT = "/io/data"
 DEFAULT_SVG_PATH = "/io/svg"
+DEFAULT_PROCESS_OUTPUT_DIR = "/io/process_output"
 DEFAULT_RUNNER_PLUGINS = ":".join(
     [
         "qgis_server_light.worker.runner.render.RenderRunner",
@@ -460,6 +461,15 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--process-output-dir",
+        type=str,
+        help="Absolute path to the dir the processes write their outputs to, each job "
+        "into its own sub dir. Only used when the worker boots with the process runner. "
+        f"Defaults to {DEFAULT_PROCESS_OUTPUT_DIR}",
+        default=DEFAULT_PROCESS_OUTPUT_DIR,
+    )
+
+    parser.add_argument(
         "--engine",
         type=str,
         choices=list(engine_classes),
@@ -483,7 +493,7 @@ def main() -> None:
     runner_plugins = args.runner_plugins.split(":")
     process_allowlist = args.process_allowlist.split(",")
     engine = engine_classes[args.engine](
-        EngineContext(args.data_root, process_allowlist),
+        EngineContext(args.data_root, process_allowlist, args.process_output_dir),
         runner_plugins,
         svg_paths=svg_paths,
     )

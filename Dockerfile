@@ -53,6 +53,8 @@ RUN groupadd --system --gid $GID nonroot \
 WORKDIR /app
 
 RUN chown -R $UID:$GID /app
+# the process-worker writes here, a fresh volume mounted on it takes over the owner
+RUN mkdir -p /io/process_output && chown $UID:$GID /io/process_output
 RUN mkdir -p $UV_CACHE_DIR_RUN_TIME
 RUN chown -R $UID:$GID $UV_CACHE_DIR_RUN_TIME
 
@@ -152,6 +154,9 @@ ENV QSL_LOG_LEVEL=info
 WORKDIR /io/data
 WORKDIR /io/svg
 WORKDIR /app
+
+# the process-worker writes here, a fresh volume mounted on it takes over the owner
+RUN mkdir -p /io/process_output && chown 1001 /io/process_output
 
 COPY docker/prod.run-worker.sh /usr/local/bin/
 COPY --from=worker-builder /app/.venv /app/.venv
