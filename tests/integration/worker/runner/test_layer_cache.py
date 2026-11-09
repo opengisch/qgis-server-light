@@ -1,12 +1,14 @@
 import os
 import shutil
 import uuid
+import zlib
+from base64 import urlsafe_b64encode
 
 import pytest
 from qgis.core import QgsVectorLayer
 from xsdata.formats.dataclass.parsers import JsonParser
 
-from qgis_server_light.interface.common import BBox
+from qgis_server_light.interface.common import BBox, Style
 from qgis_server_light.interface.job.feature.input import (
     FeatureQuery,
     QslJobInfoFeature,
