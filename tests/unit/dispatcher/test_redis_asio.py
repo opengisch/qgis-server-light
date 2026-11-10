@@ -1,10 +1,13 @@
 import asyncio
 import pickle
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.dispatcher.redis_asio import RedisQueue, derive_job_info
 from qgis_server_light.interface.common import BBox
@@ -27,6 +30,8 @@ from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
+from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
+from qgis_server_light.interface.worker.info import Status as WorkerStatus
 
 
 class TestDeriveJobInfo:
@@ -65,59 +70,25 @@ class TestDeriveJobInfo:
             derive_job_info("blabla", QslJobParameter())
 
 
-class FakePipeline:
-    def __init__(self, calls: list):
-        self.calls = calls
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        return False
-
-    async def hset(self, key, field, value):
-        self.calls.append(("hset", key, field))
-
-    async def rpush(self, name, value):
-        self.calls.append(("rpush", name, value))
-
-    async def execute(self):
-        self.calls.append(("execute",))
+@pytest.fixture
+def pipeline():
+    yield AsyncMock()
 
 
-class FakePubSub:
-    def __init__(self, calls: list):
-        self.calls = calls
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        return False
-
-    async def subscribe(self, channel):
-        self.calls.append(("subscribe", channel))
-
-    async def get_message(self, timeout, ignore_subscribe_messages):
-        job_id = next(call[2] for call in self.calls if call[0] == "rpush")
-        return {"data": pickle.dumps(JobResult(id=job_id, data=b"", content_type="image/png"))}
+@pytest.fixture
+def pubsub():
+    yield AsyncMock()
 
 
-class FakeRedisClient:
-    def __init__(self):
-        self.calls = []
-
-    def pipeline(self):
-        return FakePipeline(self.calls)
-
-    def pubsub(self):
-        return FakePubSub(self.calls)
-
-    async def hget(self, key, field):
-        return Status.SUCCESS.value.encode()
-
-    async def delete(self, key):
-        self.calls.append(("delete", key))
+@pytest.fixture
+def client(pipeline, pubsub):
+    # redis commands are awaited, only opening a pipeline or a subscription is not
+    client = AsyncMock()
+    client.pipeline = MagicMock()
+    client.pipeline.return_value.__aenter__.return_value = pipeline
+    client.pubsub = MagicMock()
+    client.pubsub.return_value.__aenter__.return_value = pubsub
+    yield client
 
 
 class TestRedisQueue:
@@ -126,49 +97,64 @@ class TestRedisQueue:
         assert RedisQueue.job_key("my_cool_id") == "job:my_cool_id"
         assert RedisQueue.channel("my_cool_id") == "notifications:my_cool_id"
 
-    def test_post_subscribes_before_queuing(self):
-        client = FakeRedisClient()
+    def test_post_subscribes_before_queuing(self, client, pipeline, pubsub, monkeypatch):
+        monkeypatch.setattr("qgis_server_light.dispatcher.redis_asio.uuid4", lambda: "my_cool_id")
+        # the worker finished the job successfully
+        pubsub.get_message.return_value = {
+            "data": pickle.dumps(JobResult(id="my_cool_id", data=b"", content_type="image/png"))
+        }
+        client.hget.return_value = Status.SUCCESS.value.encode()
+        # one recorder for both, so the order of subscribing and queuing is visible
+        recorder = Mock()
+        recorder.attach_mock(pubsub.subscribe, "subscribe")
+        recorder.attach_mock(pipeline.rpush, "rpush")
+
         result, status = asyncio.run(RedisQueue(client).post(QslJobParameterLegend(layers=[])))
         assert status == Status.SUCCESS.value
-        names = [call[0] for call in client.calls]
-        assert names.index("subscribe") < names.index("rpush")
+        # a fast job could publish its result before anyone listens, so we subscribe first
+        assert recorder.mock_calls == [
+            call.subscribe("notifications:my_cool_id"),
+            call.rpush("jobs", "my_cool_id"),
+        ]
 
-    def test_post_sets_queued_status_in_queuing_transaction(self):
-        client = FakeRedisClient()
+    def test_post_sets_queued_status_in_queuing_transaction(
+        self, client, pipeline, pubsub, monkeypatch
+    ):
+        monkeypatch.setattr("qgis_server_light.dispatcher.redis_asio.uuid4", lambda: "my_cool_id")
+        pubsub.get_message.return_value = {
+            "data": pickle.dumps(JobResult(id="my_cool_id", data=b"", content_type="image/png"))
+        }
+        client.hget.return_value = Status.SUCCESS.value.encode()
+
         asyncio.run(RedisQueue(client).post(QslJobParameterLegend(layers=[])))
-        job_id = next(call[2] for call in client.calls if call[0] == "rpush")
-        job_key = RedisQueue.job_key(job_id)
-        status_index = client.calls.index(("hset", job_key, RedisQueue.job_status_key))
-        rpush_index = next(index for index, call in enumerate(client.calls) if call[0] == "rpush")
-        execute_indexes = [index for index, call in enumerate(client.calls) if call[0] == "execute"]
-        assert execute_indexes == [rpush_index + 1]
-        assert status_index < rpush_index
+        # the queued status is written before the job is queued and in the same
+        # transaction, so it can't overwrite a status the worker set already
+        assert pipeline.mock_calls == [
+            call.hset("job:my_cool_id", "info", ANY),
+            call.hset("job:my_cool_id", "info_type", "QslJobInfoLegend"),
+            call.hset("job:my_cool_id", "status", "queued"),
+            call.hset("job:my_cool_id", "timestamp.queued", ANY),
+            call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+            call.hset("job:my_cool_id", "duration", ANY),
+            call.rpush("jobs", "my_cool_id"),
+            call.execute(),
+        ]
 
 
-class FakeWorkerRedisClient:
-    """Holds sets and hashes the way they are laid out in redis, keyed by their redis
-    names, so the test shows which keys the dispatcher has to read."""
-
-    def __init__(self, sets: dict, hashes: dict, ping_error: Exception | None = None):
-        self.sets = sets
-        self.hashes = hashes
-        self.ping_error = ping_error
-
-    async def ping(self):
-        if self.ping_error is not None:
-            raise self.ping_error
-        return True
-
-    async def smembers(self, name):
-        return self.sets.get(name, set())
-
-    async def hget(self, key, field):
-        return self.hashes.get(key, {}).get(field)
+@pytest.fixture
+def engine_info():
+    yield EngineInfo(
+        id="worker-a",
+        qgis_info=QgisInfo(version=34400, version_name="3.44", path="/usr"),
+        status=WorkerStatus.WAITING,
+        started=0.0,
+    )
 
 
 class TestRedisQueueIsReachable:
     def test_reachable(self):
-        client = FakeWorkerRedisClient(sets={}, hashes={})
+        client = AsyncMock()
+        client.ping.return_value = True
         assert asyncio.run(RedisQueue(client).is_reachable()) is True
 
     @pytest.mark.parametrize(
@@ -181,59 +167,115 @@ class TestRedisQueueIsReachable:
     def test_unreachable(self, ping_error):
         # the caller only gets to know that redis is not reachable, the redis exception
         # stays inside the dispatcher
-        client = FakeWorkerRedisClient(sets={}, hashes={}, ping_error=ping_error)
+        client = AsyncMock()
+        client.ping.side_effect = ping_error
         assert asyncio.run(RedisQueue(client).is_reachable()) is False
 
 
-class TestRedisQueueAliveWorkers:
-    def test_alive_and_stale_workers(self):
+class TestRedisQueueRegisteredWorkers:
+    def test_stale_and_crashed_workers_are_registered(self, engine_info):
         now = datetime.now(UTC)
         alive_last_seen = now - timedelta(seconds=1)
         stale_last_seen = now - timedelta(seconds=60)
-        client = FakeWorkerRedisClient(
-            sets={"workers": {b"worker-alive", b"worker-stale"}},
-            hashes={
-                "worker:worker-alive": {"last_seen": alive_last_seen.isoformat().encode()},
-                "worker:worker-stale": {"last_seen": stale_last_seen.isoformat().encode()},
-            },
-        )
-        # the stale worker missed far more heartbeats than allowed, it is not reported
-        assert asyncio.run(RedisQueue(client).alive_workers()) == [
-            Worker(id="worker-alive", last_seen=alive_last_seen)
+        crashed_info = replace(engine_info, status=WorkerStatus.CRASHED)
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-alive", b"worker-stale", b"worker-crashed"}
+        # last_seen and info of each worker, in the order of the sorted ids
+        client.hmget.side_effect = [
+            [alive_last_seen.isoformat().encode(), JsonSerializer().render(engine_info).encode()],
+            [alive_last_seen.isoformat().encode(), JsonSerializer().render(crashed_info).encode()],
+            [stale_last_seen.isoformat().encode(), JsonSerializer().render(engine_info).encode()],
+        ]
+
+        # every worker redis still knows is reported, the consumer tells them apart by
+        # the age of the heartbeat and the status in the info
+        assert asyncio.run(RedisQueue(client).registered_workers()) == [
+            Worker(id="worker-alive", last_seen=alive_last_seen, info=engine_info),
+            Worker(id="worker-crashed", last_seen=alive_last_seen, info=crashed_info),
+            Worker(id="worker-stale", last_seen=stale_last_seen, info=engine_info),
+        ]
+        # these are the keys the dispatcher reads
+        client.smembers.assert_awaited_once_with("workers")
+        assert client.hmget.await_args_list == [
+            call("worker:worker-alive", ["last_seen", "info"]),
+            call("worker:worker-crashed", ["last_seen", "info"]),
+            call("worker:worker-stale", ["last_seen", "info"]),
         ]
 
     def test_worker_without_heartbeat_is_left_out(self):
         # the worker is still in the list but its hash expired already (e.g. it was killed)
-        client = FakeWorkerRedisClient(sets={"workers": {b"worker-gone"}}, hashes={})
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-gone"}
+        client.hmget.return_value = [None, None]
+        assert asyncio.run(RedisQueue(client).registered_workers()) == []
+
+    def test_worker_without_info_is_left_out(self):
+        # a worker of an older version lost its info with a redis restart, only its
+        # heartbeat came back
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-old"}
+        client.hmget.return_value = [datetime.now(UTC).isoformat().encode(), None]
+        assert asyncio.run(RedisQueue(client).registered_workers()) == []
+
+
+class TestRedisQueueAliveWorkers:
+    def test_alive_and_stale_workers(self, engine_info):
+        now = datetime.now(UTC)
+        alive_last_seen = now - timedelta(seconds=1)
+        stale_last_seen = now - timedelta(seconds=60)
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-alive", b"worker-stale"}
+        client.hmget.side_effect = [
+            [alive_last_seen.isoformat().encode(), JsonSerializer().render(engine_info).encode()],
+            [stale_last_seen.isoformat().encode(), JsonSerializer().render(engine_info).encode()],
+        ]
+        # the stale worker missed far more heartbeats than allowed, it is not reported
+        assert asyncio.run(RedisQueue(client).alive_workers()) == [
+            Worker(id="worker-alive", last_seen=alive_last_seen, info=engine_info)
+        ]
+
+    def test_crashed_worker_is_left_out(self, engine_info):
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-crashed"}
+        client.hmget.return_value = [
+            datetime.now(UTC).isoformat().encode(),
+            JsonSerializer().render(replace(engine_info, status=WorkerStatus.CRASHED)).encode(),
+        ]
+        # the crashed worker beat just now, but it won't serve any job anymore
+        assert asyncio.run(RedisQueue(client).alive_workers()) == []
+
+    def test_worker_without_heartbeat_is_left_out(self):
+        # the worker is still in the list but its hash expired already (e.g. it was killed)
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-gone"}
+        client.hmget.return_value = [None, None]
         assert asyncio.run(RedisQueue(client).alive_workers()) == []
 
     def test_no_workers_registered(self):
-        client = FakeWorkerRedisClient(sets={}, hashes={})
+        client = AsyncMock()
+        client.smembers.return_value = set()
         assert asyncio.run(RedisQueue(client).alive_workers()) == []
 
-    def test_workers_are_sorted_by_id(self):
+    def test_workers_are_sorted_by_id(self, engine_info):
         last_seen = datetime.now(UTC).isoformat().encode()
-        client = FakeWorkerRedisClient(
-            sets={"workers": {b"worker-b", b"worker-c", b"worker-a"}},
-            hashes={
-                "worker:worker-a": {"last_seen": last_seen},
-                "worker:worker-b": {"last_seen": last_seen},
-                "worker:worker-c": {"last_seen": last_seen},
-            },
-        )
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-b", b"worker-c", b"worker-a"}
+        client.hmget.return_value = [last_seen, JsonSerializer().render(engine_info).encode()]
         # redis sets have no order, the dispatcher gives a stable one
         workers = asyncio.run(RedisQueue(client).alive_workers())
         assert [worker.id for worker in workers] == ["worker-a", "worker-b", "worker-c"]
 
-    def test_naive_heartbeat_of_older_worker_is_alive(self):
+    def test_naive_heartbeat_of_older_worker_is_alive(self, engine_info):
         # workers before the UTC heartbeat write their time without offset
         naive_last_seen = datetime.now(UTC).replace(tzinfo=None)
-        client = FakeWorkerRedisClient(
-            sets={"workers": {b"worker-old"}},
-            hashes={"worker:worker-old": {"last_seen": naive_last_seen.isoformat().encode()}},
-        )
+        client = AsyncMock()
+        client.smembers.return_value = {b"worker-old"}
+        client.hmget.return_value = [
+            naive_last_seen.isoformat().encode(),
+            JsonSerializer().render(engine_info).encode(),
+        ]
         assert asyncio.run(RedisQueue(client).alive_workers()) == [
-            Worker(id="worker-old", last_seen=naive_last_seen.replace(tzinfo=UTC))
+            Worker(id="worker-old", last_seen=naive_last_seen.replace(tzinfo=UTC), info=engine_info)
         ]
 
 
