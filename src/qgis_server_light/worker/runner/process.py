@@ -1,4 +1,5 @@
 import logging
+from collections.abc import MutableMapping
 
 from qgis.analysis import QgsNativeAlgorithms, QgsPdalAlgorithms
 from qgis.core import Qgis, QgsApplication, QgsProviderRegistry
@@ -14,7 +15,7 @@ class ProcessRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
     ):
         super().__init__(qgis, context, job_info, layer_cache)
 

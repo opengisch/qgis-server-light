@@ -7,7 +7,6 @@ import pathlib
 import uuid
 from abc import ABC
 from dataclasses import asdict, dataclass
-from typing import Any
 
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -16,6 +15,7 @@ from qgis_server_light.interface.worker.info import (
     QgisInfo,
     Status,
 )
+from qgis_server_light.worker.layer_cache import LayerCache
 from qgis_server_light.worker.qgis import Qgis, version, version_name
 from qgis_server_light.worker.runner.common import JobContext, Runner
 
@@ -35,7 +35,7 @@ class Engine(ABC):  # noqa: B024
     ):
         self.qgis = Qgis(svg_paths, log_level)
         self.context = context
-        self.layer_cache: dict[Any, Any] = {}
+        self.layer_cache = LayerCache()
         self.available_runner_classes: dict[str, type[Runner]] = {}
         self.available_runner_classes_by_job_info: dict[str, type[Runner]] = {}
         self.available_job_info_classes: dict[str, type[QslJobInfoParameter]] = {}
@@ -116,6 +116,7 @@ class Engine(ABC):  # noqa: B024
             raise RuntimeError(f"Type {type(job_info)} not supported") from e
 
     def process(self, job_info: QslJobInfoParameter) -> JobResult:
+        self.layer_cache.evict_expired()
         runner_class = self.runner_plugin_by_job_info(job_info)
         runner = runner_class(
             self.qgis,
