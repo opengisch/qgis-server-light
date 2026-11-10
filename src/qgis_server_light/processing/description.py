@@ -10,6 +10,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingOutputBoolean,
     QgsProcessingOutputDefinition,
+    QgsProcessingOutputHtml,
     QgsProcessingOutputNumber,
     QgsProcessingOutputRasterLayer,
     QgsProcessingOutputString,
@@ -216,12 +217,8 @@ class FeatureSourceSchemaStrategy(
         return definition.dataTypes()
 
 
-class RasterLayerSchemaStrategy(
-    LayerSchemaStrategy[QgsProcessingParameterRasterLayer | QgsProcessingOutputRasterLayer]
-):
-    def source_types(
-        self, definition: QgsProcessingParameterRasterLayer | QgsProcessingOutputRasterLayer
-    ) -> list[int]:
+class RasterLayerSchemaStrategy(LayerSchemaStrategy[QgsProcessingParameterRasterLayer]):
+    def source_types(self, definition: QgsProcessingParameterRasterLayer) -> list[int]:
         return [Qgis.ProcessingSourceType.Raster]
 
 
@@ -239,9 +236,20 @@ class MultipleLayersSchemaStrategy(LayerSchemaStrategy[QgsProcessingParameterMul
         return max(1, definition.minimumNumberInputs()), "unbounded"
 
 
-class VectorLayerOutputSchemaStrategy(LayerSchemaStrategy[QgsProcessingOutputVectorLayer]):
-    def source_types(self, definition: QgsProcessingOutputVectorLayer) -> list[int]:
-        return [definition.dataType()]
+class FileOutputSchemaStrategy(SchemaStrategy[QgsProcessingOutputDefinition]):
+    """An output the worker writes to a file, offered in each of the given media types.
+    The first one is the default."""
+
+    def __init__(self, media_types: list[str]):
+        self.media_types = media_types
+
+    def map_schema(self, definition: QgsProcessingOutputDefinition) -> Schema:
+        return Schema(
+            one_of=[
+                Schema(type="string", content_media_type=media_type)
+                for media_type in self.media_types
+            ]
+        )
 
 
 class ProcessDescriptionMapper:
@@ -262,8 +270,17 @@ class ProcessDescriptionMapper:
             QgsProcessingParameterEnum: EnumSchemaStrategy(),
         }
         self._output_strategies: dict[type, SchemaStrategy] = {
-            QgsProcessingOutputVectorLayer: VectorLayerOutputSchemaStrategy(),
-            QgsProcessingOutputRasterLayer: RasterLayerSchemaStrategy(),
+            QgsProcessingOutputVectorLayer: FileOutputSchemaStrategy(
+                [
+                    "application/geo+json",
+                    "application/geopackage+sqlite3",
+                    "application/flatgeobuf",
+                ]
+            ),
+            QgsProcessingOutputRasterLayer: FileOutputSchemaStrategy(
+                ["image/tiff; application=geotiff"]
+            ),
+            QgsProcessingOutputHtml: FileOutputSchemaStrategy(["text/html"]),
             QgsProcessingOutputNumber: LiteralOutputSchemaStrategy("number"),
             QgsProcessingOutputString: LiteralOutputSchemaStrategy("string"),
             QgsProcessingOutputBoolean: LiteralOutputSchemaStrategy("boolean"),

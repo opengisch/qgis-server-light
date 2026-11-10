@@ -58,9 +58,7 @@ class TestProcessRunnerIntegration:
         assert (
             ParameterOutput(
                 "OUTPUT",
-                FileOutput(
-                    path=f"{job_id}/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
-                ),
+                FileOutput(path=f"{job_id}/OUTPUT.geojson", media_type="application/geo+json"),
             )
             in process_result.outputs
         )
@@ -98,9 +96,7 @@ class TestProcessRunnerIntegration:
         assert (
             ParameterOutput(
                 "OUTPUT",
-                FileOutput(
-                    path=f"{job_id}/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
-                ),
+                FileOutput(path=f"{job_id}/OUTPUT.geojson", media_type="application/geo+json"),
             )
             in process_result.outputs
         )
@@ -218,7 +214,7 @@ class TestProcessRunnerIntegration:
             {},
         )
         runner.run()
-        assert (tmp_path / job_id / "OUTPUT.gpkg").is_file()
+        assert (tmp_path / job_id / "OUTPUT.geojson").is_file()
 
     def test_execute_file_and_literal_outputs(
         self, qgis_app, data_path, tmp_path, placenames_layer
@@ -291,9 +287,9 @@ class TestProcessRunnerIntegration:
     @pytest.mark.parametrize(
         "process_id",
         [
-            # destination extension `file`
+            # file output of any extension, no format to offer
             "native:filedownloader",
-            # folder destination, no extension at all
+            # folder output, no file at all
             "native:splitvectorlayer",
         ],
     )
@@ -318,7 +314,7 @@ class TestProcessRunnerIntegration:
             job_info,
             {},
         )
-        with pytest.raises(ValueError, match="No media type for extension"):
+        with pytest.raises(ValueError, match="unsupported output"):
             runner.run()
         assert not (tmp_path / job_id).exists()
 
