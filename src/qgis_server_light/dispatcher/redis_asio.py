@@ -40,6 +40,7 @@ from qgis_server_light.interface.job.render.input import (
     QslJobParameterRender,
 )
 from qgis_server_light.interface.worker.info import EngineInfo
+from qgis_server_light.interface.worker.info import Status as WorkerStatus
 
 job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
     QslJobParameterRender: QslJobInfoRender,
@@ -92,16 +93,14 @@ class RedisQueue(RedisProtocol):
             logging.warning(f"Redis is not reachable: {e}")
             return False
 
-    async def alive_workers(self) -> list[Worker]:
-        """Collects the workers which sent a heartbeat within `worker_alive_age`. Workers
-        which are still registered but stopped beating (e.g. killed) are left out, so
-        the result tells who is really there to process jobs.
+    async def registered_workers(self) -> list[Worker]:
+        """Collects every worker redis still knows, no matter how old its last heartbeat
+        is. This way crashed or silently vanished workers can be shown until their info
+        expires, the consumer tells them apart by `info.status` and `last_seen`.
 
         Returns:
-            The alive workers, sorted by their id to give a stable order.
+            The registered workers, sorted by their id to give a stable order.
         """
-        now = datetime.datetime.now(datetime.UTC)
-        alive_age = datetime.timedelta(seconds=self.worker_alive_age)
         workers = []
         for worker_id in sorted(await self.client.smembers(self.worker_list_name)):
             last_seen = await self.client.hget(
@@ -111,14 +110,31 @@ class RedisQueue(RedisProtocol):
             if last_seen is None or info is None:
                 # the worker vanished, its info expired already
                 continue
-            worker = Worker(
-                id=worker_id.decode(),
-                last_seen=self.parse_last_seen(last_seen),
-                info=JsonParser().from_bytes(info, EngineInfo),
+            workers.append(
+                Worker(
+                    id=worker_id.decode(),
+                    last_seen=self.parse_last_seen(last_seen),
+                    info=JsonParser().from_bytes(info, EngineInfo),
+                )
             )
-            if now - worker.last_seen <= alive_age:
-                workers.append(worker)
         return workers
+
+    async def alive_workers(self) -> list[Worker]:
+        """Collects the workers which sent a heartbeat within `worker_alive_age` and did
+        not crash. Workers which are still registered but stopped beating (e.g. killed)
+        or reported a crash are left out, so the result tells who is really there to
+        process jobs.
+
+        Returns:
+            The alive workers, sorted by their id to give a stable order.
+        """
+        now = datetime.datetime.now(datetime.UTC)
+        alive_age = datetime.timedelta(seconds=self.worker_alive_age)
+        return [
+            worker
+            for worker in await self.registered_workers()
+            if now - worker.last_seen <= alive_age and worker.info.status != WorkerStatus.CRASHED
+        ]
 
     @staticmethod
     def parse_last_seen(last_seen: bytes) -> datetime.datetime:
