@@ -294,21 +294,6 @@ class TestLayerCacheIntegration:
 
         assert next(iter(layer_cache.values())) is cached_layer
 
-    @pytest.mark.parametrize(
-        "second_style,expected_opacity",
-        [
-            # changed style is imported
-            (
-                Style(
-                    name="default",
-                    definition=urlsafe_b64encode(
-                        zlib.compress(b"<qgis><layerOpacity>1</layerOpacity></qgis>")
-                    ).decode(),
-                ),
-                1.0,
-            ),
-        ],
-    )
     def test_style_is_imported_only_when_changed(
         self,
         qgis_app,
@@ -316,8 +301,7 @@ class TestLayerCacheIntegration:
         layer_cache,
         placenames_layer,
         placenames_render_job_info,
-        second_style,
-        expected_opacity,
+        monkeypatch,
     ):
         # we set a style to the layer for the testjob
         placenames_layer.style = Style(
@@ -332,6 +316,16 @@ class TestLayerCacheIntegration:
         cached_layer = layer_cache[runner.get_cache_name(placenames_layer)]
         # we expect the cached QgsMapLayer has the opacity
         assert cached_layer.opacity() == pytest.approx(0.3)
+
+        # we run the very same job again, the style is unchanged so importing it
+        # again is a failure
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                cached_layer,
+                "importNamedStyle",
+                lambda *args: pytest.fail("unchanged style was imported again"),
+            )
+            RenderRunner(qgis_app, context, placenames_render_job_info, layer_cache).run()
 
         # we set a new style and expect the
         placenames_layer.style = Style(
