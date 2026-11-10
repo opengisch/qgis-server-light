@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Label changes of interface and dispatcher
-        uses: actions/labeler@v5
+        uses: actions/labeler@v7
         with:
           sync-labels: true
 
