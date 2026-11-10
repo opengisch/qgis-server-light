@@ -12,6 +12,7 @@ from redis import asyncio as redis_aio
 from redis.client import Pipeline
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
+from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.dispatcher.common import Status, Worker
@@ -38,6 +39,7 @@ from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
+from qgis_server_light.interface.worker.info import EngineInfo
 
 job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
     QslJobParameterRender: QslJobInfoRender,
@@ -105,10 +107,15 @@ class RedisQueue(RedisProtocol):
             last_seen = await self.client.hget(
                 self.worker_key(worker_id.decode()), self.worker_last_seen_key
             )
-            if last_seen is None:
+            info = await self.client.hget(self.worker_key(worker_id.decode()), self.worker_info_key)
+            if last_seen is None or info is None:
                 # the worker vanished, its info expired already
                 continue
-            worker = Worker(id=worker_id.decode(), last_seen=self.parse_last_seen(last_seen))
+            worker = Worker(
+                id=worker_id.decode(),
+                last_seen=self.parse_last_seen(last_seen),
+                info=JsonParser().from_bytes(info, EngineInfo),
+            )
             if now - worker.last_seen <= alive_age:
                 workers.append(worker)
         return workers
