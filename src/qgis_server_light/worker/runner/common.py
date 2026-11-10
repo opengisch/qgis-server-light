@@ -102,6 +102,7 @@ class MapRunner(Runner):
         self.layer_cache = layer_cache
         self._custom_prop_original_filter = "qsl.original_filter"
         self._custom_prop_source_modified = "qsl.source_modified"
+        self._custom_prop_style_definition = "qsl.style_definition"
         # clients only know the job layer id, the cache name is internal
         self._job_layer_ids: dict[str, str] = {}
 
@@ -138,6 +139,13 @@ class MapRunner(Runner):
     def _load_style(self, qgs_layer: QgsMapLayer, job_layer_definition: QslJobLayer):
         logging.info(f"Preparing job_layer_definition Style: {job_layer_definition.style.name}")
 
+        # a cached layer keeps its style between jobs, importing an unchanged
+        # style again only costs time
+        applied_style = qgs_layer.customProperty(self._custom_prop_style_definition, None)
+        if applied_style == job_layer_definition.style.definition:
+            logging.info(" ✓ Style unchanged, import skipped")
+            return
+
         # the custom attributes on layers are stored in the style in fact, so
         # we first have to secure the custom property before applying the filter
         logging.debug("Preserving subset string")
@@ -153,6 +161,10 @@ class MapRunner(Runner):
         logging.debug("Re-apply subset string")
         qgs_layer.setCustomProperty(self._custom_prop_original_filter, original_filter)
         qgs_layer.setCustomProperty(self._custom_prop_source_modified, source_modified)
+        if success:
+            qgs_layer.setCustomProperty(
+                self._custom_prop_style_definition, job_layer_definition.style.definition
+            )
         logging.info(f" ✓ Style loaded: {success}")
 
     def _apply_filter(self, qgs_layer: QgsVectorLayer, job_layer_definition: QslJobLayer):
