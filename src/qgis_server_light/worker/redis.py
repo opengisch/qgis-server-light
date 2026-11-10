@@ -38,7 +38,7 @@ class RedisEngine(Engine):
         self.retry_wait = 0.01
         self.max_retries = 11
         self.info_expire: int = 300
-        self.heartbeat_interval = 1  # Heartbeat every second
+        self.heartbeat_interval = RedisProtocol.worker_heartbeat_interval
         self.heartbeat_thread = None
         self.redis_client: Redis | None = None
 

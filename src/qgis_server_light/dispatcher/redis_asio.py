@@ -10,9 +10,11 @@ from uuid import uuid4
 
 from redis import asyncio as redis_aio
 from redis.client import Pipeline
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.interface.dispatcher.common import Status
+from qgis_server_light.interface.dispatcher.common import Status, Worker
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -74,6 +76,38 @@ class RedisQueue(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
+
+    async def is_reachable(self) -> bool:
+        try:
+            return await self.client.ping()
+        except (RedisConnectionError, RedisTimeoutError) as e:
+            logging.warning(f"Redis is not reachable: {e}")
+            return False
+
+    async def alive_workers(self) -> list[Worker]:
+        now = datetime.datetime.now(datetime.UTC)
+        alive_age = datetime.timedelta(seconds=self.worker_alive_age)
+        workers = []
+        for worker_id in sorted(await self.client.smembers(self.worker_list_name)):
+            last_seen = await self.client.hget(
+                self.worker_key(worker_id.decode()), self.worker_last_seen_key
+            )
+            if last_seen is None:
+                # the worker vanished, its info expired already
+                continue
+            worker = Worker(id=worker_id.decode(), last_seen=self.parse_last_seen(last_seen))
+            if now - worker.last_seen <= alive_age:
+                workers.append(worker)
+        return workers
+
+    @staticmethod
+    def parse_last_seen(last_seen: bytes) -> datetime.datetime:
+        timestamp = datetime.datetime.fromisoformat(last_seen.decode())
+        if timestamp.tzinfo is None:
+            # workers before the UTC heartbeat wrote their local time without offset, in
+            # containers this is UTC usually
+            timestamp = timestamp.replace(tzinfo=datetime.UTC)
+        return timestamp
 
     async def set_job_runtime_status(
         self,

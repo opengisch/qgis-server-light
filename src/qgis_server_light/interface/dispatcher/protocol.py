@@ -40,6 +40,8 @@ class RedisProtocol:
         worker_list_name: The name of the redis set the worker ids are registered in.
         worker_info_key: The hash field holding the serialized engine info.
         worker_last_seen_key: The hash field holding the timestamp of the last heartbeat.
+        worker_heartbeat_interval: Seconds between two heartbeats of a worker.
+        worker_alive_age: Seconds a heartbeat may be old for the worker to count as alive.
     """
 
     job_queue_name: str = "jobs"
@@ -53,6 +55,8 @@ class RedisProtocol:
     worker_list_name: str = "workers"
     worker_info_key: str = "info"
     worker_last_seen_key: str = "last_seen"
+    worker_heartbeat_interval: int = 1
+    worker_alive_age: int = 10 * worker_heartbeat_interval
 
     @staticmethod
     def job_key(job_id: str) -> str:
