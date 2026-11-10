@@ -103,10 +103,10 @@ class RedisQueue(RedisProtocol):
         """
         workers = []
         for worker_id in sorted(await self.client.smembers(self.worker_list_name)):
-            last_seen = await self.client.hget(
-                self.worker_key(worker_id.decode()), self.worker_last_seen_key
+            last_seen, info = await self.client.hmget(
+                self.worker_key(worker_id.decode()),
+                [self.worker_last_seen_key, self.worker_info_key],
             )
-            info = await self.client.hget(self.worker_key(worker_id.decode()), self.worker_info_key)
             if last_seen is None or info is None:
                 # the worker vanished, its info expired already
                 continue

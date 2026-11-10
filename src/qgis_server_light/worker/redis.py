@@ -117,14 +117,18 @@ class RedisEngine(Engine):
         Args:
             client: The redis client.
         """
+        self.prune_vanished_workers(client)
+        # the first beat writes the worker info and adds the worker to the list
+        self.heartbeat(client)
+        logging.info("Worker was registered in Redis")
+
+    @staticmethod
+    def prune_vanished_workers(client: Redis):
         # removing workers from the list which vanished without unregistering (e.g. killed),
         # their info expired already
         for worker_id in client.smembers(RedisProtocol.worker_list_name):
             if not client.exists(RedisProtocol.worker_key(worker_id)):
                 client.srem(RedisProtocol.worker_list_name, worker_id)
-        # the first beat writes the worker info and adds the worker to the list
-        self.heartbeat(client)
-        logging.info("Worker was registered in Redis")
 
     def unregister_worker(self, client: Redis):
         """Removes this worker from redis on a graceful shutdown. If redis is gone
