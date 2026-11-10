@@ -40,6 +40,7 @@ class RedisEngine(Engine):
         self.info_expire: int = 300
         self.heartbeat_interval = 1  # Heartbeat every second
         self.heartbeat_thread = None
+        self.redis_client: Redis | None = None
 
     def retry_handling_with_jitter(self, count: int):
         if count <= self.max_retries:
@@ -57,6 +58,8 @@ class RedisEngine(Engine):
     def exit_gracefully(self, signum, frame):
         logging.error(f"Received: {signum}")
         self.shutdown = True
+        if self.redis_client is not None:
+            self.unregister_worker(self.redis_client)
         exit(0)
 
     @staticmethod
@@ -79,11 +82,20 @@ class RedisEngine(Engine):
         pipeline.execute()
 
     def heartbeat(self, client: Redis) -> datetime.datetime:
-        now = datetime.datetime.now()
-        client.hset(f"worker:{self.info.id}", "last_seen", now.isoformat())
+        now = datetime.datetime.now(datetime.UTC)
+        pipeline = client.pipeline()
+        pipeline.hset(f"worker:{self.info.id}", "last_seen", now.isoformat())
+        # renewing the timer, otherwise the worker info expires while the worker is alive
+        pipeline.expire(f"worker:{self.info.id}", self.info_expire)
+        pipeline.execute()
         return now
 
     def register_worker(self, client: Redis):
+        # removing workers from the list which vanished without unregistering (e.g. killed),
+        # their info expired already
+        for worker_id in client.smembers("workers"):
+            if not client.exists(f"worker:{worker_id}"):
+                client.srem("workers", worker_id)
         # writing worker info to redis
         client.hset(f"worker:{self.info.id}", "info", JsonSerializer().render(self.info))
         # set timer to automatically remove worker info from list
@@ -92,6 +104,16 @@ class RedisEngine(Engine):
         client.sadd("workers", self.info.id)
         self.heartbeat(client)
         logging.info("Worker was registered in Redis")
+
+    def unregister_worker(self, client: Redis):
+        try:
+            client.srem("workers", self.info.id)
+            client.delete(f"worker:{self.info.id}")
+        except (RedisConnectionError, TimeoutError) as e:
+            # the info expires on its own, the next registering worker cleans the list
+            logging.warning(f"Worker could not be unregistered from Redis: {e}")
+        else:
+            logging.info("Worker was unregistered from Redis")
 
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
@@ -135,6 +157,7 @@ class RedisEngine(Engine):
         r = self.start(redis_url)
         p = r.pipeline()
         self.register_worker(r)
+        self.redis_client = r
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         retry_count = 0
