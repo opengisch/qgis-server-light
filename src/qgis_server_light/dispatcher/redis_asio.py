@@ -78,6 +78,12 @@ class RedisQueue(RedisProtocol):
         return cls(redis_client)
 
     async def is_reachable(self) -> bool:
+        """Pings redis. The caller only needs to know whether jobs could be queued, so
+        the redis exceptions stay in here and are logged.
+
+        Returns:
+            True if redis answered, False if it could not be reached.
+        """
         try:
             return await self.client.ping()
         except (RedisConnectionError, RedisTimeoutError) as e:
@@ -85,6 +91,13 @@ class RedisQueue(RedisProtocol):
             return False
 
     async def alive_workers(self) -> list[Worker]:
+        """Collects the workers which sent a heartbeat within `worker_alive_age`. Workers
+        which are still registered but stopped beating (e.g. killed) are left out, so
+        the result tells who is really there to process jobs.
+
+        Returns:
+            The alive workers, sorted by their id to give a stable order.
+        """
         now = datetime.datetime.now(datetime.UTC)
         alive_age = datetime.timedelta(seconds=self.worker_alive_age)
         workers = []
@@ -102,6 +115,14 @@ class RedisQueue(RedisProtocol):
 
     @staticmethod
     def parse_last_seen(last_seen: bytes) -> datetime.datetime:
+        """Reads the heartbeat timestamp of a worker as it is stored in redis.
+
+        Args:
+            last_seen: The ISO timestamp as redis returns it.
+
+        Returns:
+            The timezone aware timestamp, naive ones are taken as UTC.
+        """
         timestamp = datetime.datetime.fromisoformat(last_seen.decode())
         if timestamp.tzinfo is None:
             # workers before the UTC heartbeat wrote their local time without offset, in

@@ -82,6 +82,16 @@ class RedisEngine(Engine):
         pipeline.execute()
 
     def heartbeat(self, client: Redis) -> datetime.datetime:
+        """Tells redis that this worker is still alive. The worker info gets its
+        expiry renewed at the same time, so it only vanishes when the worker stops
+        beating.
+
+        Args:
+            client: The redis client.
+
+        Returns:
+            The UTC timestamp which was written as last seen.
+        """
         now = datetime.datetime.now(datetime.UTC)
         pipeline = client.pipeline()
         pipeline.hset(
@@ -95,6 +105,13 @@ class RedisEngine(Engine):
         return now
 
     def register_worker(self, client: Redis):
+        """Makes this worker known in redis and cleans up behind workers which vanished
+        without unregistering. This way the list of workers heals itself with every
+        worker start.
+
+        Args:
+            client: The redis client.
+        """
         # removing workers from the list which vanished without unregistering (e.g. killed),
         # their info expired already
         for worker_id in client.smembers(RedisProtocol.worker_list_name):
@@ -114,6 +131,13 @@ class RedisEngine(Engine):
         logging.info("Worker was registered in Redis")
 
     def unregister_worker(self, client: Redis):
+        """Removes this worker from redis on a graceful shutdown. If redis is gone
+        already, the worker does not insist: its info expires and the next registering
+        worker cleans the list.
+
+        Args:
+            client: The redis client.
+        """
         try:
             client.srem(RedisProtocol.worker_list_name, self.info.id)
             client.delete(RedisProtocol.worker_key(self.info.id))
