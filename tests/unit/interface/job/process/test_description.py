@@ -53,13 +53,11 @@ CENTROIDS = ProcessDescription(
             id="OUTPUT",
             title="Centroids",
             schema=Schema(
-                type="string",
-                format="qsl-layer",
-                x_qsl_layer=QslLayerMarker(
-                    kind=QslLayerKind.VECTOR,
-                    geometry_types=["Point"],
-                    source="QgsProcessingOutputVectorLayer",
-                ),
+                one_of=[
+                    Schema(type="string", content_media_type="application/geo+json"),
+                    Schema(type="string", content_media_type="application/geopackage+sqlite3"),
+                    Schema(type="string", content_media_type="application/flatgeobuf"),
+                ]
             ),
         ),
     ],

@@ -13,6 +13,7 @@ from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import (
+    OutputFormat,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
@@ -32,18 +33,33 @@ class ProcessRunner(MapRunner):
     the inputs. This way concurrent jobs never write into the same file and a
     client can't make the worker write anywhere on its file system.
 
+    The format of a file output is chosen by the client among the media types
+    the process description offers for it, without a choice the first offered
+    one is used. Vector layers default to GeoJSON, because it takes any data:
+    a GeoPackage takes an input attribute `fid` as its feature id and fails if
+    the values are not unique, FlatGeobuf refuses features without geometry
+    because of its spatial index.
+
     Attributes:
-        media_type_by_extension: The media types of the file extensions a
-            destination may have. A destination with another extension is
-            refused, the runner does not guess what the client gets.
+        extension_by_media_type: The file extension a destination gets for the
+            media type of its output.
+        media_type_by_extension: The media type of a destination file, by its
+            extension.
     """
 
     job_info_class = QslJobInfoExecuteProcess
+    extension_by_media_type = {
+        "application/geo+json": "geojson",
+        "application/geopackage+sqlite3": "gpkg",
+        "application/flatgeobuf": "fgb",
+        "image/tiff; application=geotiff": "tif",
+        "text/html": "html",
+    }
     media_type_by_extension = {
-        "gpkg": "application/geopackage+sqlite3",
         "geojson": "application/geo+json",
+        "gpkg": "application/geopackage+sqlite3",
+        "fgb": "application/flatgeobuf",
         "tif": "image/tiff; application=geotiff",
-        "csv": "text/csv",
         "html": "text/html",
     }
 
@@ -103,7 +119,7 @@ class ProcessRunner(MapRunner):
 
         parameters = self._parameters(algorithm, job)
         job_output_dir = Path(self.context.process_output_dir, self.job_info.id)
-        destinations = self._destinations(algorithm, job_output_dir)
+        destinations = self._destinations(algorithm, job_output_dir, job.output_formats)
         parameters.update({name: str(path) for name, path in destinations.items()})
 
         job_output_dir.mkdir(parents=True)
@@ -151,33 +167,48 @@ class ProcessRunner(MapRunner):
         return parameters
 
     def _destinations(
-        self, algorithm: QgsProcessingAlgorithm, job_output_dir: Path
+        self,
+        algorithm: QgsProcessingAlgorithm,
+        job_output_dir: Path,
+        output_formats: list[OutputFormat],
     ) -> dict[str, Path]:
         """The files the destinations of the algorithm are written to, by
         destination name. The worker sets them, so concurrent jobs never collide.
-        The extension is checked here, before the algorithm runs, so a job
-        doesn't do all the work only to fail on an output nobody can read.
+        The format is checked here, before the algorithm runs, so a job doesn't
+        do all the work only to fail on an output nobody asked for.
 
         Args:
             algorithm: The algorithm whose destinations are set.
             job_output_dir: The dir of the job, the destination files go into.
+            output_formats: The formats the client chose for the outputs.
 
         Returns:
             The absolute destination files by destination name.
 
         Raises:
-            ValueError: If there is no media type for the file extension of a
-                destination.
+            ValueError: If the client chose a format for an output which is no
+                destination or a format the description does not offer.
         """
+        media_type_by_name = {
+            output_format.name: output_format.media_type for output_format in output_formats
+        }
+        destination_names = [
+            definition.name() for definition in algorithm.destinationParameterDefinitions()
+        ]
+        if unknown_names := set(media_type_by_name) - set(destination_names):
+            raise ValueError(f"Format chosen for unknown outputs: {sorted(unknown_names)}")
+
+        mapper = ProcessDescriptionMapper()
         destinations = {}
-        for definition in algorithm.destinationParameterDefinitions():
-            extension = definition.defaultFileExtension()
-            if extension not in self.media_type_by_extension:
-                raise ValueError(
-                    f"No media type for extension `{extension}` of destination "
-                    f"`{definition.name()}`"
-                )
-            destinations[definition.name()] = job_output_dir / f"{definition.name()}.{extension}"
+        for name in destination_names:
+            output_description = mapper.output_description(algorithm.outputDefinition(name))
+            offered = [schema.content_media_type for schema in output_description.schema.one_of]
+            media_type = media_type_by_name.get(name, offered[0])
+            if media_type not in offered:
+                raise ValueError(f"Format `{media_type}` is not offered for output `{name}`")
+            destinations[name] = (
+                job_output_dir / f"{name}.{self.extension_by_media_type[media_type]}"
+            )
         return destinations
 
     def _file_output(self, destination: Path) -> FileOutput:

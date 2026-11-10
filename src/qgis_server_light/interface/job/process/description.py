@@ -53,7 +53,10 @@ class Schema(BaseInterface):
         maximum: The inclusive maximum of a numeric value.
         const: The only valid value, used on the entries of `one_of`.
         default: The value used when none is passed.
-        one_of: The valid values, each as schema with `const` and `title`.
+        one_of: The valid values, each as schema with `const` and `title`. For a file
+            output the formats it is offered in, each as schema with
+            `content_media_type`, the first one is the default.
+        content_media_type: The media type of a value which is a file.
         x_qsl_layer: The marker of a layer value.
     """
 
@@ -66,6 +69,9 @@ class Schema(BaseInterface):
     default: bool | int | float | str | None = field(default=None, metadata={"type": "Element"})
     one_of: list["Schema"] | None = field(
         default=None, metadata={"type": "Element", "name": "oneOf"}
+    )
+    content_media_type: str | None = field(
+        default=None, metadata={"type": "Element", "name": "contentMediaType"}
     )
     x_qsl_layer: QslLayerMarker | None = field(
         default=None, metadata={"type": "Element", "name": "x-qsl-layer"}
