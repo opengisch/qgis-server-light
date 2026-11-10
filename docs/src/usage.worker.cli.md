@@ -29,7 +29,12 @@ not overwritten, it has to be deleted after the allowlist was changed.
 
 The file outputs of the processes are written by the worker itself, the client can't choose where they go. Every
 job writes into its own dir `{process-output-dir}/{job_id}`, each file is named after its output
-(e.g. `OUTPUT.gpkg`), the format is the default one QGIS uses for this output. The dir is set by
+(e.g. `OUTPUT.geojson`). The client chooses the format of each file output among the media types the process
+description offers for it (vector layers: GeoJSON, GeoPackage, FlatGeobuf; raster layers: GeoTIFF; reports: HTML),
+without a
+choice the first one is used. Vector layers default to GeoJSON because it takes any data: a GeoPackage takes an
+input attribute `fid` as its feature id and the job fails if its values are not unique, FlatGeobuf refuses
+features without geometry. The dir is set by
 `--process-output-dir` (env `QSL_PROCESS_OUTPUT_DIR` in the docker boot scripts, default `/io/process_output`).
 If a job fails, its dir is removed, so only succeeded jobs leave files behind. Outputs which are not written to a
 file (e.g. numbers or strings) are part of the result directly.
