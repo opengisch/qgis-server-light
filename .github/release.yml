@@ -1,6 +1,9 @@
 # categories of the generated release notes, a PR is listed in the first matching category
 changelog:
   categories:
+    - title: Breaking for georama
+      labels:
+        - georama-breaking
     - title: Interface changes
       labels:
         - interface-change
