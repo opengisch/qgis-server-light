@@ -1,4 +1,5 @@
 import logging
+from collections.abc import MutableMapping
 from typing import Any
 
 from PyQt5.QtXml import QDomDocument
@@ -38,7 +39,7 @@ class GetFeatureRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoFeature,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
         layer_style_cache: set | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)

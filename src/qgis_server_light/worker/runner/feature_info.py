@@ -1,5 +1,6 @@
 import json
 from collections import OrderedDict
+from collections.abc import MutableMapping
 
 from qgis.core import (
     QgsApplication,
@@ -24,7 +25,7 @@ class GetFeatureInfoRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoFeatureInfo,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)
 

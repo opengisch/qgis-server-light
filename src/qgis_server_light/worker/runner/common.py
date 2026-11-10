@@ -5,6 +5,7 @@ import uuid
 import zlib
 from abc import ABC
 from base64 import urlsafe_b64decode
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,7 +48,7 @@ class Runner(ABC):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: dict | None,
+        layer_cache: MutableMapping | None,
     ):
         # This is an abstract base class which is not runnable itself
         raise NotImplementedError()
@@ -93,7 +94,7 @@ class MapRunner(Runner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoParameter,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
     ) -> None:
         self.qgis = qgis
         self.context = context

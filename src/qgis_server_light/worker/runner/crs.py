@@ -1,4 +1,5 @@
 import logging
+from collections.abc import MutableMapping
 
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem
 from xsdata.formats.dataclass.serializers import JsonSerializer
@@ -20,7 +21,7 @@ class CrsRunner(Runner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoCrs,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
     ) -> None:
         self.qgis = qgis
         self.context = context

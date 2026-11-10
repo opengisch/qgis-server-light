@@ -1,4 +1,5 @@
 import logging
+from collections.abc import MutableMapping
 
 from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from qgis.core import (
@@ -25,7 +26,7 @@ class GetLegendRunner(MapRunner):
         qgis: QgsApplication,
         context: JobContext,
         job_info: QslJobInfoLegend,
-        layer_cache: dict | None = None,
+        layer_cache: MutableMapping | None = None,
     ) -> None:
         super().__init__(qgis, context, job_info, layer_cache)
 
