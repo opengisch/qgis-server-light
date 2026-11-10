@@ -84,31 +84,39 @@ class RedisEngine(Engine):
     def heartbeat(self, client: Redis) -> datetime.datetime:
         now = datetime.datetime.now(datetime.UTC)
         pipeline = client.pipeline()
-        pipeline.hset(f"worker:{self.info.id}", "last_seen", now.isoformat())
+        pipeline.hset(
+            RedisProtocol.worker_key(self.info.id),
+            RedisProtocol.worker_last_seen_key,
+            now.isoformat(),
+        )
         # renewing the timer, otherwise the worker info expires while the worker is alive
-        pipeline.expire(f"worker:{self.info.id}", self.info_expire)
+        pipeline.expire(RedisProtocol.worker_key(self.info.id), self.info_expire)
         pipeline.execute()
         return now
 
     def register_worker(self, client: Redis):
         # removing workers from the list which vanished without unregistering (e.g. killed),
         # their info expired already
-        for worker_id in client.smembers("workers"):
-            if not client.exists(f"worker:{worker_id}"):
-                client.srem("workers", worker_id)
+        for worker_id in client.smembers(RedisProtocol.worker_list_name):
+            if not client.exists(RedisProtocol.worker_key(worker_id)):
+                client.srem(RedisProtocol.worker_list_name, worker_id)
         # writing worker info to redis
-        client.hset(f"worker:{self.info.id}", "info", JsonSerializer().render(self.info))
+        client.hset(
+            RedisProtocol.worker_key(self.info.id),
+            RedisProtocol.worker_info_key,
+            JsonSerializer().render(self.info),
+        )
         # set timer to automatically remove worker info from list
-        client.expire(f"worker:{self.info.id}", self.info_expire)
+        client.expire(RedisProtocol.worker_key(self.info.id), self.info_expire)
         # add worker to list of workers in redis
-        client.sadd("workers", self.info.id)
+        client.sadd(RedisProtocol.worker_list_name, self.info.id)
         self.heartbeat(client)
         logging.info("Worker was registered in Redis")
 
     def unregister_worker(self, client: Redis):
         try:
-            client.srem("workers", self.info.id)
-            client.delete(f"worker:{self.info.id}")
+            client.srem(RedisProtocol.worker_list_name, self.info.id)
+            client.delete(RedisProtocol.worker_key(self.info.id))
         except (RedisConnectionError, TimeoutError) as e:
             # the info expires on its own, the next registering worker cleans the list
             logging.warning(f"Worker could not be unregistered from Redis: {e}")
