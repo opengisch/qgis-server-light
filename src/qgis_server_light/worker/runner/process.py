@@ -1,6 +1,7 @@
-from collections.abc import MutableMapping
 import shutil
+from collections.abc import MutableMapping
 from pathlib import Path
+
 from qgis.core import (
     QgsApplication,
     QgsProcessingAlgorithm,
