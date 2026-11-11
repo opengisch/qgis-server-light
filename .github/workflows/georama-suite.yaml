@@ -48,6 +48,20 @@ jobs:
       - name: Start Docker composition
         working-directory: georama
         run: docker compose up -d
+      - name: Wait for georama to run on these QSL sources
+        working-directory: georama
+        # the georama entrypoint swaps the locked qsl for these sources after `up -d` returned,
+        # its healthcheck (compose.dev_with_qsl.yml) tells when the swap is done
+        timeout-minutes: 5
+        run: |
+          container=$(docker compose ps --quiet georama)
+          until [ "$(docker inspect --format '{{.State.Health.Status}}' "${container}")" = "healthy" ]; do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' "${container}")" = "unhealthy" ]; then
+              docker compose logs georama
+              exit 1
+            fi
+            sleep 1
+          done
       - name: Run georama tests
         working-directory: georama
         run: docker compose exec georama uv run pytest
