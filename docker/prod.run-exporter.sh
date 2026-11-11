@@ -7,4 +7,5 @@ set -e
   --workers 2 \
   --access-logfile - \
   --error-logfile - \
+  --no-control-socket \
   --timeout 30
