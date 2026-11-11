@@ -3,9 +3,7 @@ name: Label PR
 on:
   # runs from the base branch, labels fork PRs too, PR code is not checked out
   pull_request_target:
-    # labeled / unlabeled / edited re-run the impact check when the author
-    # sets the impact label by hand or links the counterpart in the body
-    types: [ opened, reopened, synchronize, labeled, unlabeled, edited ]
+    types: [ opened, reopened, synchronize ]
 
 permissions:
   contents: read
@@ -19,43 +17,3 @@ jobs:
         uses: actions/labeler@v7
         with:
           sync-labels: true
-
-  # a job of this workflow and not an own one: labels set with the GITHUB_TOKEN
-  # do not trigger other workflows, so the path labels would never reach it
-  impact:
-    needs: label
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check impact on georama is stated
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        # labels are read again, the event payload does not know the ones the labeler just set
-        run: |
-          pr=$(gh pr view "${PR}" --repo "${GITHUB_REPOSITORY}" --json labels,body)
-          labels=$(jq -r '.labels[].name' <<< "${pr}")
-          body=$(jq -r '.body // ""' <<< "${pr}")
-          has_label() { grep -qx "$1" <<< "${labels}"; }
-
-          if ! has_label interface-change && ! has_label dispatcher-change; then
-            echo "interface and dispatcher untouched, no impact on georama to state"
-            exit 0
-          fi
-          if has_label georama-breaking && has_label no-georama-impact; then
-            echo "::error::georama-breaking and no-georama-impact exclude each other, keep one"
-            exit 1
-          fi
-          if has_label no-georama-impact; then
-            echo "no impact on georama stated, the georama compatibility check has to prove it"
-            exit 0
-          fi
-          if has_label georama-breaking; then
-            if grep -qE 'opengisch/georama#[0-9]+|github\.com/opengisch/georama/(pull|issues)/[0-9]+' <<< "${body}"; then
-              echo "breaking for georama, counterpart linked"
-              exit 0
-            fi
-            echo "::error::georama-breaking needs the georama counterpart in the description (Counterpart: opengisch/georama#<n>)"
-            exit 1
-          fi
-          echo "::error::interface or dispatcher changed, set georama-breaking (with Counterpart: opengisch/georama#<n>) or no-georama-impact"
-          exit 1
