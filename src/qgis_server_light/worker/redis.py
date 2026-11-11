@@ -7,6 +7,7 @@ import signal
 import socket
 import threading
 import time
+from abc import abstractmethod
 
 from redis.backoff import ExponentialBackoff
 from redis.client import Pipeline, Redis
@@ -15,17 +16,54 @@ from redis.exceptions import TimeoutError
 from redis.retry import Retry
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers.dict import DictFactory
 
 from qgis_server_light.interface.dispatcher.common import Status
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
+from qgis_server_light.interface.dispatcher.protocol import (
+    RedisProtocol,
+    RedisPublishProtocol,
+    RedisStateProtocol,
+)
+from qgis_server_light.interface.job.common.input import ExecutionMode, QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
+from qgis_server_light.interface.job.process.input import QslJobInfoExecuteProcess
 from qgis_server_light.worker.engine import Engine, EngineContext
 
 DEFAULT_DATA_ROOT = "/io/data"
 DEFAULT_SVG_PATH = "/io/svg"
+DEFAULT_PROCESS_OUTPUT_DIR = "/io/process_output"
+DEFAULT_RUNNER_PLUGINS = ":".join(
+    [
+        "qgis_server_light.worker.runner.render.RenderRunner",
+        "qgis_server_light.worker.runner.legend.GetLegendRunner",
+        "qgis_server_light.worker.runner.feature.GetFeatureRunner",
+        "qgis_server_light.worker.runner.crs.CrsRunner",
+        # Not fully functional yet
+        # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
+    ]
+)
+DEFAULT_PROCESS_ALLOWLIST = ",".join(
+    [
+        "native:buffer",
+        "native:centroids",
+    ]
+)
 
 
 class RedisEngine(Engine):
+    """The common part of the redis workers: connecting, registering, the
+    heartbeat and the loop taking jobs from the queue. How a finished job is
+    delivered is decided by the subclasses, so the loop does not need to know
+    about it.
+
+    Attributes:
+        protocol: The protocol the engine is built on, it defines the queue the
+            engine listens on.
+    """
+
+    protocol: type[RedisProtocol]
+
     def __init__(
         self,
         context: EngineContext,
@@ -34,6 +72,8 @@ class RedisEngine(Engine):
     ) -> None:
         self.boot_start = time.time()
         super().__init__(context, runner_plugins, svg_paths)
+        # the worker only listens on the queue of its protocol
+        self.queue_name = self.protocol.queue_name()
         self.shutdown = False
         self.retry_wait = 0.01
         self.max_retries = 11
@@ -93,6 +133,36 @@ class RedisEngine(Engine):
         self.heartbeat(client)
         logging.info("Worker was registered in Redis")
 
+    @staticmethod
+    def write_process_registry(client: Redis, process_descriptions: ProcessDescriptions) -> bool:
+        """Writes the process descriptions into the process registry, unless it holds
+        descriptions already.
+
+        Returns:
+            If the descriptions were written.
+        """
+        return bool(
+            client.set(
+                RedisProtocol.process_registry_key,
+                JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(process_descriptions),
+                nx=True,
+            )
+        )
+
+    def register_processes(self, client: Redis):
+        """Registers the processes the worker serves. Workers without the process runner
+        don't serve processes and register nothing."""
+        process_runner_class = self.available_runner_classes_by_job_info.get(
+            QslJobInfoExecuteProcess.__name__
+        )
+        if process_runner_class is None:
+            return
+        process_descriptions = process_runner_class.info(self.qgis, self.context.process_allowlist)
+        if self.write_process_registry(client, process_descriptions):
+            logging.info(f"Processes {self.context.process_allowlist} were registered in Redis")
+        else:
+            logging.info("Processes were registered in Redis already")
+
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
         self.retry_handling_with_jitter(count)
@@ -135,19 +205,21 @@ class RedisEngine(Engine):
         r = self.start(redis_url)
         p = r.pipeline()
         self.register_worker(r)
+        self.register_processes(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         retry_count = 0
         while not self.shutdown:
             try:
-                logging.debug("Waiting for jobs")
+                logging.debug(f"Waiting for jobs on {self.queue_name}")
                 self.set_waiting()
                 # this is blocking the loop until a job is found in the redis
                 # list/queue, if there is one we take it
-                result = r.blpop([RedisProtocol.job_queue_name], timeout=0)
+                result = r.blpop(self.queue_name, timeout=0)
                 if result is not None:
                     _, job_id = result
                     start_time = time.time()
+                    job_info = None
                     try:
                         # we inform, that the job is running.
                         self.set_job_runtime_status(job_id, p, Status.RUNNING.value, start_time)
@@ -161,29 +233,9 @@ class RedisEngine(Engine):
                         job_info_class = self.available_job_info_classes[job_info_class_name]
                         job_info = JsonParser().from_string(job_info_json, job_info_class)
                         result: JobResult = self.process(job_info)
-                        result.worker_id = self.info.id
-                        result.worker_host_name = socket.gethostname()
-                        data = pickle.dumps(result)
-
-                        # we inform, that the job was finished successful
-                        self.set_job_runtime_status(job_id, p, Status.SUCCESS.value, start_time)
-
-                        # we publish the result to any subscribers
-                        p.publish(RedisProtocol.channel(job_id), data)
-
+                        self.succeed_job(job_id, job_info, result, p, start_time)
                     except Exception as e:
-                        # preparation of the result, containing error information
-                        result = JobResult(id=job_id, data=str(e), content_type="text")
-                        result.worker_id = self.info.id
-                        result.worker_host_name = socket.gethostname()
-                        data = pickle.dumps(result)
-
-                        # we inform, that the job has failed with errors
-                        # self.set_job_runtime_status(job_id, p, Status.FAILURE.value,
-                        # start_time)
-
-                        # we publish the result to any subscribers
-                        p.publish(RedisProtocol.channel(job_id), data)
+                        self.fail_job(job_id, job_info, e, p, start_time)
 
                         # we provide error information to the logs
                         logging.error(e, exc_info=True)
@@ -195,6 +247,171 @@ class RedisEngine(Engine):
                 self.retry_connection(redis_url, retry_count)
                 continue
         exit(0)
+
+    @abstractmethod
+    def succeed_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter,
+        result: JobResult,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        """Delivers the result of a job which was solved.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job.
+            result: The result the runner returned.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was taken from the queue.
+        """
+        pass
+
+    @abstractmethod
+    def fail_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter | None,
+        error: Exception,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        """Delivers the error of a job which failed.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job, `None` if it failed before the
+                job info could be read.
+            error: The error the job failed with.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was taken from the queue.
+        """
+        pass
+
+
+class RedisPublishEngine(RedisEngine):
+    """The engine publishing the result to the waiting dispatcher (see
+    `RedisPublishProtocol`). This is the default, map related jobs are served
+    by it.
+    """
+
+    protocol = RedisPublishProtocol
+
+    def publish_result(
+        self, job_id: str, result: JobResult, pipeline: Pipeline, status: str, start_time: float
+    ):
+        """Sets the final status and publishes the pickled result. Success and
+        failure only differ in the result and the status, so both end here.
+
+        Args:
+            job_id: The unique identifier of the job.
+            result: The result to publish, the worker information is added.
+            pipeline: The pipeline holding the transaction.
+            status: The final status of the job.
+            start_time: The time the job was taken from the queue.
+        """
+        result.worker_id = self.info.id
+        result.worker_host_name = socket.gethostname()
+        data = pickle.dumps(result)
+
+        # we inform, that the job was finished
+        self.set_job_runtime_status(job_id, pipeline, status, start_time)
+
+        # we publish the result to any subscribers
+        pipeline.publish(self.protocol.channel(job_id), data)
+
+    def succeed_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter,
+        result: JobResult,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        self.publish_result(job_id, result, pipeline, Status.SUCCESS.value, start_time)
+
+    def fail_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter | None,
+        error: Exception,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        # preparation of the result, containing error information
+        result = JobResult(id=job_id, data=str(error), content_type="text")
+        self.publish_result(job_id, result, pipeline, Status.FAILURE.value, start_time)
+
+
+class RedisStateEngine(RedisEngine):
+    """The engine keeping the result in the job hash (see `RedisStateProtocol`).
+    Process-workers are started with it.
+    """
+
+    protocol = RedisStateProtocol
+
+    def finish_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter | None,
+        pipeline: Pipeline,
+        status: str,
+        start_time: float,
+    ):
+        """Renews the expiry, sets the final status and notifies a waiting
+        dispatcher. Success and failure only differ in the fields written
+        before, so both end here.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_info: The job info of the job, `None` if it could not be read. A
+                waiting dispatcher can not be ruled out then, so it is notified.
+            pipeline: The pipeline holding the transaction.
+            status: The final status of the job.
+            start_time: The time the job was taken from the queue.
+        """
+        # the fields written before are executed in the same transaction as the
+        # final status
+        pipeline.expire(self.protocol.job_key(job_id), self.protocol.job_expire)
+        self.set_job_runtime_status(job_id, pipeline, status, start_time)
+        # the notification only wakes a waiting dispatcher, the job hash is
+        # written already
+        if job_info is None or job_info.execution_mode == ExecutionMode.SYNC:
+            pipeline.publish(self.protocol.channel(job_id), status)
+
+    def succeed_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter,
+        result: JobResult,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        pipeline.hset(self.protocol.job_key(job_id), self.protocol.job_result_key, result.data)
+        pipeline.hset(
+            self.protocol.job_key(job_id),
+            self.protocol.job_result_content_type_key,
+            result.content_type,
+        )
+        self.finish_job(job_id, job_info, pipeline, Status.SUCCESS.value, start_time)
+
+    def fail_job(
+        self,
+        job_id: str,
+        job_info: QslJobInfoParameter | None,
+        error: Exception,
+        pipeline: Pipeline,
+        start_time: float,
+    ):
+        pipeline.hset(self.protocol.job_key(job_id), self.protocol.job_message_key, str(error))
+        self.finish_job(job_id, job_info, pipeline, Status.FAILURE.value, start_time)
+
+
+engine_classes: dict[str, type[RedisEngine]] = {
+    "publish": RedisPublishEngine,
+    "state": RedisStateEngine,
+}
 
 
 def main() -> None:
@@ -224,6 +441,43 @@ def main() -> None:
         default=DEFAULT_SVG_PATH,
     )
 
+    parser.add_argument(
+        "--runner-plugins",
+        type=str,
+        help="Runner classes the worker boots with, as dotted paths. Multiple plugins "
+        "can be separated by `:`. The worker listens on the queues of their jobs only, "
+        "e.g. `qgis_server_light.worker.runner.process.ProcessRunner` for a worker "
+        "serving processes. Defaults to the map related runners.",
+        default=DEFAULT_RUNNER_PLUGINS,
+    )
+
+    parser.add_argument(
+        "--process-allowlist",
+        type=str,
+        help="Ids of the QGIS algorithms the worker serves as processes, separated by `,`. "
+        "Only used when the worker boots with the process runner. "
+        f"Defaults to {DEFAULT_PROCESS_ALLOWLIST}",
+        default=DEFAULT_PROCESS_ALLOWLIST,
+    )
+
+    parser.add_argument(
+        "--process-output-dir",
+        type=str,
+        help="Absolute path to the dir the processes write their outputs to, each job "
+        "into its own sub dir. Only used when the worker boots with the process runner. "
+        f"Defaults to {DEFAULT_PROCESS_OUTPUT_DIR}",
+        default=DEFAULT_PROCESS_OUTPUT_DIR,
+    )
+
+    parser.add_argument(
+        "--engine",
+        type=str,
+        choices=list(engine_classes),
+        help="How the worker delivers job results: `publish` publishes the result to the "
+        "waiting dispatcher, `state` keeps it in the job hash. Defaults to publish",
+        default="publish",
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -236,16 +490,11 @@ def main() -> None:
         )
 
     svg_paths = args.svg_path.split(":")
-    engine = RedisEngine(
-        EngineContext(args.data_root),
-        [
-            "qgis_server_light.worker.runner.render.RenderRunner",
-            "qgis_server_light.worker.runner.legend.GetLegendRunner",
-            "qgis_server_light.worker.runner.feature.GetFeatureRunner",
-            "qgis_server_light.worker.runner.crs.CrsRunner",
-            # Not fully functional yet
-            # "qgis_server_light.worker.runner.feature_info.GetFeatureInfoRunner",
-        ],
+    runner_plugins = args.runner_plugins.split(":")
+    process_allowlist = args.process_allowlist.split(",")
+    engine = engine_classes[args.engine](
+        EngineContext(args.data_root, process_allowlist, args.process_output_dir),
+        runner_plugins,
         svg_paths=svg_paths,
     )
     engine.run(

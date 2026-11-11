@@ -22,6 +22,34 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+  # same worker image, booted with the state engine and the process runner only,
+  # it listens on the process queue so long-running processes never block the map
+  # related jobs
+  process-worker:
+    environment:
+      - "QSL_REDIS_URL=redis://redis:6379"
+      - "QSL_SVG_PATH=/io/svg"
+      - "QSL_DATA_ROOT=/io/data"
+      - "QSL_LOG_LEVEL=${QSL_LOG_LEVEL:-info}"
+      - "QSL_ENGINE=state"
+      - "QSL_RUNNER_PLUGINS=qgis_server_light.worker.runner.process.ProcessRunner"
+      - "QSL_PROCESS_OUTPUT_DIR=/io/process_output"
+    platform: "${PLATFORM:-linux/amd64}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    deploy:
+      replicas: ${PROCESS_REPLICAS:-1}
+    volumes:
+      - "${LOCAL_PROJECTS:-./tests/resources/projects}:/io/data"
+      - "${LOCAL_SVGS:-./tests/resources/svg}:/io/svg"
+      # the outputs of the processes, it has to be shared with the service
+      # handing them out to the clients
+      - "process-output:/io/process_output"
+    depends_on:
+      redis:
+        condition: service_healthy
   exporter:
     environment:
       - "QSL_DATA_ROOT=/io/data"
@@ -47,3 +75,5 @@ services:
       interval: 1s
       timeout: 0.5s
       retries: 50
+volumes:
+  process-output:

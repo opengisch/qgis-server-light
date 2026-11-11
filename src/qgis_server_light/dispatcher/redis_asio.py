@@ -6,15 +6,26 @@ import logging
 import pickle
 import time
 from asyncio import timeout
+from typing import ClassVar
 from uuid import uuid4
 
 from redis import asyncio as redis_aio
+from redis.asyncio.client import PubSub
 from redis.client import Pipeline
+from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.interface.dispatcher.common import Status
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
-from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
+from qgis_server_light.interface.dispatcher.common import JobState, Status
+from qgis_server_light.interface.dispatcher.protocol import (
+    RedisProtocol,
+    RedisPublishProtocol,
+    RedisStateProtocol,
+)
+from qgis_server_light.interface.job.common.input import (
+    ExecutionMode,
+    QslJobInfoParameter,
+    QslJobParameter,
+)
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.crs.input import (
     QslJobInfoCrs,
@@ -32,37 +43,36 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
+from qgis_server_light.interface.job.process.description import ProcessDescriptions
+from qgis_server_light.interface.job.process.input import (
+    QslJobInfoExecuteProcess,
+    QslJobParameterExecuteProcess,
+)
 from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
 
-job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
-    QslJobParameterRender: QslJobInfoRender,
-    QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
-    QslJobParameterLegend: QslJobInfoLegend,
-    QslJobParameterFeature: QslJobInfoFeature,
-    QslJobParameterCrs: QslJobInfoCrs,
-}
 
+class RedisDispatcher(RedisProtocol):
+    """The common part of the dispatchers: the connection to redis and how a job
+    is put into it. How the result comes back is up to the subclasses, they are
+    combined with the matching protocol.
 
-def derive_job_info(job_id: str, job_parameter: QslJobParameter) -> QslJobInfoParameter:
-    """Wraps the job parameter into the job info matching its type.
-
-    Args:
-        job_id: The unique identifier of the job.
-        job_parameter: The parameter for the job which should be executed.
-
-    Raises:
-        TypeError: If there is no job info for the type of the job parameter.
+    Attributes:
+        job_info_classes: The job info class per job parameter class, used to
+            wrap a job parameter into its job info.
     """
-    job_info_class = job_info_classes.get(type(job_parameter))
-    if job_info_class is None:
-        raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
-    return job_info_class(id=job_id, type=job_info_class.__name__, job=job_parameter)
 
+    job_info_classes: ClassVar[dict[type[QslJobParameter], type[QslJobInfoParameter]]] = {
+        QslJobParameterRender: QslJobInfoRender,
+        QslJobParameterFeatureInfo: QslJobInfoFeatureInfo,
+        QslJobParameterLegend: QslJobInfoLegend,
+        QslJobParameterFeature: QslJobInfoFeature,
+        QslJobParameterCrs: QslJobInfoCrs,
+        QslJobParameterExecuteProcess: QslJobInfoExecuteProcess,
+    }
 
-class RedisQueue(RedisProtocol):
     def __init__(self, redis_client: redis_aio.Redis) -> None:
         # we use this to hold connections to redis in a pool, this way we are
         # event loop safe and when creating the redis client for every call of
@@ -74,6 +84,26 @@ class RedisQueue(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
+
+    @classmethod
+    def derive_job_info(cls, job_id: str, job_parameter: QslJobParameter) -> QslJobInfoParameter:
+        """Wraps the job parameter into the job info matching its type.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_parameter: The parameter for the job which should be executed.
+
+        Raises:
+            TypeError: If there is no job info for the type of the job parameter.
+        """
+        job_info_class = cls.job_info_classes.get(type(job_parameter))
+        if job_info_class is None:
+            raise TypeError(f"Unsupported runner type: {type(job_parameter)}")
+        return job_info_class(
+            id=job_id,
+            type=job_info_class.__name__,
+            job=job_parameter,
+        )
 
     async def set_job_runtime_status(
         self,
@@ -95,6 +125,170 @@ class RedisQueue(RedisProtocol):
         await pipeline.hset(self.job_key(job_id), self.job_duration_key, str(duration))
         if execute:
             await pipeline.execute()
+
+    async def queue_job(
+        self, job_info: QslJobInfoParameter, pipeline: Pipeline, start_time: float
+    ) -> None:
+        """Puts the job info into the job hash, sets the queued status and pushes
+        the job id onto the queue of the protocol. Nothing is executed here, the
+        caller adds what belongs to its protocol to the same transaction and
+        executes it.
+
+        Args:
+            job_info: The job info of the job which should be queued.
+            pipeline: The pipeline holding the transaction.
+            start_time: The time the job was posted, used for the duration.
+        """
+        # Putting job info into redis
+        await pipeline.hset(
+            self.job_key(job_info.id), self.job_info_key, JsonSerializer().render(job_info)
+        )
+        await pipeline.hset(
+            self.job_key(job_info.id), self.job_info_type_key, job_info.__class__.__name__
+        )
+        # we inform, that the job was queued. This happens in the same
+        # transaction as the queuing, so it can not overwrite a status
+        # already set by the worker.
+        await self.set_job_runtime_status(
+            job_info.id, pipeline, Status.QUEUED.value, start_time, execute=False
+        )
+        # Queuing the job onto the list/queue of the protocol
+        await pipeline.rpush(self.queue_name(), job_info.id)
+
+
+class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
+    """The dispatcher for jobs which keep their state. A job is submitted and
+    its state can be read at any time later, until the job hash expires. A
+    caller who wants to wait for the result uses `wait`.
+    """
+
+    async def process_descriptions(self) -> ProcessDescriptions:
+        """The descriptions of the processes the process-workers serve, read from the
+        process registry. Empty as long as no process-worker has booted."""
+        registry_json = await self.client.get(self.process_registry_key)
+        if registry_json is None:
+            return ProcessDescriptions()
+        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
+
+    async def submit(
+        self,
+        job_id: str,
+        job_parameter: QslJobParameterExecuteProcess,
+        execution_mode: ExecutionMode = ExecutionMode.ASYNC,
+    ) -> None:
+        """Queues a process job and returns right away. The expiry is set in the
+        same transaction, so a job which is never picked up does not stay in
+        redis forever.
+
+        Args:
+            job_id: The unique identifier of the job, given by the caller so it
+                can refer to the job later.
+            job_parameter: The parameter for the process which should be executed.
+            execution_mode: `ExecutionMode.SYNC` if the caller is going to
+                `wait` for the job, the worker only notifies then.
+        """
+        job_info = self.derive_job_info(job_id, job_parameter)
+        job_info.execution_mode = execution_mode
+        async with self.client.pipeline() as p:
+            await self.queue_job(job_info, p, time.time())
+            await p.expire(self.job_key(job_id), self.job_expire)
+            await p.execute()
+        logging.info(f"{job_id} submitted")
+
+    async def state(self, job_id: str) -> JobState | None:
+        """Reads the current state of the job from its job hash.
+
+        Args:
+            job_id: The unique identifier of the job.
+
+        Returns:
+            The state of the job, `None` if the job does not exist (anymore).
+        """
+        job_hash = await self.client.hgetall(self.job_key(job_id))
+        if not job_hash:
+            return None
+        job_hash = {key.decode(): value for key, value in job_hash.items()}
+        return JobState(
+            id=job_id,
+            status=Status(job_hash[self.job_status_key].decode()),
+            last_update=self.decode_optional(job_hash.get(self.job_last_update_key)),
+            result=self.job_result(job_id, job_hash),
+            message=self.decode_optional(job_hash.get(self.job_message_key)),
+        )
+
+    @staticmethod
+    def decode_optional(value: bytes | None) -> str | None:
+        """Decodes a hash field which might not be set."""
+        return value.decode() if value is not None else None
+
+    def job_result(self, job_id: str, job_hash: dict[str, bytes]) -> JobResult | None:
+        """Assembles the result of the job from its decoded job hash. The data
+        stays bytes, the content type tells the caller how to read it.
+
+        Args:
+            job_id: The unique identifier of the job.
+            job_hash: The job hash with decoded field names.
+
+        Returns:
+            The result, `None` as long as the job has not succeeded.
+        """
+        if self.job_result_key not in job_hash:
+            return None
+        return JobResult(
+            id=job_id,
+            data=job_hash[self.job_result_key],
+            content_type=job_hash[self.job_result_content_type_key].decode(),
+        )
+
+    async def wait(self, job_id: str, to: float = 10.0) -> JobState | None:
+        """Waits maximum `to` seconds for the job to finish. This is what makes a
+        synchronous execution possible on top of a job which keeps its state.
+        It only gets notified if the job was submitted with
+        `ExecutionMode.SYNC`, otherwise it runs into the timeout.
+
+        Args:
+            job_id: The unique identifier of the job.
+            to: The timeout in seconds.
+
+        Returns:
+            The state of the job after it finished or the timeout passed, `None`
+            if the job does not exist (anymore).
+        """
+        async with self.client.pubsub() as ps:
+            # We subscribe before reading the state, so a notification published in
+            # between is not lost.
+            await ps.subscribe(self.channel(job_id))
+            job_state = await self.state(job_id)
+            if job_state is None or job_state.finished:
+                return job_state
+            await self.wait_for_notification(ps, job_id, to)
+        return await self.state(job_id)
+
+    @staticmethod
+    async def wait_for_notification(ps: PubSub, job_id: str, to: float) -> None:
+        """Blocks until a message arrives on the subscribed channel or the timeout
+        passes. The message itself is not of interest, the state is read from
+        the job hash afterwards.
+
+        Args:
+            ps: The pubsub which is subscribed to the channel of the job.
+            job_id: The unique identifier of the job, used for logging.
+            to: The timeout in seconds.
+        """
+        try:
+            async with timeout(to):
+                while True:
+                    message = await ps.get_message(timeout=to, ignore_subscribe_messages=True)
+                    if message:
+                        return
+        except (TimeoutError, asyncio.exceptions.CancelledError):
+            logging.info(f"{job_id} timeout")
+
+
+class RedisQueue(RedisDispatcher, RedisPublishProtocol):
+    """The dispatcher for short living jobs a caller waits for. The result is
+    received over the channel and nothing is kept in redis afterwards.
+    """
 
     async def post(
         self,
@@ -119,7 +313,7 @@ class RedisQueue(RedisProtocol):
         job_id = str(uuid4())
         start_time = time.time()
         try:
-            job_info = derive_job_info(job_id, job_parameter)
+            job_info = self.derive_job_info(job_id, job_parameter)
         except TypeError as e:
             return (
                 JobResult(
@@ -137,21 +331,7 @@ class RedisQueue(RedisProtocol):
                 # before we listen, and its result would be lost.
                 await ps.subscribe(self.channel(job_id))
                 async with self.client.pipeline() as p:
-                    # Putting job info into redis
-                    await p.hset(
-                        self.job_key(job_id), self.job_info_key, JsonSerializer().render(job_info)
-                    )
-                    await p.hset(
-                        self.job_key(job_id), self.job_info_type_key, job_info.__class__.__name__
-                    )
-                    # we inform, that the job was queued. This happens in the same
-                    # transaction as the queuing, so it can not overwrite a status
-                    # already set by the worker.
-                    await self.set_job_runtime_status(
-                        job_id, p, Status.QUEUED.value, start_time, execute=False
-                    )
-                    # Queuing the job onto the list/queue
-                    await p.rpush(self.job_queue_name, job_id)
+                    await self.queue_job(job_info, p, start_time)
                     await p.execute()
 
                 logging.info(f"{job_id} queued")

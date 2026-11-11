@@ -1,6 +1,7 @@
 import logging
 import os
 
+from qgis.analysis import QgsNativeAlgorithms
 from qgis.core import Qgis as Qgis_
 from qgis.core import QgsApplication, QgsCredentials
 
@@ -22,6 +23,7 @@ def Qgis(svg_paths: list[str] | None, log_level):
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     qgs = QgsApplication([], False)
     qgs.initQgis()
+    qgs.processingRegistry().addProvider(QgsNativeAlgorithms())
     if svg_paths:
         _svg_paths = qgs.svgPaths()
         # we do fast set algebra to always have unique list of paths

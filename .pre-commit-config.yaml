@@ -1,13 +1,15 @@
 repos:
   - repo: local
     hooks:
-      - id: ruff
-        name: ruff
-        entry: docker compose run --rm --remove-orphans --entrypoint bash -e DEV_AUTOSTART=0 worker -c "uv run ruff check --fix"
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
         language: system
         types: [ python ]
+        require_serial: true
       - id: ruff-format
-        name: ruff-format
-        entry: docker compose run --rm --remove-orphans --entrypoint bash -e DEV_AUTOSTART=0 worker -c "uv run ruff format"
+        name: ruff format
+        entry: uv run ruff format
         language: system
         types: [ python ]
+        require_serial: true
