@@ -96,57 +96,9 @@ jobs:
     needs: [ check, docker-image-release ]
     permissions:
       contents: write
-      pull-requests: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Write georama compatibility
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # georama reads this before a pin bump, the generated notes don't carry counterparts
-        run: |
-          previous=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
-          search=""
-          if [ -n "${previous}" ]; then
-            search="merged:>$(git log -1 --format=%cI "${previous}")"
-          fi
-          # shellcheck disable=SC2016 # $counterparts is a jq variable, not a shell one
-          breaking=$(gh pr list --repo "${GITHUB_REPOSITORY}" --state merged --base main --label georama-breaking --search "${search}" --limit 100 --json number,title,body --jq '
-            .[]
-            | ([(.body // "") | scan("(?:opengisch/georama#|github\\.com/opengisch/georama/(?:pull|issues)/)([0-9]+)") | "opengisch/georama#" + .[0]] | unique | join(", ")) as $counterparts
-            | "- #\(.number) \(.title) → \(if $counterparts == "" then "no counterpart linked" else "counterpart " + $counterparts end)"')
-
-          # the pin of the latest georama release, georama is public, no token needed beyond the own one
-          georama=$(gh release view --repo opengisch/georama --json tagName --jq .tagName 2>/dev/null || true)
-          georama_pin=""
-          if [ -n "${georama}" ]; then
-            georama_pin=$(gh api "repos/opengisch/georama/contents/pyproject.toml?ref=${georama}" -H "Accept: application/vnd.github.raw" | grep -oP 'qgis-server-light\.git@\Kv[^"]+' || true)
-          fi
-
-          {
-            echo "## georama compatibility"
-            echo
-            if [ -n "${breaking}" ]; then
-              echo "**Breaking for georama.** georama has to change before it can run this release:"
-              echo "${breaking}"
-              if [ -n "${georama_pin}" ]; then
-                echo
-                echo "Until a georama release pins ${GITHUB_REF_NAME}, georama ${georama} runs with QSL ${georama_pin}."
-              fi
-            elif [ -n "${georama_pin}" ]; then
-              echo "No breaking change for georama. The pin can be bumped from ${georama_pin} to ${GITHUB_REF_NAME} without changes in georama."
-            else
-              echo "No breaking change for georama. The pin can be bumped to ${GITHUB_REF_NAME} without changes in georama."
-            fi
-            echo
-          } > georama-compatibility.md
-          cat georama-compatibility.md
-
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        # notes: the georama compatibility first, then the PRs merged since the previous tag, grouped by .github/release.yml
-        run: gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --notes-file georama-compatibility.md --generate-notes --verify-tag --prerelease=${{ needs.check.outputs.final != 'true' }}
+        # notes: PRs merged since the previous tag, grouped by .github/release.yml
+        run: gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --generate-notes --verify-tag --prerelease=${{ needs.check.outputs.final != 'true' }}

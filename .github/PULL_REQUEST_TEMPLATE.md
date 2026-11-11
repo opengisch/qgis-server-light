@@ -13,17 +13,6 @@
 - [ ] Documentation update
 - [ ] Refactoring (no functional changes)
 
-# Impact on georama
-
-<!-- Required when the PR touches interface or dispatcher (labels `interface-change` / `dispatcher-change`), the check "Label PR / impact" fails until it is stated -->
-
-- [ ] none / internal (label `no-georama-impact`, proven by the georama `main` suite on
-  this PR)
-- [ ] breaking, georama has to change (label `georama-breaking`, link the georama PR or
-  issue below)
-
-Counterpart: opengisch/georama#
-
 # Definition of Done
 
 ## For the developer
