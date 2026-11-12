@@ -10,8 +10,7 @@ from uuid import uuid4
 
 from redis import asyncio as redis_aio
 from redis.client import Pipeline
-from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import TimeoutError as RedisTimeoutError
+from redis.exceptions import RedisError
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
@@ -89,7 +88,7 @@ class RedisQueue(RedisProtocol):
         """
         try:
             return await self.client.ping()
-        except (RedisConnectionError, RedisTimeoutError) as e:
+        except RedisError as e:
             logging.warning(f"Redis is not reachable: {e}")
             return False
 

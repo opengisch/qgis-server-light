@@ -11,7 +11,7 @@ import time
 from redis.backoff import ExponentialBackoff
 from redis.client import Pipeline, Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import TimeoutError
+from redis.exceptions import RedisError, TimeoutError
 from redis.retry import Retry
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
@@ -152,7 +152,7 @@ class RedisEngine(Engine):
         try:
             client.srem(RedisProtocol.worker_list_name, self.info.id)
             client.delete(RedisProtocol.worker_key(self.info.id))
-        except (RedisConnectionError, TimeoutError) as e:
+        except RedisError as e:
             # the info expires on its own, the next registering worker cleans the list
             logging.warning(f"Worker could not be unregistered from Redis: {e}")
         else:
@@ -223,8 +223,10 @@ class RedisEngine(Engine):
         """
         r = self.start(redis_url)
         p = r.pipeline()
-        self.register_worker(r)
+        # known before registering, so a signal during the registration still
+        # gets unregistered
         self.redis_client = r
+        self.register_worker(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         try:
@@ -247,7 +249,7 @@ class RedisEngine(Engine):
             # beating once more right away, the process might be gone before the
             # heartbeat thread gets its next turn
             self.heartbeat(client)
-        except (RedisConnectionError, TimeoutError) as e:
+        except RedisError as e:
             logging.warning(f"Crash could not be reported to Redis: {e}")
 
     def serve_jobs(self, r: Redis, p: Pipeline, redis_url: str):
