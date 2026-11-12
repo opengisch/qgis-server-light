@@ -46,3 +46,6 @@ jobs:
           push: true
           target: ${{ matrix.target }}
           tags: opengisch/qgis-server-light:edge${{ matrix.suffix }}
+          # the SBOM (BuildKit scanner, based on syft) is attached to the image as
+          # an attestation
+          sbom: true

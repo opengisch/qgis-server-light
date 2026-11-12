@@ -82,6 +82,9 @@ jobs:
           target: ${{ matrix.target }}
           tags: |
             opengisch/qgis-server-light:${{ steps.version.outputs.version }}${{ matrix.suffix }}
+          # the SBOM (BuildKit scanner, based on syft) is attached to the image as
+          # an attestation, the github release takes it over as asset
+          sbom: true
 
       # pre-releases (v26.0-beta.1) do not move latest
       - name: Tag Image as latest
@@ -97,8 +100,27 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Extract SBOMs of the released images
+        # the very SBOMs attested to the images, so the assets and the images never differ
+        run: |
+          for TARGET in worker exporter; do
+            docker buildx imagetools inspect \
+              "opengisch/qgis-server-light:${GITHUB_REF_NAME#v}-${TARGET}" \
+              --format '{{ json .SBOM.SPDX }}' \
+              > "qgis-server-light-${GITHUB_REF_NAME}-${TARGET}.spdx.json"
+          done
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         # notes: PRs merged since the previous tag, grouped by .github/release.yml
-        run: gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --generate-notes --verify-tag --prerelease=${{ needs.check.outputs.final != 'true' }}
+        run: gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --generate-notes --verify-tag --prerelease=${{ needs.check.outputs.final != 'true' }} qgis-server-light-${GITHUB_REF_NAME}-*.spdx.json
