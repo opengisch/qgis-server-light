@@ -1,4 +1,5 @@
-FROM ghcr.io/opengisch/qgis-slim:3.44.14 AS base
+ARG QGIS_VERSION=3.44.14
+FROM ghcr.io/opengisch/qgis-slim:$QGIS_VERSION AS base
 
 # this base image defines ENTRYPOINT [ "/tini", "--", "/usr/local/bin/uid_entrypoint.sh" ]!!!
 
