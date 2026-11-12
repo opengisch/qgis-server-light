@@ -72,15 +72,15 @@ dev = [
     { include-group = "docs" },
     "debugpy>=1.8.22",
     "pyprof2calltree>=1.4.5",
-    "ty>=0.0.56",
+    "ty>=0.0.100",
 ]
 lint-format = [
-    "ruff>=0.15.20",
+    "ruff>=0.17.4",
 ]
 test = [
     "pillow>=13.0.0",
     "pixelmatch>=0.4.0",
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
 ]
 
 # interface has no deps itself so far
@@ -103,13 +103,13 @@ exporter = [
 ]
 docs = [
     "mkdocs>=1.6,<2.0",
-    "mkdocs-autorefs>=1.4.4",
+    "mkdocs-autorefs>=1.4.5",
     "mkdocs-gen-files>=0.6.1",
     "mkdocs-literate-nav>=0.6.3",
     "mkdocs-material>=9,<10",
     "mkdocs-section-index>=0.3.12",
-    "mkdocstrings>=1.0.4",
-    "mkdocstrings-python>=2.0.5",
+    "mkdocstrings>=1.0.8",
+    "mkdocstrings-python>=2.0.10",
 ]
 
 [tool.ruff]
