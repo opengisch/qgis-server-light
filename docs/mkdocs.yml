@@ -7,6 +7,7 @@ nav:
   - Usage of Worker:
       - CLI: usage.worker.cli.md
       - Docker-DEV: usage.worker.docker.md
+      - Heartbeat: usage.worker.heartbeat.md
   - Usage of Exporter: usage.exporter.md
   - Usage of Interface: usage.interface.md
   - Dev the project: dev.md

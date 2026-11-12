@@ -11,9 +11,20 @@ class TestRedisProtocol:
         assert RedisProtocol.job_duration_key == "duration"
         assert RedisProtocol.job_timestamp_key == "timestamp"
         assert RedisProtocol.job_last_update_key == "timestamp.last_update"
+        assert RedisProtocol.worker_list_name == "workers"
+        assert RedisProtocol.worker_info_key == "info"
+        assert RedisProtocol.worker_last_seen_key == "last_seen"
+
+    def test_worker_timing(self):
+        # a worker has to miss several heartbeats before it is not counted as alive anymore
+        assert RedisProtocol.worker_heartbeat_interval == 1
+        assert RedisProtocol.worker_alive_age == 10
 
     def test_job_key(self):
         assert RedisProtocol.job_key("ididid") == "job:ididid"
 
     def test_channel(self):
         assert RedisProtocol.channel("ididid") == "notifications:ididid"
+
+    def test_worker_key(self):
+        assert RedisProtocol.worker_key("ididid") == "worker:ididid"

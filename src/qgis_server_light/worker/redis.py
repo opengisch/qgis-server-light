@@ -11,7 +11,7 @@ import time
 from redis.backoff import ExponentialBackoff
 from redis.client import Pipeline, Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import TimeoutError
+from redis.exceptions import RedisError, TimeoutError
 from redis.retry import Retry
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
@@ -38,8 +38,9 @@ class RedisEngine(Engine):
         self.retry_wait = 0.01
         self.max_retries = 11
         self.info_expire: int = 300
-        self.heartbeat_interval = 1  # Heartbeat every second
+        self.heartbeat_interval = RedisProtocol.worker_heartbeat_interval
         self.heartbeat_thread = None
+        self.redis_client: Redis | None = None
 
     def retry_handling_with_jitter(self, count: int):
         if count <= self.max_retries:
@@ -57,6 +58,8 @@ class RedisEngine(Engine):
     def exit_gracefully(self, signum, frame):
         logging.error(f"Received: {signum}")
         self.shutdown = True
+        if self.redis_client is not None:
+            self.unregister_worker(self.redis_client)
         exit(0)
 
     @staticmethod
@@ -79,19 +82,81 @@ class RedisEngine(Engine):
         pipeline.execute()
 
     def heartbeat(self, client: Redis) -> datetime.datetime:
-        now = datetime.datetime.now()
-        client.hset(f"worker:{self.info.id}", "last_seen", now.isoformat())
+        """Tells redis that this worker is still alive. Each beat is the full
+        advertisement: the worker info with its current status, the last seen
+        timestamp, the renewed expiry and the id in the list of workers. The beat
+        does not ask redis what it still knows, it simply writes everything again. So
+        when redis lost its keys (restart, flush, eviction) the worker is back within
+        one heartbeat interval, without anybody having to notice the loss.
+
+        Args:
+            client: The redis client.
+
+        Returns:
+            The UTC timestamp which was written as last seen.
+        """
+        now = datetime.datetime.now(datetime.UTC)
+        pipeline = client.pipeline()
+        # writing the full worker info with every beat, so it is back after redis lost
+        # its keys (restart, flush, eviction) and it carries the current status
+        pipeline.hset(
+            RedisProtocol.worker_key(self.info.id),
+            mapping={
+                RedisProtocol.worker_info_key: JsonSerializer().render(self.info),
+                RedisProtocol.worker_last_seen_key: now.isoformat(),
+            },
+        )
+        # renewing the timer, otherwise the worker info expires while the worker is alive
+        pipeline.expire(RedisProtocol.worker_key(self.info.id), self.info_expire)
+        pipeline.sadd(RedisProtocol.worker_list_name, self.info.id)
+        pipeline.execute()
         return now
 
     def register_worker(self, client: Redis):
-        # writing worker info to redis
-        client.hset(f"worker:{self.info.id}", "info", JsonSerializer().render(self.info))
-        # set timer to automatically remove worker info from list
-        client.expire(f"worker:{self.info.id}", self.info_expire)
-        # add worker to list of workers in redis
-        client.sadd("workers", self.info.id)
+        """Makes this worker known in redis and cleans up behind workers which vanished
+        without unregistering. This way the list of workers heals itself with every
+        worker start. The advertising itself is left to the first beat, there is only
+        one place which knows what a worker writes.
+
+        Args:
+            client: The redis client.
+        """
+        self.prune_vanished_workers(client)
+        # the first beat writes the worker info and adds the worker to the list
         self.heartbeat(client)
         logging.info("Worker was registered in Redis")
+
+    @staticmethod
+    def prune_vanished_workers(client: Redis):
+        """Removes the ids of workers from the list whose hash expired already. Such a
+        worker was killed or lost its container and could not say goodbye, so a
+        starting colleague tidies up behind it.
+
+        Args:
+            client: The redis client.
+        """
+        # removing workers from the list which vanished without unregistering (e.g. killed),
+        # their info expired already
+        for worker_id in client.smembers(RedisProtocol.worker_list_name):
+            if not client.exists(RedisProtocol.worker_key(worker_id)):
+                client.srem(RedisProtocol.worker_list_name, worker_id)
+
+    def unregister_worker(self, client: Redis):
+        """Removes this worker from redis on a graceful shutdown. If redis is gone
+        already, the worker does not insist: its info expires and the next registering
+        worker cleans the list.
+
+        Args:
+            client: The redis client.
+        """
+        try:
+            client.srem(RedisProtocol.worker_list_name, self.info.id)
+            client.delete(RedisProtocol.worker_key(self.info.id))
+        except RedisError as e:
+            # the info expires on its own, the next registering worker cleans the list
+            logging.warning(f"Worker could not be unregistered from Redis: {e}")
+        else:
+            logging.info("Worker was unregistered from Redis")
 
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
@@ -101,19 +166,34 @@ class RedisEngine(Engine):
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
         r = Redis.from_url(redis_url, decode_responses=True, retry=Retry(ExponentialBackoff(), 0))
+        self.wait_for_connection(r, redis_url)
+        return r
+
+    def wait_for_connection(self, client: Redis, redis_url: str):
+        """Pings redis until it answers, waiting a bit longer after each refused ping.
+        It is used on start and whenever the job loop lost the connection. Each outage
+        gets the full number of retries, a worker which survived many short hiccups
+        should not give up on the next one just because it used them up already.
+
+        Args:
+            client: The redis client.
+            redis_url: The url of redis, only used to tell in the logs where the
+                worker is knocking.
+        """
+        # the retries are counted per outage, so only one long outage makes the worker
+        # give up and not the sum of all short ones
         retry_count = 0
         while True:
             try:
                 retry_count += 1
                 logging.debug(f"Looking up redis: {redis_url}")
-                r.ping()
-            except RedisConnectionError as e:
+                client.ping()
+            except (RedisConnectionError, TimeoutError) as e:
                 logging.debug(f"Connection on Redis not successful => {e}")
                 self.retry_connection(redis_url, retry_count)
             else:
                 break
         logging.info(f"Connection to redis on `{redis_url}`successful.")
-        return r
 
     def start_heartbeat_worker(self, client: Redis):
         """Creates an own thread which is responsible for renewing the heartbeat info
@@ -132,12 +212,57 @@ class RedisEngine(Engine):
         logging.info("Heartbeat worker started")
 
     def run(self, redis_url):
+        """Connects to redis, registers the worker, starts the heartbeat and serves jobs
+        until the worker is told to stop. If something unexpected breaks the job loop,
+        the worker reports its crash to redis before it goes down with the very same
+        error, so the logs still show what happened. Exiting on purpose (a signal or
+        giving up on redis) is not a crash.
+
+        Args:
+            redis_url: The url of redis, e.g. `redis://qsl-redis:6379`.
+        """
         r = self.start(redis_url)
         p = r.pipeline()
+        # known before registering, so a signal during the registration still
+        # gets unregistered
+        self.redis_client = r
         self.register_worker(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
-        retry_count = 0
+        try:
+            self.serve_jobs(r, p, redis_url)
+        except Exception:
+            self.report_crash(r)
+            raise
+        exit(0)
+
+    def report_crash(self, client: Redis):
+        """Sets the status to crashed and tells redis right away. When redis is part of
+        the trouble, the worker only logs that it couldn't report, the original error
+        is the one which matters and must not be covered by a redis one.
+
+        Args:
+            client: The redis client.
+        """
+        self.set_crashed()
+        try:
+            # beating once more right away, the process might be gone before the
+            # heartbeat thread gets its next turn
+            self.heartbeat(client)
+        except RedisError as e:
+            logging.warning(f"Crash could not be reported to Redis: {e}")
+
+    def serve_jobs(self, r: Redis, p: Pipeline, redis_url: str):
+        """The job loop: takes the next job from the queue, processes it and publishes
+        the result. A failing job is published as an error result, the loop goes on.
+        When the connection to redis is lost, the loop waits for it to come back and
+        carries on, the heartbeat thread takes care of advertising the worker again.
+
+        Args:
+            r: The redis client.
+            p: The pipeline the job status and the result are written with.
+            redis_url: The url of redis, used when waiting for the connection.
+        """
         while not self.shutdown:
             try:
                 logging.debug("Waiting for jobs")
@@ -147,6 +272,7 @@ class RedisEngine(Engine):
                 result = r.blpop([RedisProtocol.job_queue_name], timeout=0)
                 if result is not None:
                     _, job_id = result
+                    self.set_processing()
                     start_time = time.time()
                     try:
                         # we inform, that the job is running.
@@ -191,10 +317,8 @@ class RedisEngine(Engine):
                         p.execute()
                     logging.debug(f"Job duration: {time.time() - start_time}")
             except (RedisConnectionError, TimeoutError) as _:
-                retry_count += 1
-                self.retry_connection(redis_url, retry_count)
+                self.wait_for_connection(r, redis_url)
                 continue
-        exit(0)
 
 
 def main() -> None:

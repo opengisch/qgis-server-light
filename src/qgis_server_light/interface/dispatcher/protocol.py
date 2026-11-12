@@ -22,6 +22,12 @@ class RedisProtocol:
     The result of a job is published to the channel `notifications:{id}` (see
     `channel`).
 
+    A worker registers itself as hash under `worker:{id}` (see `worker_key`) and
+    adds its id to the set `worker_list_name`. The hash holds the fields:
+
+    - `info`: The engine info serialized as JSON.
+    - `last_seen`: ISO timestamp (UTC) of the last heartbeat.
+
     Attributes:
         job_queue_name: The name of the redis list the job ids are queued on.
         job_info_key: The hash field holding the serialized job info.
@@ -31,6 +37,11 @@ class RedisProtocol:
         job_duration_key: The hash field holding the job duration.
         job_timestamp_key: The prefix of the hash fields holding the timestamps.
         job_last_update_key: The hash field holding the timestamp of the last update.
+        worker_list_name: The name of the redis set the worker ids are registered in.
+        worker_info_key: The hash field holding the serialized engine info.
+        worker_last_seen_key: The hash field holding the timestamp of the last heartbeat.
+        worker_heartbeat_interval: Seconds between two heartbeats of a worker.
+        worker_alive_age: Seconds a heartbeat may be old for the worker to count as alive.
     """
 
     job_queue_name: str = "jobs"
@@ -41,6 +52,11 @@ class RedisProtocol:
     job_duration_key: str = "duration"
     job_timestamp_key: str = "timestamp"
     job_last_update_key: str = f"{job_timestamp_key}.last_update"
+    worker_list_name: str = "workers"
+    worker_info_key: str = "info"
+    worker_last_seen_key: str = "last_seen"
+    worker_heartbeat_interval: int = 1
+    worker_alive_age: int = 10 * worker_heartbeat_interval
 
     @staticmethod
     def job_key(job_id: str) -> str:
@@ -59,3 +75,12 @@ class RedisProtocol:
             job_id: The unique identifier of the job.
         """
         return f"{cls.job_channel_name}:{job_id}"
+
+    @staticmethod
+    def worker_key(worker_id: str) -> str:
+        """The key of the redis hash holding the worker registration.
+
+        Args:
+            worker_id: The unique identifier of the worker.
+        """
+        return f"worker:{worker_id}"

@@ -10,9 +10,11 @@ from uuid import uuid4
 
 from redis import asyncio as redis_aio
 from redis.client import Pipeline
+from redis.exceptions import RedisError
+from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.interface.dispatcher.common import Status
+from qgis_server_light.interface.dispatcher.common import Status, Worker
 from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.job.common.input import QslJobInfoParameter, QslJobParameter
 from qgis_server_light.interface.job.common.output import JobResult
@@ -36,6 +38,8 @@ from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
+from qgis_server_light.interface.worker.info import EngineInfo
+from qgis_server_light.interface.worker.info import Status as WorkerStatus
 
 job_info_classes: dict[type[QslJobParameter], type[QslJobInfoParameter]] = {
     QslJobParameterRender: QslJobInfoRender,
@@ -74,6 +78,79 @@ class RedisQueue(RedisProtocol):
     def create(cls, url: str):
         redis_client = redis_aio.Redis.from_url(url)
         return cls(redis_client)
+
+    async def is_reachable(self) -> bool:
+        """Pings redis. The caller only needs to know whether jobs could be queued, so
+        the redis exceptions stay in here and are logged.
+
+        Returns:
+            True if redis answered, False if it could not be reached.
+        """
+        try:
+            return await self.client.ping()
+        except RedisError as e:
+            logging.warning(f"Redis is not reachable: {e}")
+            return False
+
+    async def registered_workers(self) -> list[Worker]:
+        """Collects every worker redis still knows, no matter how old its last heartbeat
+        is. This way crashed or silently vanished workers can be shown until their info
+        expires, the consumer tells them apart by `info.status` and `last_seen`.
+
+        Returns:
+            The registered workers, sorted by their id to give a stable order.
+        """
+        workers = []
+        for worker_id in sorted(await self.client.smembers(self.worker_list_name)):
+            last_seen, info = await self.client.hmget(
+                self.worker_key(worker_id.decode()),
+                [self.worker_last_seen_key, self.worker_info_key],
+            )
+            if last_seen is None or info is None:
+                # the worker vanished, its info expired already
+                continue
+            workers.append(
+                Worker(
+                    id=worker_id.decode(),
+                    last_seen=self.parse_last_seen(last_seen),
+                    info=JsonParser().from_bytes(info, EngineInfo),
+                )
+            )
+        return workers
+
+    async def alive_workers(self) -> list[Worker]:
+        """Collects the workers which sent a heartbeat within `worker_alive_age` and did
+        not crash. Workers which are still registered but stopped beating (e.g. killed)
+        or reported a crash are left out, so the result tells who is really there to
+        process jobs.
+
+        Returns:
+            The alive workers, sorted by their id to give a stable order.
+        """
+        now = datetime.datetime.now(datetime.UTC)
+        alive_age = datetime.timedelta(seconds=self.worker_alive_age)
+        return [
+            worker
+            for worker in await self.registered_workers()
+            if now - worker.last_seen <= alive_age and worker.info.status != WorkerStatus.CRASHED
+        ]
+
+    @staticmethod
+    def parse_last_seen(last_seen: bytes) -> datetime.datetime:
+        """Reads the heartbeat timestamp of a worker as it is stored in redis.
+
+        Args:
+            last_seen: The ISO timestamp as redis returns it.
+
+        Returns:
+            The timezone aware timestamp, naive ones are taken as UTC.
+        """
+        timestamp = datetime.datetime.fromisoformat(last_seen.decode())
+        if timestamp.tzinfo is None:
+            # workers before the UTC heartbeat wrote their local time without offset, in
+            # containers this is UTC usually
+            timestamp = timestamp.replace(tzinfo=datetime.UTC)
+        return timestamp
 
     async def set_job_runtime_status(
         self,
