@@ -12,6 +12,12 @@ USER 0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# qgis-slim builds a patch tag only once, every build of ours pulls in the
+# security fixes released since then
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/*
+
 FROM base AS base-builder
 
 RUN apt-get update \
