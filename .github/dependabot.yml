@@ -1,11 +1,112 @@
 version: 2
+
+# Security updates are activated in the repo settings; they ignore the cooldown
 updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python:uv"
+    cooldown:
+      default-days: 5
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      # Redis is the backbone between dispatcher and workers - it get its own PR
+      redis:
+        patterns:
+          - "redis"
+        update-types:
+          - "minor"
+          - "patch"
+      python-dev:
+        patterns:
+          - "ruff"
+          - "ty"
+          - "pytest"
+          - "pillow"
+          - "pixelmatch"
+          - "debugpy"
+          - "pyprof2calltree"
+          - "mkdocs*"
+        update-types:
+          - "minor"
+          - "patch"
+      python-minor-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "redis"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Dockerfile (FROM / COPY --from lines)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    cooldown:
+      default-days: 5
+    groups:
+      # A QGIS minor (e.g. 3.44 LTR -> 3.46) changes the rendering engine:
+      # only patch releases are grouped, minor ones come as a dedicated PR.
+      qgis-patch:
+        patterns:
+          - "opengisch/qgis-slim"
+        update-types:
+          - "patch"
+      docker-minor-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "opengisch/qgis-slim"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # compose.yml, compose.dev.yml (service images)
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    cooldown:
+      default-days: 5
+    groups:
+      # Redis server own PR
+      redis:
+        patterns:
+          - "redis"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github_actions"
+    cooldown:
+      default-days: 5
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
