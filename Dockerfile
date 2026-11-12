@@ -18,6 +18,26 @@ RUN apt-get update \
   && apt-get upgrade -y \
   && rm -rf /var/lib/apt/lists/*
 
+# qgis-slim is made for QGIS server (spawn-fcgi under xvfb) and ships dev and
+# test tooling, the worker and the exporter need none of it
+# libfcgi0t64 stays, libqgis_server links it and qgis.server is used by the
+# render runner, without the mark it would go with libfcgi-bin
+# python3-plotly stays too, the plot algorithms of the python processing plugin
+# import it at runtime
+RUN apt-mark manual libfcgi0t64 \
+  && apt-get purge -y --auto-remove \
+    curl \
+    libfcgi-bin \
+    python3-autopep8 \
+    python3-coverage \
+    python3-mock \
+    python3-nose2 \
+    python3-pyqt5.qtwebkit \
+    python3-pyqtbuild \
+    python3-termcolor \
+    spawn-fcgi \
+    xvfb
+
 FROM base AS base-builder
 
 RUN apt-get update \
