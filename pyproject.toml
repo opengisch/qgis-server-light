@@ -43,7 +43,7 @@ interface = []
 dispatcher = [
     "qgis-server-light[interface]",
     "redis==5.0.8",
-    "xsdata>=26.2",
+    "xsdata>=26.10",
 ]
 
 [project.urls]
@@ -90,16 +90,16 @@ worker = [
     { include-group = "interface" },
     "redis==5.0.8",
     "fpng-py>=0.0.3",
-    "xsdata>=26.2",
+    "xsdata>=26.10",
     "hupper>=1.12.1",
 ]
 
 exporter = [
     { include-group = "interface" },
-    "click>=8.4.2",
+    "click>=8.5.0",
     "flask>=3.1.3",
     "gunicorn==26.2.0",
-    "xsdata>=26.2",
+    "xsdata>=26.10",
 ]
 docs = [
     "mkdocs>=1.6,<2.0",
