@@ -91,7 +91,7 @@ class GetLegendRunner(MapRunner):
         image = QImage(width, height, QImage.Format_ARGB32)
         image.setDotsPerMeterX(int(dpi * 39.37))
         image.setDotsPerMeterY(int(dpi * 39.37))
-        image.fill(Qt.white)
+        image.fill(Qt.transparent)
 
         painter = QPainter(image)
         painter.setRenderHint(QPainter.Antialiasing, True)
