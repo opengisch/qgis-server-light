@@ -42,7 +42,7 @@ dependencies = []
 interface = []
 dispatcher = [
     "qgis-server-light[interface]",
-    "redis==5.0.8",
+    "redis==8.1.0",
     "xsdata>=26.2",
 ]
 
@@ -88,7 +88,7 @@ interface = []
 
 worker = [
     { include-group = "interface" },
-    "redis==5.0.8",
+    "redis==8.1.0",
     "fpng-py>=0.0.3",
     "xsdata>=26.2",
     "hupper>=1.12.1",
