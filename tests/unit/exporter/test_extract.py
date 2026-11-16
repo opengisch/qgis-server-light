@@ -3,17 +3,32 @@ import re
 import pytest
 from qgis.core import (
     Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsEditorWidgetSetup,
     QgsField,
     QgsFieldConstraints,
     QgsProject,
     QgsProviderRegistry,
     QgsRasterLayer,
+    QgsRelation,
+    QgsRelationContext,
+    QgsValueMapFieldFormatter,
     QgsVectorLayer,
 )
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
-from qgis_server_light.interface.exporter.extract import WcsSource
+from qgis_server_light.interface.exporter.extract import (
+    FieldConstraints,
+    Range,
+    Relation,
+    RelationFieldPair,
+    RelationReference,
+    ValueMap,
+    ValueMapEntry,
+    ValueRelation,
+    WcsSource,
+)
 
 
 class TestCreateQslSourcePostgresql:
@@ -284,3 +299,292 @@ class TestFieldNullable:
     def test_create_qsl_field_from_qgis_field_nullable(self, qgis_field, is_primary_key, expected):
         field = Exporter.create_qsl_field_from_qgis_field(qgis_field, is_primary_key)
         assert field.nullable is expected
+
+
+class TestFieldConstraints:
+    """
+    The constraints are exported as flags, the expression only if QGIS has one. The
+    expression constraint flag alone does not tell anything without the expression.
+    """
+
+    @pytest.mark.parametrize(
+        "constraints,expression,expected",
+        [
+            ([], "", FieldConstraints(not_null=False, unique=False, expression=None)),
+            ([NOT_NULL], "", FieldConstraints(not_null=True, unique=False, expression=None)),
+            ([UNIQUE], "", FieldConstraints(not_null=False, unique=True, expression=None)),
+            (
+                [NOT_NULL, UNIQUE],
+                "",
+                FieldConstraints(not_null=True, unique=True, expression=None),
+            ),
+            (
+                [EXPRESSION],
+                '"height" > 0',
+                FieldConstraints(not_null=False, unique=False, expression='"height" > 0'),
+            ),
+        ],
+    )
+    def test_create_qsl_field_constraints(self, constraints, expression, expected):
+        field = QgsField("height")
+        field_constraints = field.constraints()
+        for constraint in constraints:
+            field_constraints.setConstraint(constraint)
+        field_constraints.setConstraintExpression(expression)
+        field.setConstraints(field_constraints)
+        assert Exporter.create_qsl_field_constraints(field) == expected
+
+    def test_field_carries_its_constraints(self):
+        field = QgsField("height")
+        field_constraints = field.constraints()
+        field_constraints.setConstraint(NOT_NULL)
+        field.setConstraints(field_constraints)
+        # the constraints travel with the exported field, the nullable flag next to it
+        # stays as it was
+        qsl_field = Exporter.create_qsl_field_from_qgis_field(field, is_primary_key=False)
+        assert qsl_field.constraints == FieldConstraints(not_null=True, unique=False)
+        assert qsl_field.nullable is False
+
+
+class TestValueMap:
+    """
+    QGIS knows two forms of the value map configuration: the current one, a list of
+    single entry dicts, and the old one, a single dict. Both map description to key.
+    """
+
+    @pytest.mark.parametrize(
+        "config,expected",
+        [
+            # current form, the order of QGIS is kept
+            (
+                {"map": [{"Forest": "F"}, {"Meadow": "M"}, {"Lake": "L"}]},
+                ValueMap(
+                    entries=[
+                        ValueMapEntry(key="F", description="Forest"),
+                        ValueMapEntry(key="M", description="Meadow"),
+                        ValueMapEntry(key="L", description="Lake"),
+                    ]
+                ),
+            ),
+            # old form, one dict holding all entries
+            (
+                {"map": {"Forest": "F", "Meadow": "M"}},
+                ValueMap(
+                    entries=[
+                        ValueMapEntry(key="F", description="Forest"),
+                        ValueMapEntry(key="M", description="Meadow"),
+                    ]
+                ),
+            ),
+            # keys which are no strings are exported as strings
+            (
+                {"map": [{"one": 1}, {"two": 2}]},
+                ValueMap(
+                    entries=[
+                        ValueMapEntry(key="1", description="one"),
+                        ValueMapEntry(key="2", description="two"),
+                    ]
+                ),
+            ),
+            # no map configured at all
+            ({}, ValueMap(entries=[])),
+        ],
+    )
+    def test_create_qsl_value_map(self, config, expected):
+        assert Exporter.create_qsl_value_map(config) == expected
+
+    def test_null_entry_becomes_the_null_representation(self):
+        config = {
+            "map": [
+                {"<unknown>": QgsValueMapFieldFormatter.NULL_VALUE},
+                {"Forest": "F"},
+            ]
+        }
+        value_map = Exporter.create_qsl_value_map(config)
+        # the NULL entry is no selectable value, it only tells how NULL is shown
+        assert value_map.entries == [ValueMapEntry(key="F", description="Forest")]
+        assert value_map.null_representation == "<unknown>"
+
+
+class TestEditorWidget:
+    """
+    Only the editor widgets which define value lists or domains are exported, all
+    others end up as None. The exported one is the definition of the editor widget.
+    """
+
+    @pytest.mark.parametrize(
+        "widget_type,config,expected_definition",
+        [
+            (
+                "ValueMap",
+                {"map": [{"Forest": "F"}]},
+                ValueMap(entries=[ValueMapEntry(key="F", description="Forest")]),
+            ),
+            (
+                "ValueRelation",
+                {
+                    "Layer": "land_use_types_3f1c",
+                    "Key": "code",
+                    "Value": "label",
+                    "FilterExpression": '"active" = true',
+                    "AllowMulti": True,
+                    "OrderByValue": True,
+                },
+                ValueRelation(
+                    layer_id="land_use_types_3f1c",
+                    key_field="code",
+                    value_field="label",
+                    filter_expression='"active" = true',
+                    allow_multi=True,
+                    order_by_value=True,
+                ),
+            ),
+            (
+                "RelationReference",
+                {"Relation": "parcels_owners_rel"},
+                RelationReference(relation_id="parcels_owners_rel"),
+            ),
+            (
+                "Range",
+                {"Min": 0, "Max": "100", "Step": 0.5},
+                Range(minimum=0.0, maximum=100.0, step=0.5),
+            ),
+        ],
+    )
+    def test_create_qsl_editor_widget(self, widget_type, config, expected_definition):
+        setup = QgsEditorWidgetSetup(widget_type, config)
+        editor_widget = Exporter.create_qsl_editor_widget(setup)
+        assert editor_widget.definition == expected_definition
+
+    @pytest.mark.parametrize("widget_type", ["TextEdit", "DateTime", "CheckBox", ""])
+    def test_other_editor_widgets_are_not_exported(self, widget_type):
+        setup = QgsEditorWidgetSetup(widget_type, {})
+        assert Exporter.create_qsl_editor_widget(setup) is None
+
+    def test_value_relation_defaults(self):
+        # QGIS writes an empty filter expression when none is set, it must not reach the
+        # consumer as a filter
+        config = {
+            "Layer": "land_use_types_3f1c",
+            "Key": "code",
+            "Value": "label",
+            "FilterExpression": "",
+        }
+        assert Exporter.create_qsl_value_relation(config) == ValueRelation(
+            layer_id="land_use_types_3f1c",
+            key_field="code",
+            value_field="label",
+            filter_expression=None,
+            allow_multi=False,
+            order_by_value=False,
+        )
+
+    def test_range_without_limits(self):
+        assert Exporter.create_qsl_range({}) == Range(minimum=None, maximum=None, step=None)
+
+    def test_field_carries_its_editor_widget(self):
+        field = QgsField("land_use")
+        field.setEditorWidgetSetup(QgsEditorWidgetSetup("ValueMap", {"map": [{"Forest": "F"}]}))
+        qsl_field = Exporter.create_qsl_field_from_qgis_field(field, is_primary_key=False)
+        assert qsl_field.editor_widget.value_map == ValueMap(
+            entries=[ValueMapEntry(key="F", description="Forest")]
+        )
+
+
+class TestGeneratedPrimaryKey:
+    """
+    A primary key is generated when the source assigns it on insert. OGR always does
+    (GeoPackage fid, ...), other providers tell it with a default value clause.
+    """
+
+    def test_ogr_primary_key_is_generated(self, qgis_app, data_path):
+        layer = QgsVectorLayer(
+            f"{data_path}/data/placenames.gpkg|layername=placenames", "placenames", "ogr"
+        )
+        fields = Exporter.create_qsl_fields_from_qgis_field(layer)
+        # the fid is the primary key of the GeoPackage and assigned by GDAL
+        fid = fields[0]
+        assert fid.name == "fid"
+        assert fid.is_primary_key is True
+        assert fid.is_generated is True
+        # all the others are neither primary key nor generated
+        for field in fields[1:]:
+            assert field.is_primary_key is False
+            assert field.is_generated is False
+
+    def test_provider_without_default_value_does_not_generate(self, qgis_app):
+        layer = QgsVectorLayer("Point?field=id:integer", "memory", "memory")
+        # the memory provider has no default value clause, nothing is generated
+        assert Exporter.obtain_is_generated(layer.dataProvider(), 0) is False
+
+
+class TestRelations:
+    """
+    All relations of the project are exported with their layers as QGIS layer ids, the
+    consumer resolves them.
+    """
+
+    def test_create_qsl_relations(self, qgis_app):
+        project = QgsProject()
+        owners = QgsVectorLayer(
+            "None?field=id:integer&field=country:string&field=name:string", "owners", "memory"
+        )
+        parcels = QgsVectorLayer(
+            "Polygon?field=id:integer&field=owner_id:integer&field=owner_country:string",
+            "parcels",
+            "memory",
+        )
+        project.addMapLayers([owners, parcels])
+        # a parcel references its owner by a composite key, the relation needs the
+        # context of our project, otherwise it looks for the layers in the global one
+        relation = QgsRelation(QgsRelationContext(project))
+        relation.setId("parcels_owners_rel")
+        relation.setName("Parcel owner")
+        relation.setReferencingLayer(parcels.id())
+        relation.setReferencedLayer(owners.id())
+        relation.addFieldPair("owner_id", "id")
+        relation.addFieldPair("owner_country", "country")
+        relation.setStrength(Qgis.RelationshipStrength.Composition)
+        project.relationManager().addRelation(relation)
+
+        # PyQGIS hands the field pairs over as a dict built from a QMap, so they come
+        # sorted by the referencing field and not in the order they were added
+        assert Exporter.create_qsl_relations(project) == [
+            Relation(
+                id="parcels_owners_rel",
+                name="Parcel owner",
+                referencing_layer_id=parcels.id(),
+                referenced_layer_id=owners.id(),
+                field_pairs=[
+                    RelationFieldPair(
+                        referencing_field="owner_country", referenced_field="country"
+                    ),
+                    RelationFieldPair(referencing_field="owner_id", referenced_field="id"),
+                ],
+                strength="Composition",
+            )
+        ]
+
+    def test_project_without_relations(self, qgis_app):
+        assert Exporter.create_qsl_relations(QgsProject()) == []
+
+
+class TestLayerCrs:
+    """
+    Some providers report no CRS (e.g. PostGIS geometry columns without SRID), the CRS
+    of the layer is taken then.
+    """
+
+    def test_provider_crs_is_preferred(self, qgis_app):
+        layer = QgsVectorLayer("Point?crs=EPSG:2056", "with_crs", "memory")
+        # a layer CRS overridden in the project does not change what the data is in
+        layer.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        assert Exporter.create_qsl_crs_from_qgs_layer(layer).auth_id == "EPSG:2056"
+
+    def test_layer_crs_is_taken_when_provider_has_none(self, qgis_app):
+        # without any crs parameter the memory provider falls back to EPSG:4326, only an
+        # empty one leaves it without CRS
+        layer = QgsVectorLayer("Point?crs=", "without_crs", "memory")
+        assert not layer.dataProvider().crs().isValid()
+        layer.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
+        assert Exporter.create_qsl_crs_from_qgs_layer(layer).auth_id == "EPSG:2056"
