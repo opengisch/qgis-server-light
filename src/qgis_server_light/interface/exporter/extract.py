@@ -898,9 +898,20 @@ class ExportMessage(BaseInterface):
         WARNING = "warning"
         ERROR = "error"
 
+    class Code(StrEnum):
+        PROJECT_VERSION_UNSUPPORTED = "project_version_unsupported"
+        TREE_NODE_UNSUPPORTED = "tree_node_unsupported"
+        LAYER_INVALID = "layer_invalid"
+        LAYER_EMPTY = "layer_empty"
+        LAYER_EXTENT_MISSING = "layer_extent_missing"
+        LAYER_EXTENT_FROM_PROJECT = "layer_extent_from_project"
+        LAYER_EXTENT_REPROJECTION_FAILED = "layer_extent_reprojection_failed"
+        LAYER_PROVIDER_UNSUPPORTED = "layer_provider_unsupported"
+        LAYER_TYPE_UNSUPPORTED = "layer_type_unsupported"
+
     level: Level = field(metadata={"type": "Element"})
     message: str = field(metadata={"type": "Element"})
-    code: str = field(metadata={"type": "Element"})
+    code: Code = field(metadata={"type": "Element"})
     layer_id: str | None = field(default=None, metadata={"type": "Element"})
 
 
@@ -921,13 +932,13 @@ class Config(BaseInterface):
     )
     messages: list[ExportMessage] = field(default_factory=list, metadata={"type": "Element"})
 
-    def warning(self, message: str, code: str, layer_id: str | None = None):
+    def warning(self, message: str, code: ExportMessage.Code, layer_id: str | None = None):
         logging.warning(message, extra={"code": code, "layer_id": layer_id})
         self.messages.append(
             ExportMessage(ExportMessage.Level.WARNING, message, code=code, layer_id=layer_id)
         )
 
-    def error(self, message: str, code: str, layer_id: str | None = None):
+    def error(self, message: str, code: ExportMessage.Code, layer_id: str | None = None):
         logging.error(message, extra={"code": code, "layer_id": layer_id})
         self.messages.append(
             ExportMessage(ExportMessage.Level.ERROR, message, code=code, layer_id=layer_id)

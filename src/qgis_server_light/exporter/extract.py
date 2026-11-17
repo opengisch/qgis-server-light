@@ -47,6 +47,7 @@ from qgis_server_light.interface.exporter.extract import (
     Datasets,
     DataSource,
     EditorWidget,
+    ExportMessage,
     Field,
     FieldConstraints,
     GdalSource,
@@ -111,7 +112,7 @@ class Exporter:
         if self.version.majorVersion() not in (3, 4):
             self.qsl_config.error(
                 f"QGIS project version {self.version.text()} is not supported.",
-                code="unsupported_qgis_version",
+                code=ExportMessage.Code.PROJECT_VERSION_UNSUPPORTED,
             )
             raise ExportFailure(self.qsl_config.messages)
         self.walk_qgis_project_tree(self.qgis_project_tree_root, [])
@@ -162,8 +163,8 @@ class Exporter:
         else:
             self.qsl_config.warning(
                 "This element was not expected while walking QGIS project tree: "
-                f"{type(entity)} at path {path}",
-                code="unexpected_entity_in_project_tree",
+                f"{type(entity).__name__} at {'/'.join(path)}",
+                code=ExportMessage.Code.TREE_NODE_UNSUPPORTED,
             )
 
     def extract_group(
@@ -222,13 +223,19 @@ class Exporter:
         is_checked = child.itemVisibilityChecked()
         layer_type = self.get_layer_type(layer)
         if layer_type is None:
+            self.qsl_config.warning(
+                f"Layer type {layer.type().name} of layer "
+                f"{layer.title() or layer.name()!r} is not supported.",
+                code=ExportMessage.Code.LAYER_TYPE_UNSUPPORTED,
+                layer_id=layer.id(),
+            )
             return
 
         self.rewrite_datasource_with_qgis3_compatible_uri(layer)
         if not self.is_layer_valid(layer):
             self.qsl_config.warning(
                 f"Layer with name {layer.title() or layer.name()!r} is not valid.",
-                code="invalid_layer",
+                code=ExportMessage.Code.LAYER_INVALID,
                 layer_id=layer.id(),
             )
             return
@@ -241,7 +248,7 @@ class Exporter:
             if layer_extent is None:
                 self.qsl_config.error(
                     "Could not determine an extent for layer",
-                    code="layer_without_extent",
+                    code=ExportMessage.Code.LAYER_EXTENT_MISSING,
                     layer_id=layer.id(),
                 )
                 raise ExportFailure(self.qsl_config.messages)
@@ -260,7 +267,9 @@ class Exporter:
             data_provider: QgsVectorDataProvider = layer.dataProvider()
             if data_provider.isValid() and data_provider.empty():
                 self.qsl_config.warning(
-                    "Vector layer is empty", code="empty_layer", layer_id=layer.id()
+                    "Vector layer is empty",
+                    code=ExportMessage.Code.LAYER_EMPTY,
+                    layer_id=layer.id(),
                 )
             if layer.providerType().lower() == "ogr":
                 source = DataSource(ogr=self.create_qsl_source_ogr(decoded))
@@ -273,7 +282,7 @@ class Exporter:
                 self.qsl_config.warning(
                     f"Unknown provider type {layer.providerType().lower()} "
                     f"for vector job_layer_definition {layer.title() or layer.name()}",
-                    code="unknown_provider_type",
+                    code=ExportMessage.Code.LAYER_PROVIDER_UNSUPPORTED,
                     layer_id=layer.id(),
                 )
                 return
@@ -316,7 +325,7 @@ class Exporter:
             else:
                 self.qsl_config.warning(
                     f"Unknown provider type in raster layer: {layer.providerType().lower()}",
-                    code="unknown_provider_type",
+                    code=ExportMessage.Code.LAYER_PROVIDER_UNSUPPORTED,
                     layer_id=layer.id(),
                 )
                 return
@@ -348,7 +357,7 @@ class Exporter:
                 self.qsl_config.warning(
                     f"Unknown provider type: {layer.providerType().lower()} "
                     f"in layer with short_name {short_name}",
-                    code="unknown_provider_type",
+                    code=ExportMessage.Code.LAYER_PROVIDER_UNSUPPORTED,
                     layer_id=layer.id(),
                 )
                 return
@@ -371,13 +380,6 @@ class Exporter:
                     is_background=False,
                 )
             )
-        else:
-            self.qsl_config.warning(
-                f"Unknown layer_type {layer_type!r} in layer with short_name {short_name}",
-                code="unknown_layer_type",
-                layer_id=layer.id(),
-            )
-            return
 
     def short_name(self, short_name: str, path: list[str]) -> str:
         """
@@ -1059,7 +1061,7 @@ class Exporter:
                 "Layer extent could not be determined by the data provider and the "
                 f"project fallback extent could not be reprojected from "
                 f"{fallback.crs().authid()} to {layer.crs().authid()}: {err}",
-                code="layer_extent_transform_failed",
+                code=ExportMessage.Code.LAYER_EXTENT_REPROJECTION_FAILED,
                 layer_id=layer.id(),
             )
             raise ExportFailure(self.qsl_config.messages) from err
@@ -1067,7 +1069,7 @@ class Exporter:
         self.qsl_config.warning(
             "Layer extent could not be determined by the data provider "
             "and is derived from the project instead.",
-            code="layer_extent_using_project_fallback",
+            code=ExportMessage.Code.LAYER_EXTENT_FROM_PROJECT,
             layer_id=layer.id(),
         )
         return QgsReferencedRectangle(transformed, layer.crs())
@@ -1093,8 +1095,6 @@ class Exporter:
             layer, (QgsVectorTileLayer, QgsTiledSceneLayer, QgsPointCloudLayer, QgsMeshLayer)
         ):
             return "custom"
-        else:
-            logging.error(f"Not implemented: {layer.type()}")
         return None
 
     @staticmethod

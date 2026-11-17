@@ -3,6 +3,7 @@ import re
 import pytest
 from qgis.core import (
     Qgis,
+    QgsAnnotationLayer,
     QgsCoordinateReferenceSystem,
     QgsEditorWidgetSetup,
     QgsField,
@@ -19,6 +20,7 @@ from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.exporter.extract import Exporter
 from qgis_server_light.interface.exporter.extract import (
+    ExportMessage,
     FieldConstraints,
     Range,
     Relation,
@@ -591,3 +593,22 @@ class TestLayerCrs:
         assert not layer.dataProvider().crs().isValid()
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         assert Exporter.create_qsl_crs_from_qgs_layer(layer).auth_id == "EPSG:2056"
+
+
+class TestUnsupportedLayerType:
+    def test_annotation_layer_is_skipped_with_a_warning(self, qgis_app, tmp_path):
+        project = QgsProject()
+        layer = QgsAnnotationLayer(
+            "my_annotations", QgsAnnotationLayer.LayerOptions(project.transformContext())
+        )
+        project.addMapLayer(layer)
+        path = tmp_path / "project.qgs"
+        assert project.write(str(path))
+
+        config = Exporter(str(path)).run()
+        QgsProject.instance().clear()
+
+        assert config.datasets.custom == []
+        assert [(m.level, m.code, m.layer_id) for m in config.messages] == [
+            (ExportMessage.Level.WARNING, ExportMessage.Code.LAYER_TYPE_UNSUPPORTED, layer.id())
+        ]
