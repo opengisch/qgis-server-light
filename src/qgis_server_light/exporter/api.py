@@ -11,6 +11,8 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.exporter.api import ExportParameters, ExportResult
 
+from .exceptions import ExportFailure
+
 app = Flask(__name__)
 
 DATA_ROOT: Path | None = None
@@ -81,8 +83,12 @@ def api_export():
         result = ExportResult(successful=True, content=process.stdout)
         app.logger.debug(f"Successfully extracted information from QGIS Project {result}")
     except subprocess.CalledProcessError as e:
-        app.logger.exception(e.stderr)
-        result = ExportResult(successful=False, content=str(e))
+        if e.returncode == ExportFailure.EXIT_CODE:
+            result = ExportResult(successful=False, content=e.stdout)
+            app.logger.debug(f"Unsuccessful extraction with structured error: {result}")
+        else:
+            app.logger.exception(e.stderr)
+            result = ExportResult(successful=False, content=str(e))
     return Response(JsonSerializer().render(result), mimetype=response_mime_type)
 
 

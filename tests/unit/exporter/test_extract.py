@@ -85,6 +85,7 @@ class TestPostgresServiceExport:
         )
         monkeypatch.setenv("PGSERVICEFILE", str(pg_service_file))
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(
             QgsVectorLayer(
                 "service='qsl_test' key='id' type=Point srid=2056 "
@@ -153,6 +154,7 @@ class TestQgis4DatasourceDecoding:
         version: str | None = None,
     ) -> str:
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(QgsRasterLayer(layer_uri, "my_background", "wms"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))
@@ -218,6 +220,7 @@ class TestWcsExport:
     @pytest.fixture
     def config(self, qgis_app, tmp_path, monkeypatch):
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(QgsRasterLayer(self.wcs_uri, "my_wcs", "wcs"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))

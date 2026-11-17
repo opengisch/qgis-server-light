@@ -8,6 +8,7 @@ import logging
 from abc import ABC
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from qgis_server_light.interface.common import BaseInterface, BBox, Crs, Style
 
@@ -890,6 +891,25 @@ class Relation(BaseInterface):
 
 
 @dataclass(repr=False)
+class ExportMessage(BaseInterface):
+    """A warning or error produced while exporting the QGIS project."""
+
+    class Level(StrEnum):
+        WARNING = "warning"
+        ERROR = "error"
+
+    level: Level = field(metadata={"type": "Element"})
+    message: str = field(metadata={"type": "Element"})
+    code: str = field(metadata={"type": "Element"})
+    layer_id: str | None = field(default=None, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
+class ExportFailureContent(BaseInterface):
+    messages: list[ExportMessage] = field(default_factory=list, metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
 class Config(BaseInterface):
     project: Project = field(metadata={"type": "Element"})
     meta_data: MetaData = field(metadata={"type": "Element"})
@@ -899,3 +919,20 @@ class Config(BaseInterface):
         default_factory=list,
         metadata={"type": "Element"},
     )
+    messages: list[ExportMessage] = field(default_factory=list, metadata={"type": "Element"})
+
+    def warning(self, message: str, code: str, layer_id: str | None = None):
+        logging.warning(message, extra={"code": code, "layer_id": layer_id})
+        self.messages.append(
+            ExportMessage(ExportMessage.Level.WARNING, message, code=code, layer_id=layer_id)
+        )
+
+    def error(self, message: str, code: str, layer_id: str | None = None):
+        logging.error(message, extra={"code": code, "layer_id": layer_id})
+        self.messages.append(
+            ExportMessage(ExportMessage.Level.ERROR, message, code=code, layer_id=layer_id)
+        )
+
+    @property
+    def has_errors(self) -> bool:
+        return any(m.level == ExportMessage.Level.ERROR for m in self.messages)

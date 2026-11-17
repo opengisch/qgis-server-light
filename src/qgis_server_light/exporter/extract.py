@@ -13,6 +13,7 @@ from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsCsException,
     QgsDataSourceUri,
     QgsDateTimeFieldFormatter,
     QgsEditorWidgetSetup,
@@ -29,11 +30,14 @@ from qgis.core import (
     QgsProviderRegistry,
     QgsRasterLayer,
     QgsRectangle,
+    QgsReferencedRectangle,
     QgsTiledSceneLayer,
     QgsValueMapFieldFormatter,
+    QgsVectorDataProvider,
     QgsVectorLayer,
     QgsVectorTileLayer,
 )
+from qgis.server import QgsServerProjectUtils
 
 from qgis_server_light.crs import create_qsl_crs
 from qgis_server_light.interface.common import BBox, Crs, Style
@@ -71,6 +75,8 @@ from qgis_server_light.interface.exporter.extract import (
     XYZSource,
 )
 
+from .exceptions import ExportFailure
+
 
 class Exporter:
     def __init__(
@@ -102,6 +108,12 @@ class Exporter:
         )
 
     def run(self) -> Config:
+        if self.version.majorVersion() not in (3, 4):
+            self.qsl_config.error(
+                f"QGIS project version {self.version.text()} is not supported.",
+                code="unsupported_qgis_version",
+            )
+            raise ExportFailure(self.qsl_config.messages)
         self.walk_qgis_project_tree(self.qgis_project_tree_root, [])
         self.qsl_config.relations = self.create_qsl_relations(self.qgis_project)
         return self.qsl_config
@@ -148,8 +160,10 @@ class Exporter:
                     path,
                 )
         else:
-            logging.error(
-                f"This element was not expected while walking QGIS project tree: {entity}"
+            self.qsl_config.warning(
+                "This element was not expected while walking QGIS project tree: "
+                f"{type(entity)} at path {path}",
+                code="unexpected_entity_in_project_tree",
             )
 
     def extract_group(
@@ -212,14 +226,25 @@ class Exporter:
 
         self.rewrite_datasource_with_qgis3_compatible_uri(layer)
         if not self.is_layer_valid(layer):
-            logging.error(f"Layer with name {layer.title() or layer.name()!r} is not valid.")
+            self.qsl_config.warning(
+                f"Layer with name {layer.title() or layer.name()!r} is not valid.",
+                code="invalid_layer",
+                layer_id=layer.id(),
+            )
             return
 
         decoded = self.extract_datasource_dict(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
         if layer.isSpatial():
             crs = self.create_qsl_crs_from_qgs_layer(layer)
-            layer_extent = layer.extent()
+            layer_extent = self.get_layer_extent(layer)
+            if layer_extent is None:
+                self.qsl_config.error(
+                    "Could not determine an extent for layer",
+                    code="layer_without_extent",
+                    layer_id=layer.id(),
+                )
+                raise ExportFailure(self.qsl_config.messages)
             bbox_wgs84 = self.create_qsl_bbox_from_qgis_rectangle_wgs84(
                 self.qgis_project, layer, layer_extent
             )
@@ -230,7 +255,13 @@ class Exporter:
             bbox_wgs84 = None
             bbox = None
             is_spatial = False
+
         if layer_type == "vector":
+            data_provider: QgsVectorDataProvider = layer.dataProvider()
+            if data_provider.isValid() and data_provider.empty():
+                self.qsl_config.warning(
+                    "Vector layer is empty", code="empty_layer", layer_id=layer.id()
+                )
             if layer.providerType().lower() == "ogr":
                 source = DataSource(ogr=self.create_qsl_source_ogr(decoded))
             elif layer.providerType().lower() == "postgres":
@@ -239,9 +270,11 @@ class Exporter:
                 # TODO: Correctly implement source!
                 source = WfsSource()
             else:
-                logging.error(
-                    f"Unknown provider type {layer.providerType().lower()} for "
-                    f"job_layer_definition {layer.title() or layer.name()}"
+                self.qsl_config.warning(
+                    f"Unknown provider type {layer.providerType().lower()} "
+                    f"for vector job_layer_definition {layer.title() or layer.name()}",
+                    code="unknown_provider_type",
+                    layer_id=layer.id(),
                 )
                 return
             qsl_vector_dataset_fields = self.create_qsl_fields_from_qgis_field(layer)
@@ -281,41 +314,43 @@ class Exporter:
             elif layer.providerType() == "wcs":
                 source = DataSource(wcs=self.create_qsl_source_wcs(decoded))
             else:
-                logging.error(f"Unknown provider type: {layer.providerType().lower()}")
+                self.qsl_config.warning(
+                    f"Unknown provider type in raster layer: {layer.providerType().lower()}",
+                    code="unknown_provider_type",
+                    layer_id=layer.id(),
+                )
                 return
-            if source is not None:
-                self.qsl_datasets.raster.append(
-                    Raster(
-                        name=short_name,
-                        title=layer.title() or layer.name(),
-                        styles=self.create_style_list(layer),
-                        driver=layer.providerType(),
-                        bbox_wgs84=bbox_wgs84,
-                        source=source,
-                        id=layer.id(),
-                        crs=crs,
-                        bbox=bbox,
-                        minimum_scale=layer.minimumScale(),
-                        maximum_scale=layer.maximumScale(),
-                        is_spatial=is_spatial,
-                        is_checked=is_checked,
-                        is_background=self.is_wms_background_layer(layer),
-                    )
+
+            self.qsl_datasets.raster.append(
+                Raster(
+                    name=short_name,
+                    title=layer.title() or layer.name(),
+                    styles=self.create_style_list(layer),
+                    driver=layer.providerType(),
+                    bbox_wgs84=bbox_wgs84,
+                    source=source,
+                    id=layer.id(),
+                    crs=crs,
+                    bbox=bbox,
+                    minimum_scale=layer.minimumScale(),
+                    maximum_scale=layer.maximumScale(),
+                    is_spatial=is_spatial,
+                    is_checked=is_checked,
+                    is_background=self.is_wms_background_layer(layer),
                 )
-            else:
-                logging.error(
-                    f"Source was None this is not expected. Layer was: {short_name}, "
-                    f"QGIS job_layer_definition ID:{layer.id()}"
-                )
+            )
+
         elif layer_type == "custom":
             if layer.providerType().lower() in ["xyzvectortiles", "mbtilesvectortiles"]:
                 source = DataSource(vector_tile=self.create_qsl_source_vector_tiles(decoded))
             else:
-                logging.error(
-                    f"Unknown provider type: {layer.providerType().lower()} Layer "
-                    f"was: {short_name}, QGIS job_layer_definition ID:{layer.id()}"
-                )
                 # TODO: make this more configurable
+                self.qsl_config.warning(
+                    f"Unknown provider type: {layer.providerType().lower()} "
+                    f"in layer with short_name {short_name}",
+                    code="unknown_provider_type",
+                    layer_id=layer.id(),
+                )
                 return
             self.qsl_datasets.custom.append(
                 Custom(
@@ -337,9 +372,10 @@ class Exporter:
                 )
             )
         else:
-            logging.error(
-                f'Unknown layer_type "{layer_type}" Layer was: {short_name}, QGIS '
-                f"job_layer_definition ID:{layer.id()}"
+            self.qsl_config.warning(
+                f"Unknown layer_type {layer_type!r} in layer with short_name {short_name}",
+                code="unknown_layer_type",
+                layer_id=layer.id(),
             )
             return
 
@@ -988,6 +1024,55 @@ class Exporter:
         )
 
     @staticmethod
+    def get_project_extent(project: QgsProject) -> QgsReferencedRectangle | None:
+        """WMS advertised extent, else View Settings full extent, else project CRS area of use."""
+        wms = QgsServerProjectUtils.wmsExtent(project)
+        if not wms.isNull():
+            return QgsReferencedRectangle(wms, project.crs())
+
+        full = project.viewSettings().fullExtent()
+        if not full.isNull():
+            return full
+
+        crs_bounds = project.crs().bounds()  # area of use, always in EPSG:4326
+        if not crs_bounds.isNull():
+            return QgsReferencedRectangle(crs_bounds, QgsCoordinateReferenceSystem("EPSG:4326"))
+
+        return None
+
+    def get_layer_extent(self, layer: QgsMapLayer) -> QgsReferencedRectangle | None:
+        """Layer extent in the layer CRS, else the project fallback reprojected into it."""
+        ext = layer.extent()
+        if not ext.isNull() and ext.isFinite():
+            return QgsReferencedRectangle(ext, layer.crs())
+
+        project = layer.project()
+        fallback = self.get_project_extent(project) if project else None
+        if fallback is None:
+            return None
+
+        ct = QgsCoordinateTransform(fallback.crs(), layer.crs(), project.transformContext())
+        try:
+            transformed = ct.transformBoundingBox(fallback)
+        except QgsCsException as err:
+            self.qsl_config.error(
+                "Layer extent could not be determined by the data provider and the "
+                f"project fallback extent could not be reprojected from "
+                f"{fallback.crs().authid()} to {layer.crs().authid()}: {err}",
+                code="layer_extent_transform_failed",
+                layer_id=layer.id(),
+            )
+            raise ExportFailure(self.qsl_config.messages) from err
+
+        self.qsl_config.warning(
+            "Layer extent could not be determined by the data provider "
+            "and is derived from the project instead.",
+            code="layer_extent_using_project_fallback",
+            layer_id=layer.id(),
+        )
+        return QgsReferencedRectangle(transformed, layer.crs())
+
+    @staticmethod
     def get_layer_type(layer: QgsMapLayer) -> str | None:
         """
         Gets the type of the given Qgis job_layer_definition as a string if the type is supported.
@@ -1039,7 +1124,7 @@ class Exporter:
         return project
 
     @staticmethod
-    def prepare_qgis_project_name(project: QgsProject) -> tuple[str, str]:
+    def prepare_qgis_project_name(project: QgsProject) -> str:
         """
 
 
@@ -1047,7 +1132,7 @@ class Exporter:
             project: The instantiated QGIS project.
 
         Returns:
-            Tuple of str version, name
+            Project name
         """
         return project.title() or project.baseName()
 
