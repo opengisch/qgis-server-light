@@ -33,5 +33,7 @@ jobs:
           name: docs
           path: docs/site
           if-no-files-found: error
+      # the checkout credentials live on the runner host only, so the already
+      # built site is pushed from here and not from inside the container
       - name: Deploy to GitHub Pages
-        run: docker compose run --rm --entrypoint bash worker -c "uv run mkdocs gh-deploy -f docs/mkdocs.yml -d site --force"
+        run: pipx run ghp-import --no-jekyll --push --force docs/site
