@@ -15,6 +15,7 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsDataSourceUri,
     QgsDateTimeFieldFormatter,
+    QgsEditorWidgetSetup,
     QgsField,
     QgsFieldConstraints,
     QgsLayerTree,
@@ -29,6 +30,7 @@ from qgis.core import (
     QgsRasterLayer,
     QgsRectangle,
     QgsTiledSceneLayer,
+    QgsValueMapFieldFormatter,
     QgsVectorLayer,
     QgsVectorTileLayer,
 )
@@ -40,17 +42,26 @@ from qgis_server_light.interface.exporter.extract import (
     Custom,
     Datasets,
     DataSource,
+    EditorWidget,
     Field,
+    FieldConstraints,
     GdalSource,
     Group,
     MetaData,
     OgrSource,
     PostgresSource,
     Project,
+    Range,
     Raster,
+    Relation,
+    RelationFieldPair,
+    RelationReference,
     Service,
     Tree,
     TreeGroup,
+    ValueMap,
+    ValueMapEntry,
+    ValueRelation,
     Vector,
     VectorTileSource,
     WcsSource,
@@ -92,6 +103,7 @@ class Exporter:
 
     def run(self) -> Config:
         self.walk_qgis_project_tree(self.qgis_project_tree_root, [])
+        self.qsl_config.relations = self.create_qsl_relations(self.qgis_project)
         return self.qsl_config
 
     def walk_qgis_project_tree(
@@ -428,7 +440,9 @@ class Exporter:
         return decoded
 
     @staticmethod
-    def create_qsl_field_from_qgis_field(field: QgsField, is_primary_key: bool) -> Field:
+    def create_qsl_field_from_qgis_field(
+        field: QgsField, is_primary_key: bool, is_generated: bool = False
+    ) -> Field:
         attribute_type_xml = Exporter.obtain_simple_types_from_qgis_field_xml(field)
         (
             editor_widget_type,
@@ -442,6 +456,7 @@ class Exporter:
         ) = Exporter.obtain_simple_types_from_qgis_field_json(field)
         return Field(
             is_primary_key=is_primary_key,
+            is_generated=is_generated,
             name=field.name(),
             type=field.typeName(),
             type_wfs=attribute_type_xml,
@@ -456,7 +471,132 @@ class Exporter:
             editor_widget_type_wfs=editor_widget_type_wfs,
             editor_widget_type_oapif=editor_widget_type_json,
             editor_widget_type_oapif_format=editor_widget_type_json_format,
+            editor_widget=Exporter.create_qsl_editor_widget(field.editorWidgetSetup()),
+            constraints=Exporter.create_qsl_field_constraints(field),
         )
+
+    @staticmethod
+    def create_qsl_editor_widget(setup: QgsEditorWidgetSetup) -> EditorWidget | None:
+        """
+        Translates the configuration of the editor widgets which define value lists or
+        domains. Layer and relation references are exported as they are, resolving
+        them is left to the consumer!
+
+        Args:
+            setup: The editor widget setup of a field of an `QgsVectorLayer`.
+
+        Returns:
+            The editor widget configuration or None if the widget type is not exported.
+        """
+        editor_widget_type = setup.type()
+        config = setup.config()
+        if editor_widget_type == "ValueMap":
+            return EditorWidget(value_map=Exporter.create_qsl_value_map(config))
+        elif editor_widget_type == "ValueRelation":
+            return EditorWidget(value_relation=Exporter.create_qsl_value_relation(config))
+        elif editor_widget_type == "RelationReference":
+            return EditorWidget(
+                relation_reference=RelationReference(relation_id=config.get("Relation", ""))
+            )
+        elif editor_widget_type == "Range":
+            return EditorWidget(range=Exporter.create_qsl_range(config))
+        return None
+
+    @staticmethod
+    def create_qsl_value_map(config: dict) -> ValueMap:
+        """
+        Reads the value map as QGIS knows them (2 kinds): the current one, a list of single
+        entry dicts, and the old one, a single dict. Both map description to key, the
+        key `QgsValueMapFieldFormatter.NULL_VALUE` stands for NULL.
+
+        Args:
+            config: The editor widget configuration of a `ValueMap` widget.
+
+        Returns:
+            The value map in the order defined in QGIS.
+        """
+        value_map_config = config.get("map", [])
+        if isinstance(value_map_config, dict):
+            value_map_config = [value_map_config]
+        value_map = ValueMap()
+        for value_map_item in value_map_config:
+            for description, key in value_map_item.items():
+                if key == QgsValueMapFieldFormatter.NULL_VALUE:
+                    value_map.null_representation = description
+                else:
+                    value_map.entries.append(ValueMapEntry(key=str(key), description=description))
+        return value_map
+
+    @staticmethod
+    def create_qsl_value_relation(config: dict) -> ValueRelation:
+        """Builder function to create the interface instance."""
+        return ValueRelation(
+            layer_id=config.get("Layer", ""),
+            key_field=config.get("Key", ""),
+            value_field=config.get("Value", ""),
+            filter_expression=config.get("FilterExpression") or None,
+            allow_multi=bool(config.get("AllowMulti", False)),
+            order_by_value=bool(config.get("OrderByValue", False)),
+        )
+
+    @staticmethod
+    def create_qsl_range(config: dict) -> Range:
+        """Builder function to create the interface instance."""
+        return Range(
+            minimum=Exporter.provide_float(config.get("Min")),
+            maximum=Exporter.provide_float(config.get("Max")),
+            step=Exporter.provide_float(config.get("Step")),
+        )
+
+    @staticmethod
+    def provide_float(value) -> float | None:
+        """Just an internal helper"""
+        if value is None:
+            return None
+        return float(value)
+
+    @staticmethod
+    def create_qsl_field_constraints(field: QgsField) -> FieldConstraints:
+        """Builder function to create the interface instance."""
+        field_constraints = field.constraints()
+        constraints = field_constraints.constraints()
+        return FieldConstraints(
+            not_null=bool(constraints & QgsFieldConstraints.Constraint.ConstraintNotNull),
+            unique=bool(constraints & QgsFieldConstraints.Constraint.ConstraintUnique),
+            expression=field_constraints.constraintExpression() or None,
+        )
+
+    @staticmethod
+    def create_qsl_relations(project: QgsProject) -> list[Relation]:
+        """
+        Translates the relations of the project. All relations are exported, also the
+        ones whose layers are not part of the export.
+
+        Args:
+            project: The instantiated QGIS project.
+
+        Returns:
+            The relations of the project.
+        """
+        relations = []
+        for relation in project.relationManager().relations().values():
+            relations.append(
+                Relation(
+                    id=relation.id(),
+                    name=relation.name(),
+                    referencing_layer_id=relation.referencingLayerId(),
+                    referenced_layer_id=relation.referencedLayerId(),
+                    field_pairs=[
+                        RelationFieldPair(
+                            referencing_field=referencing_field,
+                            referenced_field=referenced_field,
+                        )
+                        for referencing_field, referenced_field in relation.fieldPairs().items()
+                    ],
+                    strength=relation.strength().name,
+                )
+            )
+        return relations
 
     @staticmethod
     def obtain_nullable(field: QgsField) -> bool:
@@ -491,12 +631,27 @@ class Exporter:
     @staticmethod
     def create_qsl_fields_from_qgis_field(layer: QgsVectorLayer) -> list[Field]:
         fields = []
-        pk_indexes = layer.dataProvider().pkAttributeIndexes()
+        provider = layer.dataProvider()
+        pk_indexes = provider.pkAttributeIndexes()
         for field_index, field in enumerate(layer.fields().toList()):
+            is_primary_key = field_index in pk_indexes
             fields.append(
-                Exporter.create_qsl_field_from_qgis_field(field, (field_index in pk_indexes))
+                Exporter.create_qsl_field_from_qgis_field(
+                    field,
+                    is_primary_key,
+                    is_generated=is_primary_key
+                    and Exporter.obtain_is_generated(provider, field_index),
+                )
             )
         return fields
+
+    @staticmethod
+    def obtain_is_generated(provider, field_index: int) -> bool:
+        # the OGR provider (GeoPackage fid, ...) lets GDAL assign the identifier on insert,
+        # other providers tell it with a default value, e.g. a sequence
+        if provider.name() == "ogr":
+            return True
+        return bool(provider.defaultValueClause(field_index))
 
     @staticmethod
     def obtain_simple_types_from_qgis_field_xml(field: QgsField) -> str:
@@ -760,7 +915,12 @@ class Exporter:
         Returns:
             The instance of the QSL interface Crs.
         """
-        return create_qsl_crs(layer.dataProvider().crs())
+        crs = layer.dataProvider().crs()
+        if not crs.isValid():
+            # some providers (e.g. PostGIS geometry columns without SRID) report no CRS,
+            # the project CRS of the layer is the one the data is shown in
+            crs = layer.crs()
+        return create_qsl_crs(crs)
 
     @staticmethod
     def get_layer_short_name(layer: QgsLayerTreeLayer) -> str:
