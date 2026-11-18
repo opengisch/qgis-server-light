@@ -26,6 +26,7 @@ from qgis.core import (
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
 )
+from qgis.PyQt.QtCore import QVariant
 
 from qgis_server_light.interface.job.process.description import (
     QSL_LAYER_FORMAT,
@@ -55,6 +56,14 @@ class SchemaStrategy[D: QgsProcessingParameterDefinition | QgsProcessingOutputDe
         """
         return (0 if optional else 1), 1
 
+    @staticmethod
+    def default(definition: QgsProcessingParameterDefinition):
+        default = definition.defaultValue()
+        # QGIS hands out a NULL QVariant for a parameter without default, it is no value
+        if isinstance(default, QVariant) and default.isNull():
+            return None
+        return default
+
 
 class LiteralSchemaStrategy(SchemaStrategy[QgsProcessingParameterDefinition]):
     """A parameter with a plain JSON Schema type and the QGIS default as default."""
@@ -63,7 +72,7 @@ class LiteralSchemaStrategy(SchemaStrategy[QgsProcessingParameterDefinition]):
         self.json_type = json_type
 
     def map_schema(self, definition: QgsProcessingParameterDefinition) -> Schema:
-        return Schema(type=self.json_type, default=definition.defaultValue())
+        return Schema(type=self.json_type, default=self.default(definition))
 
 
 class LiteralOutputSchemaStrategy(SchemaStrategy[QgsProcessingOutputDefinition]):
@@ -97,14 +106,14 @@ class NumberSchemaStrategy(SchemaStrategy[QgsProcessingParameterNumber]):
                     type="number",
                     minimum=minimum,
                     maximum=maximum,
-                    default=definition.defaultValue(),
+                    default=self.default(definition),
                 )
             case Qgis.ProcessingNumberParameterType.Integer:
                 return Schema(
                     type="integer",
                     minimum=None if minimum is None else int(minimum),
                     maximum=None if maximum is None else int(maximum),
-                    default=definition.defaultValue(),
+                    default=self.default(definition),
                 )
             case unsupported:
                 raise ValueError(f"unsupported ProcessingNumberParameterType: {unsupported}")
@@ -128,7 +137,7 @@ class EnumSchemaStrategy(SchemaStrategy[QgsProcessingParameterEnum]):
             value_type, values = "integer", list(range(len(options)))
         return Schema(
             type=value_type,
-            default=definition.defaultValue(),
+            default=self.default(definition),
             one_of=[
                 Schema(const=value, title=option)
                 for value, option in zip(values, options, strict=True)
