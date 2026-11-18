@@ -34,8 +34,8 @@ from qgis_server_light.worker.runner.process import ProcessRunner
 
 
 class WithoutQgis:
-    """Skips booting and exiting QGIS, advertising a worker only depends on the protocol
-    and the engine info."""
+    """Skips booting and exiting QGIS, advertising a worker and finishing a job only
+    depend on the protocol and the engine info."""
 
     def __init__(self):
         self.info = EngineInfo(
@@ -47,13 +47,11 @@ class WithoutQgis:
         self.info_expire = 300
         self.shutdown = False
         self.redis_client = None
+        # a worker without the process runner, it registers no processes
+        self.available_runner_classes_by_job_info = {}
 
     def __del__(self):
         pass
-
-
-class RedisEngineWithoutQgis(WithoutQgis, RedisEngine):
-    pass
 
 
 class PublishEngineWithoutQgis(WithoutQgis, RedisPublishEngine):
@@ -66,7 +64,8 @@ class StateEngineWithoutQgis(WithoutQgis, RedisStateEngine):
 
 @pytest.fixture
 def engine():
-    yield RedisEngineWithoutQgis()
+    # the redis engine itself is abstract, the publish engine is the default one
+    yield PublishEngineWithoutQgis()
 
 
 @pytest.fixture
