@@ -1,0 +1,45 @@
+name: Scan Images
+
+# CVEs show up after an image was published, only the latest release is
+# supported, a finding there asks for a rebuild and a patch release, edge shows
+# what the next release would ship
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [ latest, edge ]
+        target: [ worker, exporter ]
+    name: Scan ${{ matrix.tag }} ${{ matrix.target }}
+    steps:
+      # anonymous pulls from Docker Hub are rate limited, Trivy picks up the
+      # credentials of the login
+      - name: Login to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      # the image is scanned and not its SBOM, only then Trivy knows the OS and
+      # leaves the python packages installed by apt to the Ubuntu advisories
+      # fails only on findings with an available fix, these ask for a new release
+      - name: Scan Image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: opengisch/qgis-server-light:${{ matrix.tag }}-${{ matrix.target }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
