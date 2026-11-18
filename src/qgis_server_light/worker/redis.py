@@ -198,6 +198,7 @@ class RedisEngine(Engine):
         else:
             logging.info("Worker was unregistered from Redis")
 
+    @staticmethod
     def write_process_registry(client: Redis, process_descriptions: ProcessDescriptions) -> bool:
         """Writes the process descriptions into the process registry, unless it holds
         descriptions already.
