@@ -891,6 +891,11 @@ class Relation(BaseInterface):
 
 
 @dataclass(repr=False)
+class Exporter(BaseInterface):
+    qgis_version: str = field(metadata={"type": "Element"})
+
+
+@dataclass(repr=False)
 class ExportMessage(BaseInterface):
     """A warning or error produced while exporting the QGIS project."""
 
@@ -908,6 +913,7 @@ class ExportMessage(BaseInterface):
         LAYER_EXTENT_REPROJECTION_FAILED = "layer_extent_reprojection_failed"
         LAYER_PROVIDER_UNSUPPORTED = "layer_provider_unsupported"
         LAYER_TYPE_UNSUPPORTED = "layer_type_unsupported"
+        UNEXPECTED_ERROR = "unexpected_error"
 
     level: Level = field(metadata={"type": "Element"})
     message: str = field(metadata={"type": "Element"})
@@ -916,21 +922,12 @@ class ExportMessage(BaseInterface):
 
 
 @dataclass(repr=False)
-class ExportFailureContent(BaseInterface):
-    messages: list[ExportMessage] = field(default_factory=list, metadata={"type": "Element"})
-
-
-@dataclass(repr=False)
-class Config(BaseInterface):
+class ResultWithMessages(BaseInterface):
     project: Project = field(metadata={"type": "Element"})
-    meta_data: MetaData = field(metadata={"type": "Element"})
-    tree: Tree = field(metadata={"type": "Element"})
-    datasets: Datasets = field(metadata={"type": "Element"})
-    relations: list[Relation] = field(
-        default_factory=list,
-        metadata={"type": "Element"},
+    exporter: Exporter = field(metadata={"type": "Element"})
+    messages: list[ExportMessage] = field(
+        default_factory=list, kw_only=True, metadata={"type": "Element"}
     )
-    messages: list[ExportMessage] = field(default_factory=list, metadata={"type": "Element"})
 
     def warning(self, message: str, code: ExportMessage.Code, layer_id: str | None = None):
         logging.warning(message, extra={"code": code, "layer_id": layer_id})
@@ -947,3 +944,14 @@ class Config(BaseInterface):
     @property
     def has_errors(self) -> bool:
         return any(m.level == ExportMessage.Level.ERROR for m in self.messages)
+
+
+@dataclass(repr=False)
+class Config(ResultWithMessages):
+    meta_data: MetaData = field(metadata={"type": "Element"})
+    tree: Tree = field(metadata={"type": "Element"})
+    datasets: Datasets = field(metadata={"type": "Element"})
+    relations: list[Relation] = field(
+        default_factory=list,
+        metadata={"type": "Element"},
+    )

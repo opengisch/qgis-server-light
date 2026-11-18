@@ -75,6 +75,9 @@ from qgis_server_light.interface.exporter.extract import (
     WmtsSource,
     XYZSource,
 )
+from qgis_server_light.interface.exporter.extract import (
+    Exporter as ExporterMeta,
+)
 
 from .exceptions import ExportFailure
 
@@ -102,6 +105,7 @@ class Exporter:
         self.qsl_project = Project(name=self.name, version=self.version.text())
         self.qsl_project_metadata = self.extract_metadata(self.qgis_project)
         self.qsl_config = Config(
+            exporter=ExporterMeta(qgis_version=Qgis.version()),
             project=self.qsl_project,
             meta_data=self.qsl_project_metadata,
             tree=self.qsl_tree,
@@ -109,12 +113,12 @@ class Exporter:
         )
 
     def run(self) -> Config:
-        if self.version.majorVersion() not in (3, 4):
+        if self.version.majorVersion() > 4:
             self.qsl_config.error(
                 f"QGIS project version {self.version.text()} is not supported.",
                 code=ExportMessage.Code.PROJECT_VERSION_UNSUPPORTED,
             )
-            raise ExportFailure(self.qsl_config.messages)
+            raise self.build_export_failure()
         self.walk_qgis_project_tree(self.qgis_project_tree_root, [])
         self.qsl_config.relations = self.create_qsl_relations(self.qgis_project)
         return self.qsl_config
@@ -251,7 +255,7 @@ class Exporter:
                     code=ExportMessage.Code.LAYER_EXTENT_MISSING,
                     layer_id=layer.id(),
                 )
-                raise ExportFailure(self.qsl_config.messages)
+                raise self.build_export_failure()
             bbox_wgs84 = self.create_qsl_bbox_from_qgis_rectangle_wgs84(
                 self.qgis_project, layer, layer_extent
             )
@@ -1064,7 +1068,7 @@ class Exporter:
                 code=ExportMessage.Code.LAYER_EXTENT_REPROJECTION_FAILED,
                 layer_id=layer.id(),
             )
-            raise ExportFailure(self.qsl_config.messages) from err
+            raise self.build_export_failure() from err
 
         self.qsl_config.warning(
             "Layer extent could not be determined by the data provider "
@@ -1239,3 +1243,10 @@ class Exporter:
                 )
             )
         return style_list
+
+    def build_export_failure(self):
+        return ExportFailure(
+            project=self.qsl_config.project,
+            exporter=self.qsl_config.exporter,
+            messages=self.qsl_config.messages,
+        )

@@ -93,7 +93,7 @@ def export(
     try:
         config = exporter.run()
     except ExportFailure as err:
-        click.echo(serializer.render(err.get_export_failure_content()))
+        click.echo(serializer.render(err.get_result()))
         raise click.exceptions.Exit(code=err.EXIT_CODE) from err
     else:
         click.echo(serializer.render(config))
