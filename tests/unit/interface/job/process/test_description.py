@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 from qgis.core import (
@@ -70,7 +71,11 @@ def render(instance) -> dict:
 
 def test_process_description_native_centroids(qgis_app):
     centroids = qgis_app.processingRegistry().algorithmById("native:centroids")
-    assert ProcessDescriptionMapper().process_description(centroids) == CENTROIDS
+    # the help text is owned by QGIS and was reworded between versions (3.40 vs 3.44),
+    # so we only expect it to be passed through
+    assert ProcessDescriptionMapper().process_description(centroids) == replace(
+        CENTROIDS, description=centroids.shortHelpString()
+    )
 
 
 def test_process_description_without_destinations(qgis_app):
