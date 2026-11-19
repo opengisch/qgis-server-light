@@ -1,8 +1,10 @@
 import re
+from pathlib import Path
 
 import pytest
 from qgis.core import (
     Qgis,
+    QgsAnnotationLayer,
     QgsCoordinateReferenceSystem,
     QgsEditorWidgetSetup,
     QgsField,
@@ -17,8 +19,10 @@ from qgis.core import (
 )
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
+from qgis_server_light.exporter.exceptions import ExportFailure
 from qgis_server_light.exporter.extract import Exporter
 from qgis_server_light.interface.exporter.extract import (
+    ExportMessage,
     FieldConstraints,
     Range,
     Relation,
@@ -29,6 +33,16 @@ from qgis_server_light.interface.exporter.extract import (
     ValueRelation,
     WcsSource,
 )
+
+
+@pytest.fixture
+def qgis_project(qgis_app):
+    project = QgsProject.instance()
+    project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
+    try:
+        yield project
+    finally:
+        project.clear()
 
 
 class TestCreateQslSourcePostgresql:
@@ -85,6 +99,7 @@ class TestPostgresServiceExport:
         )
         monkeypatch.setenv("PGSERVICEFILE", str(pg_service_file))
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(
             QgsVectorLayer(
                 "service='qsl_test' key='id' type=Point srid=2056 "
@@ -153,6 +168,7 @@ class TestQgis4DatasourceDecoding:
         version: str | None = None,
     ) -> str:
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(QgsRasterLayer(layer_uri, "my_background", "wms"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))
@@ -218,6 +234,7 @@ class TestWcsExport:
     @pytest.fixture
     def config(self, qgis_app, tmp_path, monkeypatch):
         project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         project.addMapLayer(QgsRasterLayer(self.wcs_uri, "my_wcs", "wcs"))
         path = tmp_path / "project.qgs"
         assert project.write(str(path))
@@ -497,11 +514,19 @@ class TestGeneratedPrimaryKey:
     (GeoPackage fid, ...), other providers tell it with a default value clause.
     """
 
-    def test_ogr_primary_key_is_generated(self, qgis_app, data_path):
+    def test_ogr_primary_key_is_generated(self, qgis_app, data_path, tmp_path):
+        qgis_project = QgsProject()
         layer = QgsVectorLayer(
-            f"{data_path}/data/placenames.gpkg|layername=placenames", "placenames", "ogr"
+            f"{Path(data_path).resolve()}/data/placenames.gpkg|layername=placenames",
+            "placenames",
+            "ogr",
         )
-        fields = Exporter.create_qsl_fields_from_qgis_field(layer)
+        qgis_project.addMapLayer(layer)
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+        exporter = Exporter(str(path))
+
+        fields = exporter.create_qsl_fields_from_qgis_field(layer)
         # the fid is the primary key of the GeoPackage and assigned by GDAL
         fid = fields[0]
         assert fid.name == "fid"
@@ -516,6 +541,82 @@ class TestGeneratedPrimaryKey:
         layer = QgsVectorLayer("Point?field=id:integer", "memory", "memory")
         # the memory provider has no default value clause, nothing is generated
         assert Exporter.obtain_is_generated(layer.dataProvider(), 0) is False
+
+
+class TestExportMessages:
+    def test_unreadable_project_fails_with_a_structured_error(self, qgis_app, tmp_path):
+        path = tmp_path / "broken.qgs"
+        path.write_text("not xml")
+
+        with pytest.raises(ExportFailure) as exc_info:
+            Exporter(str(path)).run()
+
+        assert [(m.level, m.code) for m in exc_info.value.messages] == [
+            (ExportMessage.Level.ERROR, ExportMessage.Code.PROJECT_READ_FAILED)
+        ]
+
+    def test_wgs84_reprojection_failure_is_structured(self, qgis_project, tmp_path):
+        layer = QgsVectorLayer(
+            "?query=SELECT ST_GeomFromText('LINESTRING(-1e9 -1e9, 1e9 1e9)', 3035) AS geometry"
+            "&geometry=geometry:2:3035",  # 2 = LineString, 3035 = SRID
+            "line",
+            "virtual",
+        )
+        assert layer.isValid()
+
+        qgis_project.setCrs(layer.crs())
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        with pytest.raises(ExportFailure) as exc_info:
+            Exporter(str(path)).run()
+
+        assert [(m.level, m.code, m.layer_id) for m in exc_info.value.messages] == [
+            (
+                ExportMessage.Level.ERROR,
+                ExportMessage.Code.LAYER_EXTENT_REPROJECTION_FAILED,
+                layer_id,
+            ),
+        ]
+
+    def test_unhandled_field_editor_widget_is_reported(self, qgis_project, data_path, tmp_path):
+        layer = QgsVectorLayer(
+            f"{Path(data_path).resolve()}/data/placenames.gpkg|layername=placenames",
+            "places",
+            "ogr",
+        )
+        layer.setEditorWidgetSetup(0, QgsEditorWidgetSetup("UnsupportedWidget", {}))
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        config = Exporter(str(path)).run()
+
+        assert any(
+            m.code == ExportMessage.Code.FIELD_EDITOR_WIDGET_TYPE_UNSUPPORTED
+            and m.layer_id == layer_id
+            and "fid" in m.message
+            for m in config.messages
+        )
+
+    def test_unsupported_layer_type_is_reported(self, qgis_project, tmp_path):
+        layer = QgsAnnotationLayer(
+            "my_annotations", QgsAnnotationLayer.LayerOptions(qgis_project.transformContext())
+        )
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        config = Exporter(str(path)).run()
+
+        assert config.datasets.custom == []
+        assert [(m.level, m.code, m.layer_id) for m in config.messages] == [
+            (ExportMessage.Level.WARNING, ExportMessage.Code.LAYER_TYPE_UNSUPPORTED, layer_id)
+        ]
 
 
 class TestRelations:

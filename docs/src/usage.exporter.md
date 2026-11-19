@@ -82,3 +82,20 @@ So enabling this option, will produce the following names for the layers:
 - `environment.ground_coverage.forest`
 - `environment.ground_coverage.field`
 - `environment.ground_coverage.lake`
+
+### Warnings and errors
+
+Problems found while exporting a project are reported as structured messages. Each message has:
+
+- `level`: `warning` or `error`
+- `code`: a stable identifier
+- `message`: a human-readable description
+- `layer_id`: the QGIS layer id, if the message concerns a layer
+
+A **warning** does not stop the export. The exported config is written to stdout as usual and contains the
+warnings in its `messages` field. The affected layer or tree node may be left out of the config.
+
+An **error** stops the export. The CLI writes a result containing the "messages" to
+stdout (in the requested output format) and exits with code `3`. The exporter API answers with
+`successful: false` and this result as `content`. Other non-zero exit codes are reported as an
+`unexpected_error` message.

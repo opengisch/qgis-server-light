@@ -7,9 +7,17 @@ import click
 from flask import Flask, Response, request
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.parsers.config import ParserConfig
-from xsdata.formats.dataclass.serializers import JsonSerializer
+from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
 from qgis_server_light.interface.exporter.api import ExportParameters, ExportResult
+from qgis_server_light.interface.exporter.extract import (
+    Exporter,
+    ExportMessage,
+    Project,
+    ResultWithMessages,
+)
+
+from .exceptions import ExportFailure
 
 app = Flask(__name__)
 
@@ -81,8 +89,26 @@ def api_export():
         result = ExportResult(successful=True, content=process.stdout)
         app.logger.debug(f"Successfully extracted information from QGIS Project {result}")
     except subprocess.CalledProcessError as e:
-        app.logger.exception(e.stderr)
-        result = ExportResult(successful=False, content=str(e))
+        if e.returncode == ExportFailure.EXIT_CODE:
+            result = ExportResult(successful=False, content=e.stdout)
+            app.logger.debug(f"Unsuccessful extraction with structured error: {result}")
+        else:
+            app.logger.exception(e.stderr)
+            error_message = ExportMessage(
+                level=ExportMessage.Level.ERROR,
+                code=ExportMessage.Code.UNEXPECTED_ERROR,
+                message=str(e),
+            )
+            result_content = ResultWithMessages(
+                project=Project(name=parameters.project_path, version=""),
+                exporter=Exporter(qgis_version=""),
+                messages=[error_message],
+            )
+            if parameters.output_format.lower() == "xml":
+                serializer = XmlSerializer()
+            else:
+                serializer = JsonSerializer()
+            result = ExportResult(successful=False, content=serializer.render(result_content))
     return Response(JsonSerializer().render(result), mimetype=response_mime_type)
 
 

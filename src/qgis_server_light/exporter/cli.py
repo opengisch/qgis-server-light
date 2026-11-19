@@ -6,6 +6,7 @@ from qgis.core import QgsApplication
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
+from qgis_server_light.exporter.exceptions import ExportFailure
 from qgis_server_light.exporter.extract import Exporter
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -58,30 +59,44 @@ def export(
 ) -> None:
     logging.getLogger().setLevel(logging.DEBUG)
     serializer_config = SerializerConfig(indent="  ")
-    if output_format is None:
-        output_format = "json"
+    output_format = "json" if output_format is None else output_format.lower()
     if not project.lower().endswith(allowed_extensions):
-        raise NotImplementedError(
+        raise click.BadParameter(
             f"Allowed qgis project file extensions "
-            f"are: {'|'.join(allowed_extensions)} not => {project}"
+            f"are: {'|'.join(allowed_extensions)} not => {project}",
+            param_hint="--project",
         )
-    if output_format.lower() not in allowed_output_formats:
-        raise NotImplementedError(
-            f"Allowed output formats are: {'|'.join(allowed_output_formats)} not => {output_format}"
+    if output_format not in allowed_output_formats:
+        raise click.BadParameter(
+            f"Allowed output formats are: {'|'.join(allowed_output_formats)} "
+            f"not => {output_format}",
+            param_hint="--output_format",
         )
-    if os.path.isfile(project):
-        exporter = Exporter(
-            project,
-            unify_layer_names_by_group=bool(unify_layer_names_by_group),
+    if not os.path.isfile(project):
+        raise click.BadParameter(
+            f"Project file '{project}' does not exist",
+            param_hint="--project",
         )
-        config = exporter.run()
-        if output_format == "json":
-            click.echo(JsonSerializer(config=serializer_config).render(config))
-        elif output_format == "xml":
-            click.echo(XmlSerializer(config=serializer_config).render(config))
 
+    exporter = Exporter(
+        project,
+        unify_layer_names_by_group=bool(unify_layer_names_by_group),
+    )
+
+    if output_format == "json":
+        serializer = JsonSerializer(config=serializer_config)
+    elif output_format == "xml":
+        serializer = XmlSerializer(config=serializer_config)
     else:
-        raise AttributeError(f"Project file '{project}' does not exist")
+        raise RuntimeError(f"Unexpected output format {output_format}")
+
+    try:
+        config = exporter.run()
+    except ExportFailure as err:
+        click.echo(serializer.render(err.get_result()))
+        raise click.exceptions.Exit(code=err.EXIT_CODE) from err
+    else:
+        click.echo(serializer.render(config))
 
 
 if __name__ == "__main__":
