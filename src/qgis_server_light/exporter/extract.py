@@ -113,6 +113,12 @@ class Exporter:
         )
 
     def run(self) -> Config:
+        if project_error := self.qgis_project.error():
+            self.qsl_config.error(
+                project_error,
+                code=ExportMessage.Code.PROJECT_READ_FAILED,
+            )
+            raise self.build_export_failure()
         if self.version.majorVersion() > 4:
             self.qsl_config.error(
                 f"QGIS project version {self.version.text()} is not supported.",
@@ -483,7 +489,9 @@ class Exporter:
 
     @staticmethod
     def create_qsl_field_from_qgis_field(
-        field: QgsField, is_primary_key: bool, is_generated: bool = False
+        field: QgsField,
+        is_primary_key: bool,
+        is_generated: bool = False,
     ) -> Field:
         attribute_type_xml = Exporter.obtain_simple_types_from_qgis_field_xml(field)
         (
@@ -670,21 +678,33 @@ class Exporter:
         else:
             return None
 
-    @staticmethod
-    def create_qsl_fields_from_qgis_field(layer: QgsVectorLayer) -> list[Field]:
+    def create_qsl_fields_from_qgis_field(
+        self,
+        layer: QgsVectorLayer,
+    ) -> list[Field]:
         fields = []
         provider = layer.dataProvider()
         pk_indexes = provider.pkAttributeIndexes()
         for field_index, field in enumerate(layer.fields().toList()):
             is_primary_key = field_index in pk_indexes
-            fields.append(
-                Exporter.create_qsl_field_from_qgis_field(
-                    field,
-                    is_primary_key,
-                    is_generated=is_primary_key
-                    and Exporter.obtain_is_generated(provider, field_index),
-                )
+            qsl_field = self.create_qsl_field_from_qgis_field(
+                field,
+                is_primary_key,
+                is_generated=is_primary_key and self.obtain_is_generated(provider, field_index),
             )
+            if (
+                qsl_field.editor_widget_type
+                and qsl_field.editor_widget_type_wfs is None
+                and qsl_field.editor_widget_type_oapif is None
+                and qsl_field.editor_widget_type_oapif_format is None
+            ):
+                self.qsl_config.warning(
+                    f"Editor widget type {qsl_field.editor_widget_type!r} for field "
+                    f"{field.name()!r} is not exported.",
+                    code=ExportMessage.Code.FIELD_EDITOR_WIDGET_TYPE_UNSUPPORTED,
+                    layer_id=layer.id(),
+                )
+            fields.append(qsl_field)
         return fields
 
     @staticmethod
@@ -841,7 +861,6 @@ class Exporter:
                     else:
                         return editor_widget_type, "decimal", "number", "double"
 
-        logging.error(f"Editor widget type was not handled as expected: {editor_widget_type}")
         return editor_widget_type, None, None, None
 
     @staticmethod
@@ -1001,9 +1020,8 @@ class Exporter:
         epsg_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
         return QgsCoordinateTransform(source_crs, epsg_4326, project)
 
-    @staticmethod
     def create_qsl_bbox_from_qgis_rectangle_wgs84(
-        project: QgsProject, layer: QgsMapLayer, extent: QgsRectangle
+        self, project: QgsProject, layer: QgsMapLayer, extent: QgsRectangle
     ) -> BBox:
         """
         Reprojects the job_layer_definition's extent using WGS84.
@@ -1016,9 +1034,18 @@ class Exporter:
         Returns:
             The QSL bbox reprojected to WGS84.
         """
-        transformation_context = Exporter.make_wgs84_geom_transform(project, layer)
-        reprojected_extent = transformation_context.transform(extent)
-        return Exporter.create_qsl_bbox_from_qgis_rectangle_extent(reprojected_extent)
+        try:
+            transformation_context = Exporter.make_wgs84_geom_transform(project, layer)
+            reprojected_extent = transformation_context.transform(extent)
+        except QgsCsException as err:
+            self.qsl_config.error(
+                f"Layer extent could not be reprojected from "
+                f"{layer.crs().authid()} to EPSG:4326: {err}",
+                code=ExportMessage.Code.LAYER_EXTENT_REPROJECTION_FAILED,
+                layer_id=layer.id(),
+            )
+            raise self.build_export_failure() from err
+        return self.create_qsl_bbox_from_qgis_rectangle_extent(reprojected_extent)
 
     @staticmethod
     def create_qsl_bbox_from_qgis_rectangle_extent(extent: QgsRectangle) -> BBox:

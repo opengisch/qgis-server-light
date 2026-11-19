@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import pytest
 from qgis.core import (
@@ -18,6 +19,7 @@ from qgis.core import (
 )
 from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
 
+from qgis_server_light.exporter.exceptions import ExportFailure
 from qgis_server_light.exporter.extract import Exporter
 from qgis_server_light.interface.exporter.extract import (
     ExportMessage,
@@ -31,6 +33,16 @@ from qgis_server_light.interface.exporter.extract import (
     ValueRelation,
     WcsSource,
 )
+
+
+@pytest.fixture
+def qgis_project(qgis_app):
+    project = QgsProject.instance()
+    project.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
+    try:
+        yield project
+    finally:
+        project.clear()
 
 
 class TestCreateQslSourcePostgresql:
@@ -502,11 +514,19 @@ class TestGeneratedPrimaryKey:
     (GeoPackage fid, ...), other providers tell it with a default value clause.
     """
 
-    def test_ogr_primary_key_is_generated(self, qgis_app, data_path):
+    def test_ogr_primary_key_is_generated(self, qgis_app, data_path, tmp_path):
+        qgis_project = QgsProject()
         layer = QgsVectorLayer(
-            f"{data_path}/data/placenames.gpkg|layername=placenames", "placenames", "ogr"
+            f"{Path(data_path).resolve()}/data/placenames.gpkg|layername=placenames",
+            "placenames",
+            "ogr",
         )
-        fields = Exporter.create_qsl_fields_from_qgis_field(layer)
+        qgis_project.addMapLayer(layer)
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+        exporter = Exporter(str(path))
+
+        fields = exporter.create_qsl_fields_from_qgis_field(layer)
         # the fid is the primary key of the GeoPackage and assigned by GDAL
         fid = fields[0]
         assert fid.name == "fid"
@@ -521,6 +541,82 @@ class TestGeneratedPrimaryKey:
         layer = QgsVectorLayer("Point?field=id:integer", "memory", "memory")
         # the memory provider has no default value clause, nothing is generated
         assert Exporter.obtain_is_generated(layer.dataProvider(), 0) is False
+
+
+class TestExportMessages:
+    def test_unreadable_project_fails_with_a_structured_error(self, qgis_app, tmp_path):
+        path = tmp_path / "broken.qgs"
+        path.write_text("not xml")
+
+        with pytest.raises(ExportFailure) as exc_info:
+            Exporter(str(path)).run()
+
+        assert [(m.level, m.code) for m in exc_info.value.messages] == [
+            (ExportMessage.Level.ERROR, ExportMessage.Code.PROJECT_READ_FAILED)
+        ]
+
+    def test_wgs84_reprojection_failure_is_structured(self, qgis_project, tmp_path):
+        layer = QgsVectorLayer(
+            "?query=SELECT ST_GeomFromText('LINESTRING(-1e9 -1e9, 1e9 1e9)', 3035) AS geometry"
+            "&geometry=geometry:2:3035",  # 2 = LineString, 3035 = SRID
+            "line",
+            "virtual",
+        )
+        assert layer.isValid()
+
+        qgis_project.setCrs(layer.crs())
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        with pytest.raises(ExportFailure) as exc_info:
+            Exporter(str(path)).run()
+
+        assert [(m.level, m.code, m.layer_id) for m in exc_info.value.messages] == [
+            (
+                ExportMessage.Level.ERROR,
+                ExportMessage.Code.LAYER_EXTENT_REPROJECTION_FAILED,
+                layer_id,
+            ),
+        ]
+
+    def test_unhandled_field_editor_widget_is_reported(self, qgis_project, data_path, tmp_path):
+        layer = QgsVectorLayer(
+            f"{Path(data_path).resolve()}/data/placenames.gpkg|layername=placenames",
+            "places",
+            "ogr",
+        )
+        layer.setEditorWidgetSetup(0, QgsEditorWidgetSetup("UnsupportedWidget", {}))
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        config = Exporter(str(path)).run()
+
+        assert any(
+            m.code == ExportMessage.Code.FIELD_EDITOR_WIDGET_TYPE_UNSUPPORTED
+            and m.layer_id == layer_id
+            and "fid" in m.message
+            for m in config.messages
+        )
+
+    def test_unsupported_layer_type_is_reported(self, qgis_project, tmp_path):
+        layer = QgsAnnotationLayer(
+            "my_annotations", QgsAnnotationLayer.LayerOptions(qgis_project.transformContext())
+        )
+        qgis_project.addMapLayer(layer)
+        layer_id = layer.id()
+        path = tmp_path / "project.qgs"
+        assert qgis_project.write(str(path))
+
+        config = Exporter(str(path)).run()
+
+        assert config.datasets.custom == []
+        assert [(m.level, m.code, m.layer_id) for m in config.messages] == [
+            (ExportMessage.Level.WARNING, ExportMessage.Code.LAYER_TYPE_UNSUPPORTED, layer_id)
+        ]
 
 
 class TestRelations:
@@ -593,22 +689,3 @@ class TestLayerCrs:
         assert not layer.dataProvider().crs().isValid()
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:2056"))
         assert Exporter.create_qsl_crs_from_qgs_layer(layer).auth_id == "EPSG:2056"
-
-
-class TestUnsupportedLayerType:
-    def test_annotation_layer_is_skipped_with_a_warning(self, qgis_app, tmp_path):
-        project = QgsProject()
-        layer = QgsAnnotationLayer(
-            "my_annotations", QgsAnnotationLayer.LayerOptions(project.transformContext())
-        )
-        project.addMapLayer(layer)
-        path = tmp_path / "project.qgs"
-        assert project.write(str(path))
-
-        config = Exporter(str(path)).run()
-        QgsProject.instance().clear()
-
-        assert config.datasets.custom == []
-        assert [(m.level, m.code, m.layer_id) for m in config.messages] == [
-            (ExportMessage.Level.WARNING, ExportMessage.Code.LAYER_TYPE_UNSUPPORTED, layer.id())
-        ]

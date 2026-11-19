@@ -904,6 +904,7 @@ class ExportMessage(BaseInterface):
         ERROR = "error"
 
     class Code(StrEnum):
+        PROJECT_READ_FAILED = "project_read_failed"
         PROJECT_VERSION_UNSUPPORTED = "project_version_unsupported"
         TREE_NODE_UNSUPPORTED = "tree_node_unsupported"
         LAYER_INVALID = "layer_invalid"
@@ -913,6 +914,7 @@ class ExportMessage(BaseInterface):
         LAYER_EXTENT_REPROJECTION_FAILED = "layer_extent_reprojection_failed"
         LAYER_PROVIDER_UNSUPPORTED = "layer_provider_unsupported"
         LAYER_TYPE_UNSUPPORTED = "layer_type_unsupported"
+        FIELD_EDITOR_WIDGET_TYPE_UNSUPPORTED = "field_editor_widget_type_unsupported"
         UNEXPECTED_ERROR = "unexpected_error"
 
     level: Level = field(metadata={"type": "Element"})
