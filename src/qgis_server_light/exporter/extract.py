@@ -700,7 +700,7 @@ class Exporter:
             ):
                 self.qsl_config.warning(
                     f"Editor widget type {qsl_field.editor_widget_type!r} for field "
-                    f"{field.name()!r} is not exported.",
+                    f"{field.name()!r} was not handled as expected.",
                     code=ExportMessage.Code.FIELD_EDITOR_WIDGET_TYPE_UNSUPPORTED,
                     layer_id=layer.id(),
                 )
