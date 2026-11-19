@@ -7,6 +7,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
+    QgsProcessingParameterMultipleLayers,
 )
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
@@ -141,7 +142,9 @@ class ProcessRunner(MapRunner):
         self, algorithm: QgsProcessingAlgorithm, job: QslJobParameterExecuteProcess
     ) -> dict:
         """The parameters the client sent, mapped to what the algorithm expects.
-        Destinations are left out, the worker sets them on its own.
+        Destinations are left out, the worker sets them on its own. A parameter
+        taking multiple layers gets one `ParameterInput` per layer, they are
+        collected into one list.
 
         Args:
             algorithm: The algorithm the parameters are meant for.
@@ -151,21 +154,34 @@ class ProcessRunner(MapRunner):
             The parameters by name, ready to be passed to the algorithm.
 
         Raises:
-            ValueError: If the client sent a destination or a value of an
-                unexpected type.
+            ValueError: If the client sent a destination, a value of an
+                unexpected type or more than one value for a parameter which
+                takes only one.
         """
         parameters = {}
         for param in job.parameters:
             definition = algorithm.parameterDefinition(param.name)
             if definition is not None and definition.isDestination():
                 raise ValueError(f"Destination `{param.name}` is set by the worker")
-            if isinstance(param.value, QslJobLayer):
-                parameters[param.name] = self._handle_layer_cache(param.value)
-            elif isinstance(param.value, (str, int, float, bool)):
-                parameters[param.name] = param.value
+            value = self._parameter_value(param.value)
+            if isinstance(definition, QgsProcessingParameterMultipleLayers):
+                parameters.setdefault(param.name, []).append(value)
+            elif param.name in parameters:
+                raise ValueError(f"Parameter `{param.name}` takes only one value")
             else:
-                raise ValueError(f"Unexpected value: {param.value}")
+                parameters[param.name] = value
         return parameters
+
+    def _parameter_value(self, value: QslJobLayer | str | int | float | bool):
+        """
+        Raises:
+            ValueError: If the value is of an unexpected type.
+        """
+        if isinstance(value, QslJobLayer):
+            return self._handle_layer_cache(value)
+        if isinstance(value, (str, int, float, bool)):
+            return value
+        raise ValueError(f"Unexpected value: {value}")
 
     def _destinations(
         self,
