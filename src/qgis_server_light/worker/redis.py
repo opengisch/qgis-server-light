@@ -26,7 +26,6 @@ from qgis_server_light.interface.dispatcher.protocol import (
 )
 from qgis_server_light.interface.job.common.input import ExecutionMode, QslJobInfoParameter
 from qgis_server_light.interface.job.common.output import JobResult
-from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import QslJobInfoExecuteProcess
 from qgis_server_light.worker.engine import Engine, EngineContext
 
@@ -81,6 +80,7 @@ class RedisEngine(Engine):
         self.heartbeat_interval = RedisProtocol.worker_heartbeat_interval
         self.heartbeat_thread = None
         self.redis_client: Redis | None = None
+        self.processes_json: str | None = None
 
     def retry_handling_with_jitter(self, count: int):
         if count <= self.max_retries:
@@ -127,7 +127,9 @@ class RedisEngine(Engine):
         timestamp, the renewed expiry and the id in the list of workers. The beat
         does not ask redis what it still knows, it simply writes everything again. So
         when redis lost its keys (restart, flush, eviction) the worker is back within
-        one heartbeat interval, without anybody having to notice the loss.
+        one heartbeat interval, without anybody having to notice the loss. Only the
+        process descriptions are too big for that, the beat asks for them and writes
+        them when they are missing.
 
         Args:
             client: The redis client.
@@ -150,6 +152,7 @@ class RedisEngine(Engine):
         pipeline.expire(RedisProtocol.worker_key(self.info.id), self.info_expire)
         pipeline.sadd(RedisProtocol.worker_list_name, self.info.id)
         pipeline.execute()
+        self.write_missing_processes(client)
         return now
 
     def register_worker(self, client: Redis):
@@ -198,35 +201,35 @@ class RedisEngine(Engine):
         else:
             logging.info("Worker was unregistered from Redis")
 
-    @staticmethod
-    def write_process_registry(client: Redis, process_descriptions: ProcessDescriptions) -> bool:
-        """Writes the process descriptions into the process registry, unless it holds
-        descriptions already.
-
-        Returns:
-            If the descriptions were written.
-        """
-        return bool(
-            client.set(
-                RedisProtocol.process_registry_key,
-                JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(process_descriptions),
-                nx=True,
-            )
-        )
-
-    def register_processes(self, client: Redis):
-        """Registers the processes the worker serves. Workers without the process runner
-        don't serve processes and register nothing."""
+    def describe_processes(self):
+        """Describes the processes the worker serves once on boot, the beats only pass
+        the result on. Workers without the process runner don't serve processes and
+        describe nothing."""
         process_runner_class = self.available_runner_classes_by_job_info.get(
             QslJobInfoExecuteProcess.__name__
         )
         if process_runner_class is None:
             return
         process_descriptions = process_runner_class.info(self.qgis, self.context.process_allowlist)
-        if self.write_process_registry(client, process_descriptions):
+        self.processes_json = JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(
+            process_descriptions
+        )
+
+    def write_missing_processes(self, client: Redis):
+        """Writes the process descriptions into the hash of the worker when they are not
+        there. The descriptions are too big to be written with every beat, so the beat
+        only asks whether redis still knows them. After redis lost its keys they are
+        back within one heartbeat interval like the rest of the worker.
+
+        Args:
+            client: The redis client.
+        """
+        if self.processes_json is None:
+            return
+        worker_key = RedisProtocol.worker_key(self.info.id)
+        if not client.hexists(worker_key, RedisProtocol.worker_processes_key):
+            client.hset(worker_key, RedisProtocol.worker_processes_key, self.processes_json)
             logging.info(f"Processes {self.context.process_allowlist} were registered in Redis")
-        else:
-            logging.info("Processes were registered in Redis already")
 
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
@@ -291,13 +294,14 @@ class RedisEngine(Engine):
         Args:
             redis_url: The url of redis, e.g. `redis://qsl-redis:6379`.
         """
+        # described before registering, so the first beat writes them along
+        self.describe_processes()
         r = self.start(redis_url)
         p = r.pipeline()
         # known before registering, so a signal during the registration still
         # gets unregistered
         self.redis_client = r
         self.register_worker(r)
-        self.register_processes(r)
         # Starte Heartbeat-Worker
         self.start_heartbeat_worker(r)
         try:

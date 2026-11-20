@@ -19,7 +19,7 @@ class TestRedisProtocol:
         assert RedisProtocol.worker_list_name == "workers"
         assert RedisProtocol.worker_info_key == "info"
         assert RedisProtocol.worker_last_seen_key == "last_seen"
-        assert RedisProtocol.process_registry_key == "processes"
+        assert RedisProtocol.worker_processes_key == "processes"
 
     def test_worker_timing(self):
         # a worker has to miss several heartbeats before it is not counted as alive anymore
