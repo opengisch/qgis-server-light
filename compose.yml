@@ -44,7 +44,7 @@ services:
     ports:
       - "127.0.0.1:5555:5000"
   redis:
-    image: redis:8.8.0
+    image: redis:8.10.3
     platform: "${PLATFORM:-linux/amd64}"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
