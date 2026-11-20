@@ -146,16 +146,37 @@ class ProcessDescription(BaseInterface):
         return {"description"}
 
 
+@dataclass(repr=False, kw_only=True)
+class ProcessWarning(BaseInterface):
+    """Tells that the process-workers serving a process don't agree on it. They run
+    different QGIS versions or describe the process differently, so a job behaves
+    differently depending on the worker which takes it. The deployment needs to be
+    corrected then.
+
+    Attributes:
+        process_id: The identifier of the process.
+        qgis_versions: The QGIS versions of the workers serving the process, the newest
+            first.
+        descriptions_differ: If the workers describe the process differently.
+    """
+
+    process_id: str = field(metadata={"type": "Element"})
+    qgis_versions: list[str] = field(default_factory=list, metadata={"type": "Element"})
+    descriptions_differ: bool = field(default=False, metadata={"type": "Element"})
+
+
 @dataclass(repr=False)
 class ProcessDescriptions(BaseInterface):
-    """The processes the process-workers serve. This is the content of the process
-    registry (see `RedisProtocol.process_registry_key`).
+    """The processes a process-worker serves (see `RedisProtocol.worker_processes_key`),
+    or all process-workers together as the dispatcher merges them.
 
     Attributes:
         processes: The description per process.
+        warnings: The processes the workers don't agree on, only set by the dispatcher.
     """
 
     processes: list[ProcessDescription] = field(default_factory=list, metadata={"type": "Element"})
+    warnings: list[ProcessWarning] = field(default_factory=list, metadata={"type": "Element"})
 
     def process_by_id(self, process_id: str) -> ProcessDescription:
         """

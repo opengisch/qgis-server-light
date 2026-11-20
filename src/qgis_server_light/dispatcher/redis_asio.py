@@ -44,7 +44,11 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
-from qgis_server_light.interface.job.process.description import ProcessDescriptions
+from qgis_server_light.interface.job.process.description import (
+    ProcessDescription,
+    ProcessDescriptions,
+    ProcessWarning,
+)
 from qgis_server_light.interface.job.process.input import (
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
@@ -53,7 +57,7 @@ from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
-from qgis_server_light.interface.worker.info import EngineInfo
+from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as WorkerStatus
 
 
@@ -239,12 +243,63 @@ class RedisStateQueue(RedisDispatcher, RedisStateProtocol):
     """
 
     async def process_descriptions(self) -> ProcessDescriptions:
-        """The descriptions of the processes the process-workers serve, read from the
-        process registry. Empty as long as no process-worker has booted."""
-        registry_json = await self.client.get(self.process_registry_key)
-        if registry_json is None:
-            return ProcessDescriptions()
-        return JsonParser().from_bytes(registry_json, ProcessDescriptions)
+        """The descriptions of the processes the alive process-workers serve, each worker
+        keeps its own in its hash. Empty as long as no process-worker is alive."""
+        served = []
+        for worker in await self.alive_workers():
+            processes_json = await self.client.hget(
+                self.worker_key(worker.id), self.worker_processes_key
+            )
+            if processes_json is None:
+                # the worker serves no processes or redis lost them until its next beat
+                continue
+            process_descriptions = JsonParser().from_bytes(processes_json, ProcessDescriptions)
+            served.append((worker.info.qgis_info, process_descriptions))
+        return self.merge_process_descriptions(served)
+
+    @staticmethod
+    def merge_process_descriptions(
+        served: list[tuple[QgisInfo, ProcessDescriptions]],
+    ) -> ProcessDescriptions:
+        """Merges the processes of several workers into one list. Workers on one redis
+        should all run the same QGIS and serve the same processes. When they don't, the
+        description of the newest QGIS is taken and the process gets a warning, so the
+        deployment can be corrected.
+
+        Args:
+            served: The QGIS of each worker and the processes it serves.
+
+        Returns:
+            Each process once, with a warning for each process the workers don't agree on.
+        """
+        descriptions_by_process_id: dict[str, list[tuple[QgisInfo, ProcessDescription]]] = {}
+        # the newest QGIS first, its description is the one taken
+        for qgis_info, process_descriptions in sorted(
+            served, key=lambda item: item[0].version, reverse=True
+        ):
+            for process in process_descriptions.processes:
+                descriptions_by_process_id.setdefault(process.id, []).append((qgis_info, process))
+
+        merged = ProcessDescriptions()
+        for process_id, described in descriptions_by_process_id.items():
+            newest = described[0][1]
+            merged.processes.append(newest)
+            # each version once, the newest first
+            qgis_versions = list(dict.fromkeys(qgis.version_name for qgis, _ in described))
+            descriptions_differ = any(process != newest for _, process in described)
+            if len(qgis_versions) > 1 or descriptions_differ:
+                logging.warning(
+                    f"Process `{process_id}` is served by QGIS {qgis_versions}, "
+                    f"descriptions differ: {descriptions_differ}"
+                )
+                merged.warnings.append(
+                    ProcessWarning(
+                        process_id=process_id,
+                        qgis_versions=qgis_versions,
+                        descriptions_differ=descriptions_differ,
+                    )
+                )
+        return merged
 
     async def submit(
         self,

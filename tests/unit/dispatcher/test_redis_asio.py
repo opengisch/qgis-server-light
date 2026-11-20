@@ -27,12 +27,6 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobInfoLegend,
     QslJobParameterLegend,
 )
-from qgis_server_light.interface.job.process.description import (
-    InputDescription,
-    ProcessDescription,
-    ProcessDescriptions,
-    Schema,
-)
 from qgis_server_light.interface.job.process.input import (
     ParameterInput,
     QslJobInfoExecuteProcess,
@@ -398,47 +392,6 @@ class TestParseLastSeen:
     )
     def test_parse_last_seen(self, last_seen, expected):
         assert RedisQueue.parse_last_seen(last_seen) == expected
-
-
-class TestProcessRegistry:
-    def test_protocol(self):
-        assert RedisStateQueue.process_registry_key == "processes"
-
-    def test_process_descriptions_empty_without_registry(self, client):
-        # no process-worker booted yet
-        client.get.return_value = None
-        assert asyncio.run(RedisStateQueue(client).process_descriptions()) == ProcessDescriptions()
-
-    @pytest.mark.parametrize(
-        "registry_json,expected",
-        [
-            (
-                b'{"processes": [{"id": "native:centroids", "title": "Centroids", '
-                b'"inputs": [{"id": "ALL_PARTS", "title": "Create centroid for each '
-                b'part", "schema": {"type": "boolean", "default": false}, '
-                b'"minOccurs": 1, "maxOccurs": 1}], "outputs": []}]}',
-                ProcessDescriptions(
-                    processes=[
-                        ProcessDescription(
-                            id="native:centroids",
-                            title="Centroids",
-                            inputs=[
-                                InputDescription(
-                                    id="ALL_PARTS",
-                                    title="Create centroid for each part",
-                                    schema=Schema(type="boolean", default=False),
-                                )
-                            ],
-                        )
-                    ]
-                ),
-            )
-        ],
-    )
-    def test_process_descriptions(self, client, registry_json, expected):
-        client.get.return_value = registry_json
-        assert asyncio.run(RedisStateQueue(client).process_descriptions()) == expected
-        client.get.assert_awaited_once_with("processes")
 
 
 class TestRedisStateQueue:
