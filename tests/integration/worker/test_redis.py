@@ -1,17 +1,31 @@
+import pickle
+import socket
 from unittest.mock import ANY, Mock, call
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from xsdata.formats.dataclass.parsers import JsonParser
 
+from qgis_server_light.interface.job.common.input import ExecutionMode
+from qgis_server_light.interface.job.common.output import JobResult
+from qgis_server_light.interface.job.process.input import (
+    ParameterInput,
+    QslJobInfoExecuteProcess,
+    QslJobParameterExecuteProcess,
+)
 from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as EngineStatus
-from qgis_server_light.worker.redis import RedisEngine
+from qgis_server_light.worker.redis import (
+    DEFAULT_RUNNER_PLUGINS,
+    RedisPublishEngine,
+    RedisStateEngine,
+    engine_classes,
+)
 
 
 class WithoutQgis:
-    """Skips booting and exiting QGIS, advertising a worker only depends on the protocol
-    and the engine info."""
+    """Skips booting and exiting QGIS, advertising a worker and finishing a job only
+    depend on the protocol and the engine info."""
 
     def __init__(self):
         self.info = EngineInfo(
@@ -23,22 +37,35 @@ class WithoutQgis:
         self.info_expire = 300
         self.shutdown = False
         self.redis_client = None
+        # a worker without the process runner, it registers no processes
+        self.available_runner_classes_by_job_info = {}
+        self.processes_json = None
 
     def __del__(self):
         pass
 
 
-class RedisEngineWithoutQgis(WithoutQgis, RedisEngine):
+class PublishEngineWithoutQgis(WithoutQgis, RedisPublishEngine):
+    pass
+
+
+class StateEngineWithoutQgis(WithoutQgis, RedisStateEngine):
     pass
 
 
 @pytest.fixture
 def engine():
-    yield RedisEngineWithoutQgis()
+    # the redis engine itself is abstract, the publish engine is the default one
+    yield PublishEngineWithoutQgis()
 
 
 @pytest.fixture
 def client():
+    yield Mock()
+
+
+@pytest.fixture
+def pipeline():
     yield Mock()
 
 
@@ -151,3 +178,226 @@ class TestRedisEngineCrash:
         engine.report_crash(client)
         assert engine.info.status == EngineStatus.CRASHED
         assert "Crash could not be reported to Redis" in caplog.text
+
+
+class TestEngineQueues:
+    """The queue a worker listens on follows from the protocol of its engine."""
+
+    @pytest.mark.parametrize(
+        "engine_class,expected",
+        [
+            (RedisPublishEngine, "jobs"),
+            (RedisStateEngine, "jobs:process"),
+        ],
+    )
+    def test_queue_name(self, engine_class, expected):
+        assert engine_class.protocol.queue_name() == expected
+
+    @pytest.mark.parametrize(
+        "engine_name,expected",
+        [
+            ("publish", RedisPublishEngine),
+            ("state", RedisStateEngine),
+        ],
+    )
+    def test_engine_classes(self, engine_name, expected):
+        assert engine_classes[engine_name] is expected
+
+    def test_default_runner_plugins_without_process(self):
+        assert "ProcessRunner" not in DEFAULT_RUNNER_PLUGINS
+
+
+class TestRedisStateEngine:
+    """The state engine keeps the result in the job hash, expiring with the final status
+    in one transaction, and only notifies a waiting dispatcher afterwards."""
+
+    @pytest.fixture
+    def engine(self):
+        yield StateEngineWithoutQgis()
+
+    @pytest.mark.parametrize(
+        "job_info,expected",
+        [
+            (
+                QslJobInfoExecuteProcess(
+                    id="my_cool_id",
+                    type="QslJobInfoExecuteProcess",
+                    job=QslJobParameterExecuteProcess(
+                        process_id="native:centroids",
+                        parameters=[ParameterInput("ALL_PARTS", False)],
+                    ),
+                    execution_mode=ExecutionMode.SYNC,
+                ),
+                [
+                    call.hset("job:my_cool_id", "result", b'{"outputs": [], "log": ""}'),
+                    call.hset(
+                        "job:my_cool_id",
+                        "result_content_type",
+                        "application/qgis-server-light.interface.job.process.ProcessResult",
+                    ),
+                    call.expire("job:my_cool_id", 86400),
+                    call.hset("job:my_cool_id", "status", "succeed"),
+                    call.hset("job:my_cool_id", "timestamp.succeed", ANY),
+                    call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+                    call.hset("job:my_cool_id", "duration", ANY),
+                    call.execute(),
+                    call.publish("notifications:my_cool_id", "succeed"),
+                ],
+            ),
+            (
+                QslJobInfoExecuteProcess(
+                    id="my_cool_id",
+                    type="QslJobInfoExecuteProcess",
+                    job=QslJobParameterExecuteProcess(
+                        process_id="native:centroids",
+                        parameters=[ParameterInput("ALL_PARTS", False)],
+                    ),
+                    execution_mode=ExecutionMode.ASYNC,
+                ),
+                [
+                    call.hset("job:my_cool_id", "result", b'{"outputs": [], "log": ""}'),
+                    call.hset(
+                        "job:my_cool_id",
+                        "result_content_type",
+                        "application/qgis-server-light.interface.job.process.ProcessResult",
+                    ),
+                    call.expire("job:my_cool_id", 86400),
+                    call.hset("job:my_cool_id", "status", "succeed"),
+                    call.hset("job:my_cool_id", "timestamp.succeed", ANY),
+                    call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+                    call.hset("job:my_cool_id", "duration", ANY),
+                    call.execute(),
+                ],
+            ),
+        ],
+    )
+    def test_succeed_job(self, engine, pipeline, job_info, expected):
+        result = JobResult(
+            id="my_cool_id",
+            data=b'{"outputs": [], "log": ""}',
+            content_type="application/qgis-server-light.interface.job.process.ProcessResult",
+        )
+        engine.succeed_job("my_cool_id", job_info, result, pipeline, 0.0)
+        assert pipeline.mock_calls == expected
+
+    @pytest.mark.parametrize(
+        "job_info,expected",
+        [
+            (
+                QslJobInfoExecuteProcess(
+                    id="my_cool_id",
+                    type="QslJobInfoExecuteProcess",
+                    job=QslJobParameterExecuteProcess(
+                        process_id="native:centroids",
+                        parameters=[ParameterInput("ALL_PARTS", False)],
+                    ),
+                    execution_mode=ExecutionMode.SYNC,
+                ),
+                [
+                    call.hset("job:my_cool_id", "message", "Algorithm failed"),
+                    call.expire("job:my_cool_id", 86400),
+                    call.hset("job:my_cool_id", "status", "failed"),
+                    call.hset("job:my_cool_id", "timestamp.failed", ANY),
+                    call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+                    call.hset("job:my_cool_id", "duration", ANY),
+                    call.execute(),
+                    call.publish("notifications:my_cool_id", "failed"),
+                ],
+            ),
+            (
+                QslJobInfoExecuteProcess(
+                    id="my_cool_id",
+                    type="QslJobInfoExecuteProcess",
+                    job=QslJobParameterExecuteProcess(
+                        process_id="native:centroids",
+                        parameters=[ParameterInput("ALL_PARTS", False)],
+                    ),
+                    execution_mode=ExecutionMode.ASYNC,
+                ),
+                [
+                    call.hset("job:my_cool_id", "message", "Algorithm failed"),
+                    call.expire("job:my_cool_id", 86400),
+                    call.hset("job:my_cool_id", "status", "failed"),
+                    call.hset("job:my_cool_id", "timestamp.failed", ANY),
+                    call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+                    call.hset("job:my_cool_id", "duration", ANY),
+                    call.execute(),
+                ],
+            ),
+        ],
+    )
+    def test_fail_job(self, engine, pipeline, job_info, expected):
+        engine.fail_job("my_cool_id", job_info, RuntimeError("Algorithm failed"), pipeline, 0.0)
+        assert pipeline.mock_calls == expected
+
+    def test_fail_job_without_job_info(self, engine, pipeline):
+        """The job info was not readable, a waiting dispatcher must not miss the end."""
+        engine.fail_job("my_cool_id", None, RuntimeError("Algorithm failed"), pipeline, 0.0)
+        assert pipeline.mock_calls == [
+            call.hset("job:my_cool_id", "message", "Algorithm failed"),
+            call.expire("job:my_cool_id", 86400),
+            call.hset("job:my_cool_id", "status", "failed"),
+            call.hset("job:my_cool_id", "timestamp.failed", ANY),
+            call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+            call.hset("job:my_cool_id", "duration", ANY),
+            call.execute(),
+            call.publish("notifications:my_cool_id", "failed"),
+        ]
+
+
+class TestRedisPublishEngine:
+    """The publish engine publishes the pickled result after the final status and keeps
+    neither result fields nor an expiry in the job hash."""
+
+    @pytest.fixture
+    def engine(self):
+        yield PublishEngineWithoutQgis()
+
+    @pytest.mark.parametrize(
+        "result,expected_published_result",
+        [
+            (
+                JobResult(id="my_cool_id", data=b"png", content_type="image/png"),
+                JobResult(
+                    id="my_cool_id",
+                    data=b"png",
+                    content_type="image/png",
+                    worker_id="worker_id",
+                    worker_host_name=socket.gethostname(),
+                ),
+            )
+        ],
+    )
+    def test_succeed_job(self, engine, pipeline, result, expected_published_result):
+        engine.succeed_job("my_cool_id", None, result, pipeline, 0.0)
+        assert pipeline.mock_calls == [
+            call.hset("job:my_cool_id", "status", "succeed"),
+            call.hset("job:my_cool_id", "timestamp.succeed", ANY),
+            call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+            call.hset("job:my_cool_id", "duration", ANY),
+            call.execute(),
+            call.publish("notifications:my_cool_id", pickle.dumps(expected_published_result)),
+        ]
+
+    @pytest.mark.parametrize(
+        "expected_published_result",
+        [
+            JobResult(
+                id="my_cool_id",
+                data="Layer not found",
+                content_type="text",
+                worker_id="worker_id",
+                worker_host_name=socket.gethostname(),
+            )
+        ],
+    )
+    def test_fail_job(self, engine, pipeline, expected_published_result):
+        engine.fail_job("my_cool_id", None, RuntimeError("Layer not found"), pipeline, 0.0)
+        assert pipeline.mock_calls == [
+            call.hset("job:my_cool_id", "status", "failed"),
+            call.hset("job:my_cool_id", "timestamp.failed", ANY),
+            call.hset("job:my_cool_id", "timestamp.last_update", ANY),
+            call.hset("job:my_cool_id", "duration", ANY),
+            call.execute(),
+            call.publish("notifications:my_cool_id", pickle.dumps(expected_published_result)),
+        ]

@@ -6,7 +6,7 @@ import zlib
 from abc import ABC
 from base64 import urlsafe_b64decode
 from collections.abc import MutableMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PyQt5.QtCore import QSize, Qt
@@ -37,7 +37,18 @@ from qgis_server_light.interface.job.common.input import (
 
 @dataclass
 class JobContext:
+    """
+    Attributes:
+        base_path: The absolute path to the data dir.
+        process_allowlist: The ids of the QGIS algorithms the worker serves as processes.
+        process_output_dir: The absolute path to the dir the processes write their
+            outputs to, each job into its own sub dir. Only the process runner needs
+            it, it refuses to run without.
+    """
+
     base_path: str | Path
+    process_allowlist: list[str] = field(default_factory=list)
+    process_output_dir: str | Path | None = None
 
 
 class Runner(ABC):
