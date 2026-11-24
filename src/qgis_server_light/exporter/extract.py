@@ -244,12 +244,17 @@ class Exporter:
 
         self.rewrite_datasource_with_qgis3_compatible_uri(layer)
         if not self.is_layer_valid(layer):
-            self.qsl_config.warning(
-                f"Layer with name {layer.title() or layer.name()!r} is not valid.",
+            error_message = (
+                layer.error().summary()
+                or layer.dataProvider().error().summary()
+                or f"Layer with name {layer.title() or layer.name()!r} is not valid."
+            )
+            self.qsl_config.error(
+                error_message,
                 code=ExportMessage.Code.LAYER_INVALID,
                 layer_id=layer.id(),
             )
-            return
+            raise self.build_export_failure()
 
         decoded = self.extract_datasource_dict(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
