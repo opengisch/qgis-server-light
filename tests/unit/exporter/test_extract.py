@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from qgis.core import (
+    NULL,
     Qgis,
     QgsAnnotationLayer,
     QgsCoordinateReferenceSystem,
@@ -10,6 +11,7 @@ from qgis.core import (
     QgsField,
     QgsFieldConstraints,
     QgsProject,
+    QgsProjectVersion,
     QgsProviderRegistry,
     QgsRasterLayer,
     QgsRelation,
@@ -207,6 +209,17 @@ class TestQgis4DatasourceDecoding:
 
     def test_qgis4_project_null_values_are_none(self, qgis4_config):
         assert qgis4_config.datasets.raster[0].source.wms.styles is None
+
+    def test_qgis4_shapefile_null_and_none_values_are_not_encoded(self, qgis_app, tmp_path):
+        source_path = str(tmp_path / "regions.shp")
+        layer = QgsVectorLayer(source_path, "regions", "ogr")
+        decoded = QgsProviderRegistry.instance().decodeUri("ogr", layer.source())
+        assert decoded["layerId"] is None
+        assert decoded["layerName"] == NULL
+        exporter = object.__new__(Exporter)
+        exporter.version = QgsProjectVersion(4, 0, 0)
+        exporter.rewrite_datasource_with_qgis3_compatible_uri(layer)
+        assert layer.source() == source_path
 
     def test_qgis3_project_preserves_percent_encoded_url_values(self, qgis3_config):
         source = qgis3_config.datasets.raster[0].source.wms

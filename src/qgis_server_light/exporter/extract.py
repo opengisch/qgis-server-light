@@ -10,6 +10,7 @@ from urllib.parse import unquote
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -441,10 +442,11 @@ class Exporter:
             qgis3_compatible_uri = registry.encodeUri(
                 layer.providerType(),
                 {
-                    key: unquote(str(value))
+                    key: unquote(value) if isinstance(value, str) else value
                     for (key, value) in registry.decodeUri(
                         layer.providerType(), original_uri
                     ).items()
+                    if value is not None and value != NULL
                 },
             )
             logging.debug(
