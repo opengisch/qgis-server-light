@@ -1,9 +1,16 @@
+import pickle
 from unittest.mock import ANY, Mock, call
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 from xsdata.formats.dataclass.parsers import JsonParser
+from xsdata.formats.dataclass.serializers import JsonSerializer
 
+from qgis_server_light.interface.common import BBox
+from qgis_server_light.interface.job.render.input import (
+    QslJobInfoRender,
+    QslJobParameterRender,
+)
 from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as EngineStatus
 from qgis_server_light.worker.redis import RedisEngine
@@ -111,6 +118,49 @@ class TestRedisEngineWaitForConnection:
             call("redis://qsl-redis:6379", 2),
             call("redis://qsl-redis:6379", 1),
         ]
+
+
+class TestRedisEngineServeJobs:
+    def test_failed_job_is_reported_as_failed(self, engine, client, monkeypatch):
+        # a render job with a point bbox is waiting in the queue
+        engine.available_job_info_classes = {"QslJobInfoRender": QslJobInfoRender}
+        client.blpop.return_value = ("jobs", "job_1")
+        client.hget.side_effect = [
+            JsonSerializer().render(
+                QslJobInfoRender(
+                    id="job_1",
+                    type="QslJobInfoRender",
+                    job=QslJobParameterRender(
+                        layers=[],
+                        bbox=BBox(2600000, 2600000, 1200000, 1200000),
+                        crs="EPSG:2056",
+                        width=256,
+                        height=256,
+                    ),
+                )
+            ),
+            "QslJobInfoRender",
+        ]
+
+        # the runner fails on it, meanwhile the worker is told to stop, so this
+        # stays the only job it takes
+        def process(job_info):
+            engine.shutdown = True
+            raise RuntimeError("Invalid map settings")
+
+        monkeypatch.setattr(engine, "process", process)
+        pipeline = Mock()
+        engine.serve_jobs(client, pipeline, "redis://qsl-redis:6379")
+
+        # the job was running and is failed now, the dispatcher must not see it
+        # running forever
+        assert call.hset("job:job_1", "status", "running") in pipeline.mock_calls
+        assert call.hset("job:job_1", "status", "failed") in pipeline.mock_calls
+        assert call.hset("job:job_1", "status", "succeed") not in pipeline.mock_calls
+        # the subscriber gets the reason of the failure
+        channel, data = pipeline.publish.call_args.args
+        assert channel == "notifications:job_1"
+        assert pickle.loads(data).data == "Invalid map settings"
 
 
 class TestRedisEngineCrash:
