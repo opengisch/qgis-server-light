@@ -40,6 +40,13 @@ class RenderRunner(MapRunner):
         for job_layer_definition in self.job_info.job.layers:
             self._provide_layer(job_layer_definition)
         map_settings = self._get_map_settings(self.map_layers)
+        # QGIS emits finished synchronously in start() on invalid settings (e.g.
+        # an empty bbox), before the event loop runs, so it would wait forever
+        if not map_settings.hasValidSettings():
+            raise RuntimeError(
+                f"Invalid map settings, bbox: {self.job_info.job.bbox}, "
+                f"size: {self.job_info.job.width}x{self.job_info.job.height}"
+            )
         # same as QGIS Server GetMap, enables the simplification on rendering
         # which is defined in the layer styles
         map_settings.setFlag(Qgis.MapSettingsFlag.UseRenderingOptimization)
