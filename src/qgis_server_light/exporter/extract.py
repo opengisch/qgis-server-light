@@ -10,6 +10,7 @@ from urllib.parse import unquote
 from PyQt5.QtCore import QMetaType
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -243,12 +244,17 @@ class Exporter:
 
         self.rewrite_datasource_with_qgis3_compatible_uri(layer)
         if not self.is_layer_valid(layer):
-            self.qsl_config.warning(
-                f"Layer with name {layer.title() or layer.name()!r} is not valid.",
+            error_message = (
+                layer.error().summary()
+                or layer.dataProvider().error().summary()
+                or f"Layer with name {layer.title() or layer.name()!r} is not valid."
+            )
+            self.qsl_config.error(
+                error_message,
                 code=ExportMessage.Code.LAYER_INVALID,
                 layer_id=layer.id(),
             )
-            return
+            raise self.build_export_failure()
 
         decoded = self.extract_datasource_dict(layer)
         short_name = self.short_name(self.get_layer_short_name(child), path)
@@ -441,10 +447,11 @@ class Exporter:
             qgis3_compatible_uri = registry.encodeUri(
                 layer.providerType(),
                 {
-                    key: unquote(str(value))
+                    key: unquote(value) if isinstance(value, str) else value
                     for (key, value) in registry.decodeUri(
                         layer.providerType(), original_uri
                     ).items()
+                    if value is not None and value != NULL
                 },
             )
             logging.debug(
