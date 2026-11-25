@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import uuid
 
 import pytest
@@ -15,6 +16,7 @@ from qgis_server_light.interface.job.render.input import (
     QslJobInfoRender,
     QslJobParameterRender,
 )
+from qgis_server_light.worker.runner import render
 from qgis_server_light.worker.runner.common import JobContext
 from qgis_server_light.worker.runner.render import RenderRunner
 
@@ -118,3 +120,64 @@ class TestRenderRunnerIntegration:
 
         # we allow a number of X pixels difference between both images
         assert mismatch <= allowed_missmatch
+
+    @pytest.mark.parametrize(
+        "bbox,width,height,message",
+        [
+            (
+                # a point bbox, as it comes from the extent of a single point feature
+                BBox(2600000, 2600000, 1200000, 1200000),
+                256,
+                256,
+                "Invalid map settings, bbox: BBox(x_min=2600000, x_max=2600000, y_min=1200000, "
+                "y_max=1200000, z_min=0.0, z_max=0.0), size: 256x256",
+            ),
+            (
+                # a bbox without height, e.g. points on one horizontal line
+                BBox(2600000, 2700000, 1200000, 1200000),
+                256,
+                256,
+                "Invalid map settings, bbox: BBox(x_min=2600000, x_max=2700000, y_min=1200000, "
+                "y_max=1200000, z_min=0.0, z_max=0.0), size: 256x256",
+            ),
+            (
+                # a valid bbox, but no pixel to render to
+                BBox(2600000, 2700000, 1200000, 1300000),
+                0,
+                256,
+                "Invalid map settings, bbox: BBox(x_min=2600000, x_max=2700000, y_min=1200000, "
+                "y_max=1300000, z_min=0.0, z_max=0.0), size: 0x256",
+            ),
+        ],
+    )
+    def test_invalid_map_settings_are_raised(
+        self, qgis_app, data_path, bbox, width, height, message, monkeypatch
+    ):
+        job_info = QslJobInfoRender(
+            id=str(uuid.uuid4()),
+            type=QslJobInfoRender.__name__,
+            job=QslJobParameterRender(
+                # the map settings are invalid by bbox and size alone, layers don't
+                # matter for that
+                layers=[],
+                bbox=bbox,
+                crs="EPSG:2056",
+                width=width,
+                height=height,
+                dpi=75,
+                format="image/png",
+            ),
+        )
+        runner = RenderRunner(qgis_app, JobContext(base_path=data_path), job_info, {})
+
+        # QGIS finishes a render job with invalid settings already inside start(),
+        # before the runner waits for it. A started renderer is a failure, the
+        # runner would wait forever for a finish which already happened
+        monkeypatch.setattr(
+            render,
+            "QgsMapRendererParallelJob",
+            lambda *args: pytest.fail("renderer was started with invalid map settings"),
+        )
+        # the worker gets an error it can report back instead
+        with pytest.raises(RuntimeError, match=re.escape(message)):
+            runner.run()
