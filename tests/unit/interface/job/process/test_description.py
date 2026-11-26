@@ -37,7 +37,7 @@ CENTROIDS = ProcessDescription(
                 type="string",
                 format="qsl-layer",
                 x_qsl_layer=QslLayerMarker(
-                    kind=QslLayerKind.VECTOR,
+                    kinds=[QslLayerKind.VECTOR],
                     geometry_types=["Point", "Line", "Polygon", "Null"],
                     source="QgsProcessingParameterFeatureSource",
                 ),
@@ -135,7 +135,7 @@ def test_process_description_without_destinations(qgis_app):
                     "type": "string",
                     "format": "qsl-layer",
                     "x-qsl-layer": {
-                        "kind": "vector",
+                        "kinds": ["vector"],
                         "geometry_types": ["Point", "Line", "Polygon", "Null"],
                         "source": "QgsProcessingParameterFeatureSource",
                     },
@@ -190,7 +190,7 @@ def test_input_description_multiple_layers_minimum():
     input_description = ProcessDescriptionMapper().input_description(param)
     assert input_description.min_occurs == 2
     assert input_description.schema.x_qsl_layer == QslLayerMarker(
-        kind=QslLayerKind.RASTER,
+        kinds=[QslLayerKind.RASTER],
         geometry_types=[],
         source="QgsProcessingParameterMultipleLayers",
     )
@@ -248,7 +248,7 @@ def test_input_description_feature_source(source_types, expected_geometry_types)
     assert schema.type == "string"
     assert schema.format == "qsl-layer"
     assert schema.x_qsl_layer == QslLayerMarker(
-        kind=QslLayerKind.VECTOR,
+        kinds=[QslLayerKind.VECTOR],
         geometry_types=expected_geometry_types,
         source="QgsProcessingParameterFeatureSource",
     )
@@ -261,15 +261,7 @@ def test_input_description_feature_source(source_types, expected_geometry_types)
             QgsProcessingParameterMultipleLayers(
                 "LAYERS", "Layers", Qgis.ProcessingSourceType.Mesh
             ),
-            "unsupported ProcessingSourceType",
-        ),
-        (
-            QgsProcessingParameterFeatureSource(
-                "INPUT",
-                "Input",
-                types=[Qgis.ProcessingSourceType.VectorPoint, Qgis.ProcessingSourceType.Raster],
-            ),
-            "mixed layer kinds",
+            "unsupported ProcessingSourceTypes",
         ),
     ],
 )

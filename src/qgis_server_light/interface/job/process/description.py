@@ -28,14 +28,15 @@ class QslLayerMarker(BaseInterface):
     consumer replaces the marked schema with the layers it offers which match the marker.
 
     Attributes:
-        kind: The kind of layer which is accepted.
+        kinds: The kinds of layer which are accepted.
         geometry_types: The geometry types of a vector layer which are accepted, named as
             `qgis.core.Qgis.GeometryType` (`Point`, `Line`, `Polygon`, `Null`). Matches
-            `Vector.geometry_type_simple` of the exported project. Empty for raster layers.
+            `Vector.geometry_type_simple` of the exported project. Applies to vector layers
+            only, empty when no vector layer is accepted.
         source: The class name of the QGIS parameter or output the marker was derived from.
     """
 
-    kind: QslLayerKind = field(metadata={"type": "Element"})
+    kinds: list[QslLayerKind] = field(metadata={"type": "Element"})
     geometry_types: list[str] = field(default_factory=list, metadata={"type": "Element"})
     source: str | None = field(default=None, metadata={"type": "Element"})
 

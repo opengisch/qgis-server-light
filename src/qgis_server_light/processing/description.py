@@ -20,6 +20,7 @@ from qgis.core import (
     QgsProcessingParameterDistance,
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterMapLayer,
     QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterNumber,
     QgsProcessingParameterRasterLayer,
@@ -149,21 +150,29 @@ class LayerSchemaStrategy[D: QgsProcessingParameterDefinition | QgsProcessingOut
     SchemaStrategy[D], ABC
 ):
     """A layer value (`QslJobLayer`), marked with a `QslLayerMarker`. The marker is derived
-    from the `Qgis.ProcessingSourceType` values the definition accepts."""
+    from the `Qgis.ProcessingSourceType` values the definition accepts. Source types QSL
+    can't serve as layer (mesh, point cloud, vector tile, file, ...) are left out."""
 
-    layer_kind_by_source_type: dict[Qgis.ProcessingSourceType, QslLayerKind] = {
-        Qgis.ProcessingSourceType.Vector: QslLayerKind.VECTOR,
-        Qgis.ProcessingSourceType.VectorAnyGeometry: QslLayerKind.VECTOR,
-        Qgis.ProcessingSourceType.VectorPoint: QslLayerKind.VECTOR,
-        Qgis.ProcessingSourceType.VectorLine: QslLayerKind.VECTOR,
-        Qgis.ProcessingSourceType.VectorPolygon: QslLayerKind.VECTOR,
-        Qgis.ProcessingSourceType.Raster: QslLayerKind.RASTER,
+    layer_kinds_by_source_type: dict[Qgis.ProcessingSourceType, list[QslLayerKind]] = {
+        Qgis.ProcessingSourceType.MapLayer: [QslLayerKind.VECTOR, QslLayerKind.RASTER],
+        Qgis.ProcessingSourceType.Vector: [QslLayerKind.VECTOR],
+        Qgis.ProcessingSourceType.VectorAnyGeometry: [QslLayerKind.VECTOR],
+        Qgis.ProcessingSourceType.VectorPoint: [QslLayerKind.VECTOR],
+        Qgis.ProcessingSourceType.VectorLine: [QslLayerKind.VECTOR],
+        Qgis.ProcessingSourceType.VectorPolygon: [QslLayerKind.VECTOR],
+        Qgis.ProcessingSourceType.Raster: [QslLayerKind.RASTER],
     }
     # the geometry types a layer of the source type may have, see
     # `QgsProcessingUtils::canUseLayer` in QGIS `src/core/processing/qgsprocessingutils.cpp`.
     # The PyQGIS stubs lack `name` on the `Qgis.GeometryType` members although they are
     # python enums at runtime, hence the ignored attribute checks.
     geometry_types_by_source_type: dict[Qgis.ProcessingSourceType, list[str]] = {
+        Qgis.ProcessingSourceType.MapLayer: [
+            Qgis.GeometryType.Point.name,  # type: ignore[attr-defined]
+            Qgis.GeometryType.Line.name,  # type: ignore[attr-defined]
+            Qgis.GeometryType.Polygon.name,  # type: ignore[attr-defined]
+            Qgis.GeometryType.Null.name,  # type: ignore[attr-defined]
+        ],
         Qgis.ProcessingSourceType.Vector: [
             Qgis.GeometryType.Point.name,  # type: ignore[attr-defined]
             Qgis.GeometryType.Line.name,  # type: ignore[attr-defined]
@@ -188,29 +197,30 @@ class LayerSchemaStrategy[D: QgsProcessingParameterDefinition | QgsProcessingOut
     def map_schema(self, definition: D) -> Schema:
         """
         Raises:
-            ValueError: If a source type is not supported or the source types mix layer
-                kinds.
+            ValueError: If none of the source types can be served as layer.
         """
-        # QGIS accepts any vector layer when no source type is set, see
-        # `QgsProcessingUtils::canUseLayer`
-        source_types = self.source_types(definition) or [Qgis.ProcessingSourceType.Vector]
+        source_types = list(map(Qgis.ProcessingSourceType, self.source_types(definition)))
+        servable_source_types = [
+            source_type
+            for source_type in source_types
+            if source_type in self.layer_kinds_by_source_type
+        ]
+        if not servable_source_types:
+            raise ValueError(f"unsupported ProcessingSourceTypes: {source_types}")
         kinds = []
         geometry_types = []
-        for source_type in map(Qgis.ProcessingSourceType, source_types):
-            if source_type not in self.layer_kind_by_source_type:
-                raise ValueError(f"unsupported ProcessingSourceType: {source_type}")
-            if (kind := self.layer_kind_by_source_type[source_type]) not in kinds:
-                kinds.append(kind)
+        for source_type in servable_source_types:
+            for kind in self.layer_kinds_by_source_type[source_type]:
+                if kind not in kinds:
+                    kinds.append(kind)
             for geometry_type in self.geometry_types_by_source_type[source_type]:
                 if geometry_type not in geometry_types:
                     geometry_types.append(geometry_type)
-        if len(kinds) != 1:
-            raise ValueError(f"mixed layer kinds: {kinds}")
         return Schema(
             type="string",
             format=QSL_LAYER_FORMAT,
             x_qsl_layer=QslLayerMarker(
-                kind=kinds[0],
+                kinds=kinds,
                 geometry_types=geometry_types,
                 source=type(definition).__name__,
             ),
@@ -223,7 +233,15 @@ class FeatureSourceSchemaStrategy(
     def source_types(
         self, definition: QgsProcessingParameterFeatureSource | QgsProcessingParameterVectorLayer
     ) -> list[int]:
-        return definition.dataTypes()
+        # QGIS accepts any vector layer when no source type is set, see
+        # `QgsProcessingUtils::canUseLayer`
+        return definition.dataTypes() or [Qgis.ProcessingSourceType.Vector]
+
+
+class MapLayerSchemaStrategy(LayerSchemaStrategy[QgsProcessingParameterMapLayer]):
+    def source_types(self, definition: QgsProcessingParameterMapLayer) -> list[int]:
+        # QGIS accepts any map layer when no source type is set
+        return definition.dataTypes() or [Qgis.ProcessingSourceType.MapLayer]
 
 
 class RasterLayerSchemaStrategy(LayerSchemaStrategy[QgsProcessingParameterRasterLayer]):
@@ -271,6 +289,7 @@ class ProcessDescriptionMapper:
             QgsProcessingParameterFeatureSource: FeatureSourceSchemaStrategy(),
             QgsProcessingParameterVectorLayer: FeatureSourceSchemaStrategy(),
             QgsProcessingParameterRasterLayer: RasterLayerSchemaStrategy(),
+            QgsProcessingParameterMapLayer: MapLayerSchemaStrategy(),
             QgsProcessingParameterMultipleLayers: MultipleLayersSchemaStrategy(),
             QgsProcessingParameterNumber: NumberSchemaStrategy(),
             QgsProcessingParameterDistance: NumberSchemaStrategy(),

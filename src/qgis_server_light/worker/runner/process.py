@@ -1,8 +1,10 @@
+import logging
 import shutil
 from collections.abc import MutableMapping
 from pathlib import Path
 
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
@@ -77,7 +79,10 @@ class ProcessRunner(MapRunner):
 
     @classmethod
     def info(cls, qgis: QgsApplication, process_allowlist: list[str]) -> ProcessDescriptions:
-        """The descriptions of the processes the worker serves.
+        """The descriptions of the processes the worker serves. An algorithm of the
+        allowlist the worker can't serve is skipped and logged, so one entry can't empty
+        the processes of the worker. That's the case for a parameter without mapping and
+        for an algorithm requiring a project, the context of the runner has none.
 
         Args:
             qgis: The QGIS application holding the processing registry.
@@ -93,7 +98,15 @@ class ProcessRunner(MapRunner):
             algorithm = registry.algorithmById(process_id)
             if algorithm is None:
                 raise LookupError(f"Algorithm `{process_id}` of the allowlist not found")
-            process_descriptions.processes.append(mapper.process_description(algorithm))
+            if algorithm.flags() & Qgis.ProcessingAlgorithmFlag.RequiresProject:
+                logging.warning(
+                    f"Algorithm `{process_id}` of the allowlist skipped: requires a project"
+                )
+                continue
+            try:
+                process_descriptions.processes.append(mapper.process_description(algorithm))
+            except ValueError as e:
+                logging.warning(f"Algorithm `{process_id}` of the allowlist skipped: {e}")
         return process_descriptions
 
     def run(self):
