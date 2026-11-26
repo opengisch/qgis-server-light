@@ -7,18 +7,17 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from xsdata.formats.dataclass.parsers import JsonParser
 from xsdata.formats.dataclass.serializers import JsonSerializer
 
-from qgis_server_light.interface.dispatcher.protocol import RedisProtocol
 from qgis_server_light.interface.common import BBox
-from qgis_server_light.interface.job.render.input import (
-    QslJobInfoRender,
-    QslJobParameterRender,
-)
 from qgis_server_light.interface.job.common.input import ExecutionMode
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.input import (
     ParameterInput,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
+)
+from qgis_server_light.interface.job.render.input import (
+    QslJobInfoRender,
+    QslJobParameterRender,
 )
 from qgis_server_light.interface.worker.info import EngineInfo, QgisInfo
 from qgis_server_light.interface.worker.info import Status as EngineStatus
@@ -42,6 +41,8 @@ class WithoutQgis:
             started=0.0,
         )
         self.info_expire = 300
+        # the worker only listens on the queue of its protocol
+        self.queue_name = self.protocol.queue_name()
         self.shutdown = False
         self.redis_client = None
         # a worker without the process runner, it registers no processes
