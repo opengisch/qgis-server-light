@@ -98,7 +98,7 @@ class ProcessRunner(MapRunner):
             algorithm = registry.algorithmById(process_id)
             if algorithm is None:
                 raise LookupError(f"Algorithm `{process_id}` of the allowlist not found")
-            if algorithm.flags() & Qgis.ProcessingAlgorithmFlag.RequiresProject:
+            if cls.requires_project(algorithm):
                 logging.warning(
                     f"Algorithm `{process_id}` of the allowlist skipped: requires a project"
                 )
@@ -108,6 +108,11 @@ class ProcessRunner(MapRunner):
             except ValueError as e:
                 logging.warning(f"Algorithm `{process_id}` of the allowlist skipped: {e}")
         return process_descriptions
+
+    @staticmethod
+    def requires_project(algorithm: QgsProcessingAlgorithm) -> bool:
+        """If the algorithm needs a project, the processing context of the runner has none."""
+        return bool(algorithm.flags() & Qgis.ProcessingAlgorithmFlag.RequiresProject)
 
     def run(self):
         """Run this runner.
@@ -121,7 +126,7 @@ class ProcessRunner(MapRunner):
 
         Raises:
             RuntimeError: If the algorithm is not served by this worker, is not
-                found or no process output dir is configured.
+                found, requires a project or no process output dir is configured.
         """
         job: QslJobParameterExecuteProcess = self.job_info.job
         if job.process_id not in self.context.process_allowlist:
@@ -129,6 +134,8 @@ class ProcessRunner(MapRunner):
         algorithm = self.registry.algorithmById(job.process_id)
         if algorithm is None:
             raise RuntimeError(f"Algorithm `{job.process_id}` not found")
+        if self.requires_project(algorithm):
+            raise RuntimeError(f"Algorithm `{job.process_id}` requires a project")
         if self.context.process_output_dir is None:
             raise RuntimeError("No process output dir configured")
 
