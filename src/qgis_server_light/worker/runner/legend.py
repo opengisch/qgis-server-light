@@ -1,7 +1,6 @@
 import logging
 from collections.abc import MutableMapping
 
-from fpng_py import CompressionFlags, fpng_encode_image_to_memory
 from qgis.core import (
     QgsApplication,
     QgsLayerTree,
@@ -9,16 +8,17 @@ from qgis.core import (
     QgsLegendRenderer,
     QgsLegendSettings,
     QgsLegendStyle,
+    QgsRenderContext,
 )
-from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, Qt
+from qgis.PyQt.QtCore import QJsonDocument, Qt
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.legend.input import QslJobInfoLegend
-from qgis_server_light.worker.runner.common import JobContext, MapRunner
+from qgis_server_light.worker.runner.common import ImageRunner, JobContext
 
 
-class GetLegendRunner(MapRunner):
+class GetLegendRunner(ImageRunner):
     job_info_class = QslJobInfoLegend
 
     def __init__(
@@ -31,8 +31,8 @@ class GetLegendRunner(MapRunner):
         super().__init__(qgis, context, job_info, layer_cache)
 
     @classmethod
-    def image_formats(cls):
-        return {"image/png": cls._encode_png, "image/jpeg": cls._encode_jpg}
+    def json_formats(cls):
+        return ["application/json", "json"]
 
     def run(self):
         logging.info(f"Executing job: {self.job_info}")
@@ -45,9 +45,6 @@ class GetLegendRunner(MapRunner):
         root = QgsLayerTree()
         for layer in self.map_layers:
             root.addLayer(layer)
-
-        dpi = self.job_info.job.dpi
-        px_per_mm = dpi / 25.4
 
         model = QgsLayerTreeModel(root)
         settings = QgsLegendSettings()
@@ -66,6 +63,15 @@ class GetLegendRunner(MapRunner):
 
         renderer = QgsLegendRenderer(model, settings)
 
+        if self.job_info.job.format.lower() in self.json_formats():
+            return JobResult(
+                id=self.job_info.id,
+                data=self._export_json(renderer),
+                content_type="application/json",
+            )
+
+        dpi = self.job_info.job.dpi
+        px_per_mm = dpi / 25.4
         width = self.job_info.job.width
         height = self.job_info.job.height
         legend_size_mm = renderer.minimumSize()
@@ -102,7 +108,7 @@ class GetLegendRunner(MapRunner):
         renderer.drawLegend(painter)
         painter.end()
 
-        content_type, image_data = self._encode_image(image, self.job_info.job.format.lower())
+        content_type, image_data = self._encode_image(image, self.job_info.job.format)
 
         return JobResult(
             id=self.job_info.id,
@@ -110,39 +116,8 @@ class GetLegendRunner(MapRunner):
             content_type=content_type,
         )
 
-    def _encode_image(self, image: QImage, fmt: str) -> tuple[str, bytearray]:
-        """Encodes an image in a specific mime type
-        Args:
-            image (QImage): The image to encode
-            fmt (str): The mime type of the format
-        Returns:
-            A tuple with mime type and bytes-like object of an encoded image in the desired format
-        """
-        try:
-            fmt = fmt.lower()
-            encoding_method = self.image_formats()[fmt]
-            return fmt, encoding_method(image)
-        except KeyError as e:
-            raise RuntimeError(
-                f"Requested mimtype '{fmt}' was found in {list(self.image_formats())}."
-            ) from e
-
     @staticmethod
-    def _encode_png(image: QImage):
-        image = image.convertToFormat(QImage.Format_RGBA8888)
-        image_data = fpng_encode_image_to_memory(
-            image.constBits().asstring(image.sizeInBytes()),
-            image.width(),
-            image.height(),
-            0,
-            CompressionFlags.NONE,
-        )
-        return image_data
-
-    @staticmethod
-    def _encode_jpg(image: QImage):
-        image_data = QByteArray()
-        buf = QBuffer(image_data)
-        buf.open(QIODevice.WriteOnly)
-        image.save(buf, "JPG")
-        return image_data
+    def _export_json(renderer: QgsLegendRenderer) -> bytes:
+        # same as QGIS Server does it, a default render context is enough here
+        legend = renderer.exportLegendToJson(QgsRenderContext())
+        return bytes(QJsonDocument(legend).toJson(QJsonDocument.JsonFormat.Compact))
