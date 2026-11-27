@@ -210,9 +210,7 @@ class RedisEngine(Engine):
         )
         if process_runner_class is None:
             return
-        process_descriptions = process_runner_class.info(
-            self.qgis, self.context.process_allowlist, self.context.process_internal_allowlist
-        )
+        process_descriptions = process_runner_class.info(self.qgis, self.context)
         self.processes_json = JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(
             process_descriptions
         )

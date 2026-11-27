@@ -78,12 +78,7 @@ class ProcessRunner(MapRunner):
         self.registry = self.qgis.processingRegistry()
 
     @classmethod
-    def info(
-        cls,
-        qgis: QgsApplication,
-        process_allowlist: list[str],
-        process_internal_allowlist: list[str] | None = None,
-    ) -> ProcessDescriptions:
+    def info(cls, qgis: QgsApplication, context: JobContext) -> ProcessDescriptions:
         """The descriptions of the processes the worker serves. An algorithm of the
         allowlist the worker can't serve is skipped and logged, so one entry can't empty
         the processes of the worker. That's the case for a parameter without mapping and
@@ -91,19 +86,16 @@ class ProcessRunner(MapRunner):
 
         Args:
             qgis: The QGIS application holding the processing registry.
-            process_allowlist: The ids of the QGIS algorithms the worker serves.
-            process_internal_allowlist: The ids of the QGIS algorithms the worker serves
-                for internal use of the consumer only, their descriptions are marked
-                `internal`.
+            context: The context holding the allowlists, the descriptions of the internal
+                ones are marked `internal`.
 
         Raises:
             LookupError: If an algorithm of the allowlist is not in the processing registry.
         """
-        process_internal_allowlist = process_internal_allowlist or []
         registry = qgis.processingRegistry()
         mapper = ProcessDescriptionMapper()
         process_descriptions = ProcessDescriptions()
-        for process_id in process_allowlist + process_internal_allowlist:
+        for process_id in context.served_process_ids:
             algorithm = registry.algorithmById(process_id)
             if algorithm is None:
                 raise LookupError(f"Algorithm `{process_id}` of the allowlist not found")
@@ -117,7 +109,7 @@ class ProcessRunner(MapRunner):
             except ValueError as e:
                 logging.warning(f"Algorithm `{process_id}` of the allowlist skipped: {e}")
                 continue
-            if process_id in process_internal_allowlist:
+            if process_id in context.process_internal_allowlist:
                 process_description.internal = True
             process_descriptions.processes.append(process_description)
         return process_descriptions

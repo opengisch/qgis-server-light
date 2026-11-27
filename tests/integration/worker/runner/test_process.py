@@ -383,10 +383,15 @@ class TestProcessRunnerInfo:
             ["native:buffer", "native:centroids"],
         ],
     )
-    def test_info_follows_allowlist(self, qgis_app, process_allowlist):
-        process_descriptions = ProcessRunner.info(qgis_app, process_allowlist)
+    def test_info_follows_allowlist(self, qgis_app, data_path, process_allowlist):
+        process_descriptions = ProcessRunner.info(
+            qgis_app, JobContext(base_path=data_path, process_allowlist=process_allowlist)
+        )
         assert [process.id for process in process_descriptions.processes] == process_allowlist
 
-    def test_info_unknown_algorithm(self, qgis_app):
+    def test_info_unknown_algorithm(self, qgis_app, data_path):
         with pytest.raises(LookupError, match="native:does_not_exist` of the allowlist"):
-            ProcessRunner.info(qgis_app, ["native:does_not_exist"])
+            ProcessRunner.info(
+                qgis_app,
+                JobContext(base_path=data_path, process_allowlist=["native:does_not_exist"]),
+            )
