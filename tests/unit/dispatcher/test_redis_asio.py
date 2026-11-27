@@ -28,7 +28,7 @@ from qgis_server_light.interface.job.legend.input import (
     QslJobParameterLegend,
 )
 from qgis_server_light.interface.job.process.input import (
-    ParameterInput,
+    ExecuteInput,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
@@ -410,7 +410,7 @@ class TestRedisStateQueue:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.SYNC,
                 ),
@@ -422,7 +422,7 @@ class TestRedisStateQueue:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.ASYNC,
                 ),
@@ -434,7 +434,7 @@ class TestRedisStateQueue:
         expiry in one transaction on the state queue."""
         job_parameter = QslJobParameterExecuteProcess(
             process_id="native:centroids",
-            parameters=[ParameterInput("ALL_PARTS", False)],
+            inputs=[ExecuteInput("ALL_PARTS", [False])],
         )
         asyncio.run(RedisStateQueue(client).submit("my_cool_id", job_parameter, execution_mode))
         assert pipeline.mock_calls == [

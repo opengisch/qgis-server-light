@@ -11,7 +11,7 @@ from qgis_server_light.interface.common import BBox
 from qgis_server_light.interface.job.common.input import ExecutionMode
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.input import (
-    ParameterInput,
+    ExecuteInput,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
@@ -275,7 +275,7 @@ class TestRedisStateEngine:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.SYNC,
                 ),
@@ -301,7 +301,7 @@ class TestRedisStateEngine:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.ASYNC,
                 ),
@@ -340,7 +340,7 @@ class TestRedisStateEngine:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.SYNC,
                 ),
@@ -361,7 +361,7 @@ class TestRedisStateEngine:
                     type="QslJobInfoExecuteProcess",
                     job=QslJobParameterExecuteProcess(
                         process_id="native:centroids",
-                        parameters=[ParameterInput("ALL_PARTS", False)],
+                        inputs=[ExecuteInput("ALL_PARTS", [False])],
                     ),
                     execution_mode=ExecutionMode.ASYNC,
                 ),

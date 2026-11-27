@@ -4,44 +4,42 @@ from xsdata.formats.dataclass.serializers import JsonSerializer
 
 from qgis_server_light.interface.common import BaseInterface
 from qgis_server_light.interface.job.process.output import (
-    FileOutput,
-    ParameterOutput,
     ProcessResult,
+    Reference,
+    ResultOutput,
 )
 from tests.base.dataclass_test import DataclassTest
 
 
-class TestFileOutput(DataclassTest):
+class TestReference(DataclassTest):
     field_defs = [
-        ("path", str),
-        ("media_type", str),
+        ("href", str),
+        ("type", str),
     ]
-    dataclass_to_test = FileOutput
+    dataclass_to_test = Reference
 
     def test_instantiation(self):
-        file_output = FileOutput(
-            path="a1b2/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
-        )
-        assert file_output.path == "a1b2/OUTPUT.gpkg"
-        assert file_output.media_type == "application/geopackage+sqlite3"
+        reference = Reference(href="a1b2/OUTPUT.gpkg", type="application/geopackage+sqlite3")
+        assert reference.href == "a1b2/OUTPUT.gpkg"
+        assert reference.type == "application/geopackage+sqlite3"
 
 
-class TestParameterOutput(DataclassTest):
+class TestResultOutput(DataclassTest):
     field_defs = [
-        ("name", str),
-        ("value", FileOutput | str | int | float | bool),
+        ("id", str),
+        ("value", Reference | str | int | float | bool),
     ]
-    dataclass_to_test = ParameterOutput
+    dataclass_to_test = ResultOutput
 
     def test_instantiation(self):
-        parameter_output = ParameterOutput(name="OUTPUT", value="/io/data/Centroids.geojson")
-        assert parameter_output.name == "OUTPUT"
-        assert parameter_output.value == "/io/data/Centroids.geojson"
+        result_output = ResultOutput(id="OUTPUT", value="/io/data/Centroids.geojson")
+        assert result_output.id == "OUTPUT"
+        assert result_output.value == "/io/data/Centroids.geojson"
 
 
 class TestProcessResult(DataclassTest):
     field_defs = [
-        ("outputs", list[ParameterOutput]),
+        ("outputs", list[ResultOutput]),
         ("log", str),
     ]
     field_defaults = [
@@ -64,22 +62,22 @@ class TestProcessResult(DataclassTest):
             ProcessResult(),
             ProcessResult(
                 outputs=[
-                    ParameterOutput(name="OUTPUT", value="/io/data/Centroids.geojson"),
-                    ParameterOutput(name="FEATURE_COUNT", value=42),
-                    ParameterOutput(name="AREA", value=1.5),
-                    ParameterOutput(name="OK", value=True),
+                    ResultOutput(id="OUTPUT", value="/io/data/Centroids.geojson"),
+                    ResultOutput(id="FEATURE_COUNT", value=42),
+                    ResultOutput(id="AREA", value=1.5),
+                    ResultOutput(id="OK", value=True),
                 ],
                 log="Processing finished",
             ),
             ProcessResult(
                 outputs=[
-                    ParameterOutput(
-                        name="OUTPUT",
-                        value=FileOutput(
-                            path="a1b2/OUTPUT.gpkg", media_type="application/geopackage+sqlite3"
+                    ResultOutput(
+                        id="OUTPUT",
+                        value=Reference(
+                            href="a1b2/OUTPUT.gpkg", type="application/geopackage+sqlite3"
                         ),
                     ),
-                    ParameterOutput(name="FEATURE_COUNT", value=42),
+                    ResultOutput(id="FEATURE_COUNT", value=42),
                 ],
             ),
         ],

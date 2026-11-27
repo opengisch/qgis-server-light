@@ -17,14 +17,14 @@ from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.description import ProcessDescriptions
 from qgis_server_light.interface.job.process.input import (
-    OutputFormat,
+    ExecuteOutput,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
 from qgis_server_light.interface.job.process.output import (
-    FileOutput,
-    ParameterOutput,
     ProcessResult,
+    Reference,
+    ResultOutput,
 )
 from qgis_server_light.processing.description import ProcessDescriptionMapper
 from qgis_server_light.worker.runner.common import JobContext, MapRunner
@@ -146,7 +146,7 @@ class ProcessRunner(MapRunner):
 
         parameters = self._parameters(algorithm, job)
         job_output_dir = Path(self.context.process_output_dir, self.job_info.id)
-        destinations = self._destinations(algorithm, job_output_dir, job.output_formats)
+        destinations = self._destinations(algorithm, job_output_dir, job.outputs)
         parameters.update({name: str(path) for name, path in destinations.items()})
 
         job_output_dir.mkdir(parents=True)
@@ -168,8 +168,8 @@ class ProcessRunner(MapRunner):
     ) -> dict:
         """The parameters the client sent, mapped to what the algorithm expects.
         Destinations are left out, the worker sets them on its own. A parameter
-        taking multiple layers gets one `ParameterInput` per layer, they are
-        collected into one list.
+        taking multiple layers gets all values of its input as list, any other
+        parameter the single value of its input.
 
         Args:
             algorithm: The algorithm the parameters are meant for.
@@ -180,21 +180,21 @@ class ProcessRunner(MapRunner):
 
         Raises:
             ValueError: If the client sent a destination, a value of an
-                unexpected type or more than one value for a parameter which
+                unexpected type or not exactly one value for a parameter which
                 takes only one.
         """
         parameters = {}
-        for param in job.parameters:
-            definition = algorithm.parameterDefinition(param.name)
+        for execute_input in job.inputs:
+            definition = algorithm.parameterDefinition(execute_input.id)
             if definition is not None and definition.isDestination():
-                raise ValueError(f"Destination `{param.name}` is set by the worker")
-            value = self._parameter_value(param.value)
+                raise ValueError(f"Destination `{execute_input.id}` is set by the worker")
+            values = [self._parameter_value(value) for value in execute_input.value]
             if isinstance(definition, QgsProcessingParameterMultipleLayers):
-                parameters.setdefault(param.name, []).append(value)
-            elif param.name in parameters:
-                raise ValueError(f"Parameter `{param.name}` takes only one value")
+                parameters[execute_input.id] = values
+            elif len(values) != 1:
+                raise ValueError(f"Parameter `{execute_input.id}` takes exactly one value")
             else:
-                parameters[param.name] = value
+                parameters[execute_input.id] = values[0]
         return parameters
 
     def _parameter_value(self, value: QslJobLayer | str | int | float | bool):
@@ -212,7 +212,7 @@ class ProcessRunner(MapRunner):
         self,
         algorithm: QgsProcessingAlgorithm,
         job_output_dir: Path,
-        output_formats: list[OutputFormat],
+        outputs: list[ExecuteOutput],
     ) -> dict[str, Path]:
         """The files the destinations of the algorithm are written to, by
         destination name. The worker sets them, so concurrent jobs never collide.
@@ -222,7 +222,7 @@ class ProcessRunner(MapRunner):
         Args:
             algorithm: The algorithm whose destinations are set.
             job_output_dir: The dir of the job, the destination files go into.
-            output_formats: The formats the client chose for the outputs.
+            outputs: The formats the client chose for the outputs.
 
         Returns:
             The absolute destination files by destination name.
@@ -231,9 +231,7 @@ class ProcessRunner(MapRunner):
             ValueError: If the client chose a format for an output which is no
                 destination or a format the description does not offer.
         """
-        media_type_by_name = {
-            output_format.name: output_format.media_type for output_format in output_formats
-        }
+        media_type_by_name = {output.id: output.format.media_type for output in outputs}
         destination_names = [
             definition.name() for definition in algorithm.destinationParameterDefinitions()
         ]
@@ -253,7 +251,7 @@ class ProcessRunner(MapRunner):
             )
         return destinations
 
-    def _file_output(self, destination: Path) -> FileOutput:
+    def _reference(self, destination: Path) -> Reference:
         """The destination as the client sees it, relative to the process output
         dir, so the worker does not leak its own file system layout.
 
@@ -263,9 +261,9 @@ class ProcessRunner(MapRunner):
         Returns:
             The relative path and the media type of the file.
         """
-        return FileOutput(
-            path=destination.relative_to(self.context.process_output_dir).as_posix(),
-            media_type=self.media_type_by_extension[destination.suffix.removeprefix(".")],
+        return Reference(
+            href=destination.relative_to(self.context.process_output_dir).as_posix(),
+            type=self.media_type_by_extension[destination.suffix.removeprefix(".")],
         )
 
     def _run_algorithm(
@@ -300,10 +298,10 @@ class ProcessRunner(MapRunner):
         for name, value in result.items():
             if name in destinations:
                 process_result.outputs.append(
-                    ParameterOutput(name, self._file_output(destinations[name]))
+                    ResultOutput(name, self._reference(destinations[name]))
                 )
             elif isinstance(value, (str, int, float, bool)):
-                process_result.outputs.append(ParameterOutput(name, value))
+                process_result.outputs.append(ResultOutput(name, value))
             else:
                 raise ValueError(f"Unexpected output value: {value}")
         return process_result

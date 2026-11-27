@@ -1,33 +1,40 @@
+"""This module contains the result of a process job. It is shaped along the results of
+OGC API - Processes - Part 1: Core
+(https://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/results.yaml),
+per output either the literal value or a reference to the file. The outputs are a list of
+entries with their id instead of a map by id, see `ExecuteInput`.
+"""
+
 from dataclasses import dataclass, field
 
 from qgis_server_light.interface.common import BaseInterface
 
 
 @dataclass
-class FileOutput:
+class Reference:
     """A file a process wrote into the process output dir of the worker.
 
     Attributes:
-        path: The path of the file relative to the process output dir.
-        media_type: The media type of the file.
+        href: The path of the file relative to the process output dir.
+        type: The media type of the file.
     """
 
-    path: str = field(metadata={"type": "Element"})
-    media_type: str = field(metadata={"type": "Element"})
+    href: str = field(metadata={"type": "Element"})
+    type: str = field(metadata={"type": "Element"})
 
 
 @dataclass
-class ParameterOutput:
-    """A single output of a process, the counterpart of `ParameterInput`.
+class ResultOutput:
+    """A single output of a process, the counterpart of `ExecuteInput`.
 
     Attributes:
-        name: The name of the output as the QGIS algorithm defines it.
+        id: The identifier of the output, the QGIS output name.
         value: The file the output was written to, or the literal value of the
             output.
     """
 
-    name: str = field(metadata={"type": "Element"})
-    value: FileOutput | str | int | float | bool = field(metadata={"type": "Element"})
+    id: str = field(metadata={"type": "Element"})
+    value: Reference | str | int | float | bool = field(metadata={"type": "Element"})
 
 
 @dataclass(repr=False)
@@ -38,10 +45,11 @@ class ProcessResult(BaseInterface):
 
     Attributes:
         outputs: The outputs of the process.
-        log: The log the QGIS algorithm wrote while it was running.
+        log: The log the QGIS algorithm wrote while it was running. It has no place in
+            the results of OGC API - Processes and travels next to the outputs.
     """
 
-    outputs: list[ParameterOutput] = field(default_factory=list, metadata={"type": "Element"})
+    outputs: list[ResultOutput] = field(default_factory=list, metadata={"type": "Element"})
     log: str = field(default="", metadata={"type": "Element"})
 
     @property

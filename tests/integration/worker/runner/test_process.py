@@ -5,14 +5,14 @@ from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.job.common.output import JobResult
 from qgis_server_light.interface.job.process.input import (
-    ParameterInput,
+    ExecuteInput,
     QslJobInfoExecuteProcess,
     QslJobParameterExecuteProcess,
 )
 from qgis_server_light.interface.job.process.output import (
-    FileOutput,
-    ParameterOutput,
     ProcessResult,
+    Reference,
+    ResultOutput,
 )
 from qgis_server_light.worker.runner.common import JobContext
 from qgis_server_light.worker.runner.process import ProcessRunner
@@ -26,14 +26,14 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:buffer",
-                parameters=[
-                    ParameterInput("INPUT", placenames_layer),
-                    ParameterInput("DISTANCE", 1.0),
-                    ParameterInput("END_CAP_STYLE", "Round"),
-                    ParameterInput("JOIN_STYLE", "Round"),
-                    ParameterInput("MITER_LIMIT", 2.0),
-                    ParameterInput("DISSOLVE", False),
-                    ParameterInput("SEPARATE_DISJOINT", False),
+                inputs=[
+                    ExecuteInput("INPUT", [placenames_layer]),
+                    ExecuteInput("DISTANCE", [1.0]),
+                    ExecuteInput("END_CAP_STYLE", ["Round"]),
+                    ExecuteInput("JOIN_STYLE", ["Round"]),
+                    ExecuteInput("MITER_LIMIT", [2.0]),
+                    ExecuteInput("DISSOLVE", [False]),
+                    ExecuteInput("SEPARATE_DISJOINT", [False]),
                 ],
             ),
         )
@@ -56,9 +56,9 @@ class TestProcessRunnerIntegration:
         )
         process_result = JsonParser().from_bytes(result.data, ProcessResult)
         assert (
-            ParameterOutput(
+            ResultOutput(
                 "OUTPUT",
-                FileOutput(path=f"{job_id}/OUTPUT.geojson", media_type="application/geo+json"),
+                Reference(href=f"{job_id}/OUTPUT.geojson", type="application/geo+json"),
             )
             in process_result.outputs
         )
@@ -70,8 +70,8 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", placenames_layer),
+                inputs=[
+                    ExecuteInput("INPUT", [placenames_layer]),
                 ],
             ),
         )
@@ -94,9 +94,9 @@ class TestProcessRunnerIntegration:
         )
         process_result = JsonParser().from_bytes(result.data, ProcessResult)
         assert (
-            ParameterOutput(
+            ResultOutput(
                 "OUTPUT",
-                FileOutput(path=f"{job_id}/OUTPUT.geojson", media_type="application/geo+json"),
+                Reference(href=f"{job_id}/OUTPUT.geojson", type="application/geo+json"),
             )
             in process_result.outputs
         )
@@ -107,7 +107,7 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:does_not_exist",
-                parameters=[],
+                inputs=[],
             ),
         )
 
@@ -131,8 +131,8 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", f"{data_path}/does_not_exist.gpkg"),
+                inputs=[
+                    ExecuteInput("INPUT", [f"{data_path}/does_not_exist.gpkg"]),
                 ],
             ),
         )
@@ -156,7 +156,7 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[],
+                inputs=[],
             ),
         )
 
@@ -175,7 +175,7 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[],
+                inputs=[],
             ),
         )
 
@@ -197,8 +197,8 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", placenames_layer),
+                inputs=[
+                    ExecuteInput("INPUT", [placenames_layer]),
                 ],
             ),
         )
@@ -225,9 +225,9 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:basicstatisticsforfields",
-                parameters=[
-                    ParameterInput("INPUT_LAYER", placenames_layer),
-                    ParameterInput("FIELD_NAME", "name"),
+                inputs=[
+                    ExecuteInput("INPUT_LAYER", [placenames_layer]),
+                    ExecuteInput("FIELD_NAME", ["name"]),
                 ],
             ),
         )
@@ -245,14 +245,14 @@ class TestProcessRunnerIntegration:
         result = runner.run()
         process_result = JsonParser().from_bytes(result.data, ProcessResult)
         assert (
-            ParameterOutput(
+            ResultOutput(
                 "OUTPUT_HTML_FILE",
-                FileOutput(path=f"{job_id}/OUTPUT_HTML_FILE.html", media_type="text/html"),
+                Reference(href=f"{job_id}/OUTPUT_HTML_FILE.html", type="text/html"),
             )
             in process_result.outputs
         )
-        assert ParameterOutput("COUNT", 93) in process_result.outputs
-        assert ParameterOutput("MIN", "Aarau") in process_result.outputs
+        assert ResultOutput("COUNT", 93) in process_result.outputs
+        assert ResultOutput("MIN", "Aarau") in process_result.outputs
 
     def test_execute_client_destination_rejected(
         self, qgis_app, data_path, tmp_path, placenames_layer
@@ -263,9 +263,9 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", placenames_layer),
-                    ParameterInput("OUTPUT", "/tmp/somewhere_else.gpkg"),
+                inputs=[
+                    ExecuteInput("INPUT", [placenames_layer]),
+                    ExecuteInput("OUTPUT", ["/tmp/somewhere_else.gpkg"]),
                 ],
             ),
         )
@@ -300,7 +300,7 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id=process_id,
-                parameters=[],
+                inputs=[],
             ),
         )
 
@@ -325,8 +325,8 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", f"{data_path}/does_not_exist.gpkg"),
+                inputs=[
+                    ExecuteInput("INPUT", [f"{data_path}/does_not_exist.gpkg"]),
                 ],
             ),
         )
@@ -354,8 +354,8 @@ class TestProcessRunnerIntegration:
             type=QslJobInfoExecuteProcess.__name__,
             job=QslJobParameterExecuteProcess(
                 process_id="native:centroids",
-                parameters=[
-                    ParameterInput("INPUT", f"{data_path}/does_not_exist.gpkg"),
+                inputs=[
+                    ExecuteInput("INPUT", [f"{data_path}/does_not_exist.gpkg"]),
                 ],
             ),
         )
