@@ -9,8 +9,9 @@ from qgis.core import (
     QgsLegendRenderer,
     QgsLegendSettings,
     QgsLegendStyle,
+    QgsRenderContext,
 )
-from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, Qt
+from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, QJsonDocument, Qt
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from qgis_server_light.interface.job.common.output import JobResult
@@ -33,6 +34,10 @@ class GetLegendRunner(MapRunner):
     @classmethod
     def image_formats(cls):
         return {"image/png": cls._encode_png, "image/jpeg": cls._encode_jpg}
+
+    @classmethod
+    def json_formats(cls):
+        return ["application/json", "json"]
 
     def run(self):
         logging.info(f"Executing job: {self.job_info}")
@@ -65,6 +70,13 @@ class GetLegendRunner(MapRunner):
                 QgsLegendRenderer.setNodeLegendStyle(layer_node, QgsLegendStyle.Hidden)
 
         renderer = QgsLegendRenderer(model, settings)
+
+        if self.job_info.job.format.lower() in self.json_formats():
+            return JobResult(
+                id=self.job_info.id,
+                data=self._export_json(renderer),
+                content_type="application/json",
+            )
 
         width = self.job_info.job.width
         height = self.job_info.job.height
@@ -126,6 +138,12 @@ class GetLegendRunner(MapRunner):
             raise RuntimeError(
                 f"Requested mimtype '{fmt}' was found in {list(self.image_formats())}."
             ) from e
+
+    @staticmethod
+    def _export_json(renderer: QgsLegendRenderer) -> bytes:
+        # same as QGIS Server does it, a default render context is enough here
+        legend = renderer.exportLegendToJson(QgsRenderContext())
+        return bytes(QJsonDocument(legend).toJson(QJsonDocument.JsonFormat.Compact))
 
     @staticmethod
     def _encode_png(image: QImage):
