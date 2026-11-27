@@ -9,8 +9,9 @@ from collections.abc import MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QColor
+from fpng_py import CompressionFlags, fpng_encode_image_to_memory
+from PyQt5.QtCore import QBuffer, QByteArray, QIODevice, QSize, Qt
+from PyQt5.QtGui import QColor, QImage
 from PyQt5.QtXml import QDomDocument
 from qgis.core import (
     QgsApplication,
@@ -436,3 +437,50 @@ class MapRunner(Runner):
             job_layer_definition.driver,
         )
         return qgs_layer
+
+
+class ImageRunner(MapRunner):
+    """Base class for any map runner which answers with an encoded image.
+    Not runnable by itself.
+    """
+
+    @classmethod
+    def image_formats(cls):
+        return {"image/png": cls._encode_png, "image/jpeg": cls._encode_jpg}
+
+    def _encode_image(self, image: QImage, fmt: str) -> tuple[str, bytearray]:
+        """Encodes an image in a specific mime type
+        Args:
+            image (QImage): The image to encode
+            fmt (str): The mime type of the format
+        Returns:
+            A tuple with mime type and bytes-like object of an encoded image in the desired format
+        """
+        try:
+            fmt = fmt.lower()
+            encoding_method = self.image_formats()[fmt]
+            return fmt, encoding_method(image)
+        except KeyError as e:
+            raise RuntimeError(
+                f"Requested mime type '{fmt}' was not found in {list(self.image_formats())}."
+            ) from e
+
+    @staticmethod
+    def _encode_png(image: QImage):
+        image = image.convertToFormat(QImage.Format_RGBA8888)
+        image_data = fpng_encode_image_to_memory(
+            image.constBits().asstring(image.sizeInBytes()),
+            image.width(),
+            image.height(),
+            0,
+            CompressionFlags.NONE,
+        )
+        return image_data
+
+    @staticmethod
+    def _encode_jpg(image: QImage):
+        image_data = QByteArray()
+        buf = QBuffer(image_data)
+        buf.open(QIODevice.WriteOnly)
+        image.save(buf, "JPG")
+        return image_data
