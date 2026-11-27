@@ -45,11 +45,18 @@ class JobContext:
         process_output_dir: The absolute path to the dir the processes write their
             outputs to, each job into its own sub dir. Only the process runner needs
             it, it refuses to run without.
+        process_internal_allowlist: The ids of the QGIS algorithms the worker serves as
+            processes for internal use of the consumer only, they must not be published.
     """
 
     base_path: str | Path
     process_allowlist: list[str] = field(default_factory=list)
     process_output_dir: str | Path | None = None
+    process_internal_allowlist: list[str] = field(default_factory=list)
+
+    @property
+    def served_process_ids(self) -> list[str]:
+        return self.process_allowlist + self.process_internal_allowlist
 
 
 class Runner(ABC):

@@ -78,7 +78,12 @@ class ProcessRunner(MapRunner):
         self.registry = self.qgis.processingRegistry()
 
     @classmethod
-    def info(cls, qgis: QgsApplication, process_allowlist: list[str]) -> ProcessDescriptions:
+    def info(
+        cls,
+        qgis: QgsApplication,
+        process_allowlist: list[str],
+        process_internal_allowlist: list[str] | None = None,
+    ) -> ProcessDescriptions:
         """The descriptions of the processes the worker serves. An algorithm of the
         allowlist the worker can't serve is skipped and logged, so one entry can't empty
         the processes of the worker. That's the case for a parameter without mapping and
@@ -87,14 +92,18 @@ class ProcessRunner(MapRunner):
         Args:
             qgis: The QGIS application holding the processing registry.
             process_allowlist: The ids of the QGIS algorithms the worker serves.
+            process_internal_allowlist: The ids of the QGIS algorithms the worker serves
+                for internal use of the consumer only, their descriptions are marked
+                `internal`.
 
         Raises:
             LookupError: If an algorithm of the allowlist is not in the processing registry.
         """
+        process_internal_allowlist = process_internal_allowlist or []
         registry = qgis.processingRegistry()
         mapper = ProcessDescriptionMapper()
         process_descriptions = ProcessDescriptions()
-        for process_id in process_allowlist:
+        for process_id in process_allowlist + process_internal_allowlist:
             algorithm = registry.algorithmById(process_id)
             if algorithm is None:
                 raise LookupError(f"Algorithm `{process_id}` of the allowlist not found")
@@ -104,9 +113,13 @@ class ProcessRunner(MapRunner):
                 )
                 continue
             try:
-                process_descriptions.processes.append(mapper.process_description(algorithm))
+                process_description = mapper.process_description(algorithm)
             except ValueError as e:
                 logging.warning(f"Algorithm `{process_id}` of the allowlist skipped: {e}")
+                continue
+            if process_id in process_internal_allowlist:
+                process_description.internal = True
+            process_descriptions.processes.append(process_description)
         return process_descriptions
 
     @staticmethod
@@ -129,7 +142,7 @@ class ProcessRunner(MapRunner):
                 found, requires a project or no process output dir is configured.
         """
         job: QslJobParameterExecuteProcess = self.job_info.job
-        if job.process_id not in self.context.process_allowlist:
+        if job.process_id not in self.context.served_process_ids:
             raise RuntimeError(f"Algorithm `{job.process_id}` is not served by this worker")
         algorithm = self.registry.algorithmById(job.process_id)
         if algorithm is None:

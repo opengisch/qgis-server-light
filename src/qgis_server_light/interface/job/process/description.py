@@ -134,6 +134,8 @@ class ProcessDescription(BaseInterface):
         inputs: The inputs which are passed by the client. Destinations are not part of
             it, they are set by the worker.
         outputs: The outputs the process produces.
+        internal: If the process is for internal use of the consumer only and must not be
+            published. Left out (`None`) for a publishable process.
     """
 
     id: str = field(metadata={"type": "Element"})
@@ -141,6 +143,7 @@ class ProcessDescription(BaseInterface):
     description: str | None = field(default=None, metadata={"type": "Element"})
     inputs: list[InputDescription] = field(default_factory=list, metadata={"type": "Element"})
     outputs: list[OutputDescription] = field(default_factory=list, metadata={"type": "Element"})
+    internal: bool | None = field(default=None, metadata={"type": "Element"})
 
     @property
     def shortened_fields(self) -> set:

@@ -210,7 +210,9 @@ class RedisEngine(Engine):
         )
         if process_runner_class is None:
             return
-        process_descriptions = process_runner_class.info(self.qgis, self.context.process_allowlist)
+        process_descriptions = process_runner_class.info(
+            self.qgis, self.context.process_allowlist, self.context.process_internal_allowlist
+        )
         self.processes_json = JsonSerializer(dict_factory=DictFactory.FILTER_NONE).render(
             process_descriptions
         )
@@ -229,7 +231,7 @@ class RedisEngine(Engine):
         worker_key = RedisProtocol.worker_key(self.info.id)
         if not client.hexists(worker_key, RedisProtocol.worker_processes_key):
             client.hset(worker_key, RedisProtocol.worker_processes_key, self.processes_json)
-            logging.info(f"Processes {self.context.process_allowlist} were registered in Redis")
+            logging.info(f"Processes {self.context.served_process_ids} were registered in Redis")
 
     def retry_connection(self, redis_url: str, count: int):
         logging.warning(f"Could not connect to redis on `{redis_url}`.")
@@ -589,6 +591,16 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--process-internal-allowlist",
+        type=str,
+        help="Ids of the QGIS algorithms the worker serves as processes for internal use of "
+        "the consumer only, separated by `,`. Their descriptions are marked `internal`, the "
+        "consumer must not publish them. Only used when the worker boots with the process "
+        "runner. Defaults to none",
+        default="",
+    )
+
+    parser.add_argument(
         "--process-output-dir",
         type=str,
         help="Absolute path to the dir the processes write their outputs to, each job "
@@ -620,8 +632,16 @@ def main() -> None:
     svg_paths = args.svg_path.split(":")
     runner_plugins = args.runner_plugins.split(":")
     process_allowlist = args.process_allowlist.split(",")
+    process_internal_allowlist = [
+        process_id for process_id in args.process_internal_allowlist.split(",") if process_id
+    ]
     engine = engine_classes[args.engine](
-        EngineContext(args.data_root, process_allowlist, args.process_output_dir),
+        EngineContext(
+            args.data_root,
+            process_allowlist,
+            args.process_output_dir,
+            process_internal_allowlist,
+        ),
         runner_plugins,
         svg_paths=svg_paths,
     )

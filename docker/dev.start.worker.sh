@@ -9,4 +9,5 @@ exec uv run hupper -m qgis_server_light.worker.redis \
   ${QSL_ENGINE:+--engine "$QSL_ENGINE"} \
   ${QSL_RUNNER_PLUGINS:+--runner-plugins "$QSL_RUNNER_PLUGINS"} \
   ${QSL_PROCESS_ALLOWLIST:+--process-allowlist "$QSL_PROCESS_ALLOWLIST"} \
+  ${QSL_PROCESS_INTERNAL_ALLOWLIST:+--process-internal-allowlist "$QSL_PROCESS_INTERNAL_ALLOWLIST"} \
   ${QSL_PROCESS_OUTPUT_DIR:+--process-output-dir "$QSL_PROCESS_OUTPUT_DIR"}
