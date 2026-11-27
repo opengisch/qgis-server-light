@@ -3,7 +3,10 @@ import os.path
 
 import click
 from qgis.core import QgsApplication
-from xsdata.formats.dataclass.serializers import JsonSerializer, XmlSerializer
+from xsdata.formats.dataclass.serializers import (
+    JsonSerializer,
+    XmlSerializer,
+)
 from xsdata.formats.dataclass.serializers.config import SerializerConfig
 
 from qgis_server_light.exporter.exceptions import ExportFailure
@@ -25,7 +28,6 @@ def main() -> None:
     for future content.
 
     """
-    pass
 
 
 @click.option("--project", help="Absolute path to the QGIS project.")

@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import uuid
@@ -10,8 +9,6 @@ from qgis.core import QgsVectorLayer
 from xsdata.formats.dataclass.parsers import JsonParser
 
 from qgis_server_light.interface.common import BBox, Style
-from qgis_server_light.interface.exporter.extract import GdalSource, OgrSource
-from qgis_server_light.interface.job.common.input import QslJobLayer
 from qgis_server_light.interface.job.feature.input import (
     FeatureQuery,
     QslJobInfoFeature,
@@ -49,35 +46,6 @@ def base_path(tmp_path, data_path):
     """A copy of the test data which can be broken without harming the resources."""
     shutil.copytree(os.path.join(data_path, "data"), tmp_path / "data")
     yield tmp_path
-
-
-@pytest.fixture
-def placenames_layer():
-    yield QslJobLayer(
-        id=str(uuid.uuid4()),
-        name="test-local-gpkg",
-        source=json.dumps(
-            OgrSource(path="placenames.gpkg", layer_name="placenames").to_qgis_decoded_uri
-        ),
-        remote=False,
-        folder_name="data",
-        driver="ogr",
-    )
-
-
-@pytest.fixture
-def geotiff_layer():
-    yield QslJobLayer(
-        id=str(uuid.uuid4()),
-        name="test-local-geotiff",
-        source=json.dumps(GdalSource(path="bui20220630.tif").to_qgis_decoded_uri),
-        remote=False,
-        folder_name="data",
-        driver="gdal",
-        style=Style(
-            name="default", definition=urlsafe_b64encode(zlib.compress(b"<qgis/>")).decode()
-        ),
-    )
 
 
 @pytest.fixture
